@@ -1,0 +1,8 @@
+{
+  "name": "CloudExtensions",
+  "description": "CloudStream extensions: Russian, English and Japanese.",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/plugins.json"
+  ]
+}
