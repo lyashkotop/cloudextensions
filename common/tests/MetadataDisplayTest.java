@@ -27,7 +27,7 @@ public final class MetadataDisplayTest {
         String description = "A complete description supplied by the source.";
         com.streambundle.SourceTiming.remember(url, "205.5");
         String plot = MetadataDisplay.decorate(current, url, description);
-        check(plot.startsWith("Длительность: 03:25.5\nКачество: 1080p\n\n"), "duration and source quality first");
+        check(plot.startsWith("Качество: 1080p\n\n") && !plot.contains("Длительность:"), "duration is not duplicated in plot");
         check(plot.endsWith(description), "source description retained");
         check(MetadataDisplay.decorate(current, url, plot).equals(plot), "repeated enrichment is idempotent");
         check(MetadataDisplay.body("Длительность: 03:20\n\n" + description).equals(description), "legacy duration prefix retains source description");

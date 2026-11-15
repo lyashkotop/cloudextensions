@@ -44,7 +44,7 @@ class Javangel : MainAPI() {
 
         val spanImg = this.selectFirst("span.entry-thumb, span[data-img-url]")?.attr("data-img-url")
         val imgTag = this.selectFirst("img")?.attr("src")
-        val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(spanImg?.takeIf { it.isNotBlank() } ?: imgTag)
+        val posterUrl =com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(spanImg?.takeIf { it.isNotBlank() } ?: imgTag)
 
         return newMovieSearchResponse(title, href, TvType.NSFW) {
             this.posterUrl = posterUrl

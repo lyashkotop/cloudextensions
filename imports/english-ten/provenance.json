@@ -1,0 +1,58 @@
+[
+  {
+    "id": "CosXPlay",
+    "origin": "https://cosxplay.com",
+    "repository": "upstream-Cs-GizliKeyif",
+    "module": "CosXPlay",
+    "commit": "c7e7d11b0e1831d9acc852df2cd07521de886cfa",
+    "files": {
+      "src/main/kotlin/com/kraptor/CosXPlay.kt": "70978436cc130eabd8449bd1b65a88c5b17c3c7c32e496972e0d39831f2bfd05",
+      "src/main/kotlin/com/kraptor/CosXPlayPlugin.kt": "e6635b46d8008a53b578340a19e161b08a1d92ef2d1a5599a7b530a405874b89"
+    }
+  },
+  {
+    "id": "Epawg",
+    "origin": "https://epawg.com",
+    "repository": "upstream-Cs-GizliKeyif",
+    "module": "ePawg",
+    "commit": "c7e7d11b0e1831d9acc852df2cd07521de886cfa",
+    "files": {
+      "src/main/kotlin/com/kraptor/EPawgPlugin.kt": "c427e81e0915ac5291fb5080ad6f46ccd0e05b91f6aeef111277ec486803fc24",
+      "src/main/kotlin/com/kraptor/EPawg.kt": "1a6b416091cbaad6e396a852c15fc04c692a7345382a791534169f9c06c4e2c6",
+      "src/main/kotlin/com/kraptor/KtPlayerExtractor.kt": "ffed5b8ed04991a90fad6a499d5a6505b4a2557f46c1a79c884dad3a28fce94a"
+    }
+  },
+  {
+    "id": "EPorner",
+    "origin": "https://www.eporner.com",
+    "repository": "upstream-Cs-GizliKeyif",
+    "module": "EPorner",
+    "commit": "c7e7d11b0e1831d9acc852df2cd07521de886cfa",
+    "files": {
+      "src/main/kotlin/com/byayzen/EPornerPlugin.kt": "ae04d7a5053a2fa63de0671d4b17fbdadf6fe91ff1edfdc5bb5fa4bd33d034ed",
+      "src/main/kotlin/com/byayzen/EPorner.kt": "3382d2dd061fb9d5df8d82b8acc921cd09c70c6d59d72203769d0b2fbada5400"
+    }
+  },
+  {
+    "id": "HeavyR",
+    "origin": "https://heavy-r.com",
+    "repository": "upstream-Cs-GizliKeyif",
+    "module": "HeavyR",
+    "commit": "c7e7d11b0e1831d9acc852df2cd07521de886cfa",
+    "files": {
+      "src/main/kotlin/com/byayzen/HeavyPlugin.kt": "de00ffa71232d96929a4c69d0fb4f9c80f6f1f02e253a11b7fbb6dcf82f2441b",
+      "src/main/kotlin/com/byayzen/Heavy.kt": "b9b978930f697759d455e8e9af5a8afbaacbdc17246024fa3b8e6563f6233e18"
+    }
+  },
+  {
+    "id": "Beeg",
+    "origin": "https://beeg.porn",
+    "repository": "upstream-CXXX",
+    "module": "Beeg",
+    "commit": "f1bb71a85c62746e9b70b6e68e67fc48c005d116",
+    "files": {
+      "src/main/kotlin/com/watchuu/beeg/BeegPlugin.kt": "be5ecbeb4d962325424036bac759eef11e6ce94fa87ca1f07c8d646553af5440",
+      "src/main/kotlin/com/watchuu/beeg/BeegProvider.kt": "5f7eaf16610ea88cc3139520d75bbedc3a21aed4c87a08a55d2fef52db34512c"
+    }
+  }
+]

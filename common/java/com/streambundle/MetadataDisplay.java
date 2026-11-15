@@ -55,7 +55,6 @@ public final class MetadataDisplay {
         String duration = SourceTiming.label(url);
         String q = QUALITY.get(key(url));
         StringBuilder result = new StringBuilder();
-        if (!duration.isEmpty()) result.append("Длительность: ").append(duration).append('\n');
         if (q != null && !q.isEmpty()) result.append("Качество: ").append(q).append('\n');
         String text = body(description).trim();
         if (result.length() > 0 && !text.isEmpty()) result.append('\n');

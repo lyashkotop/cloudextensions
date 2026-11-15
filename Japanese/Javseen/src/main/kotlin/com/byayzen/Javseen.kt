@@ -103,7 +103,7 @@ class Javseen : MainAPI() {
         val link = this.selectFirst("a.thumbnail") ?: return null
         val title = link.selectFirst("span.video-title")?.text()?.trim() ?: link.attr("title")
         val href = fixUrlNull(link.attr("href")) ?: return null
-        val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(link.selectFirst("img")?.attr("src"))
+        val posterUrl =com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(link.selectFirst("img")?.attr("src"))
 
         return newMovieSearchResponse(title, href, TvType.NSFW) {
             this.posterUrl = posterUrl

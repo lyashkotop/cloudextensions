@@ -42,7 +42,7 @@ class Javguru : MainAPI() {
     private fun Element.toSearchResult(): SearchResponse {
         val title     = this.select("div > div > div > a > img").attr("alt")
         val href      = fixUrl(this.select("div > div > div > a").attr("href"))
-        val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(this.select("div > div > div > a > img").attr("src"))
+        val posterUrl =com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(this.select("div > div > div > a > img").attr("src"))
         return newMovieSearchResponse(title, href, TvType.NSFW) {
             this.posterUrl = posterUrl
             this.posterHeaders = com.cloudextensions.russian.Network.headers(mainUrl)

@@ -5,5 +5,5 @@ import com.Javpoint.Javgg
 import com.Javpoint.registerJavGGExtractors
 @CloudstreamPlugin
 class JavGGPlugin: Plugin(){
- override fun load(context:Context){registerMainAPI(Javgg().apply { name = "2. Javgg" });registerJavGGExtractors(this)}
+ override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.AdaptedProvider(Javgg().apply { name = "2. Javgg" }));registerJavGGExtractors(this)}
 }

@@ -5,5 +5,5 @@ import com.jacekun.JavMost
 import com.jacekun.registerJavMostExtractors
 @CloudstreamPlugin
 class JavMostPlugin: Plugin(){
- override fun load(context:Context){registerMainAPI(JavMost().apply { name = "2. JavMost" });registerJavMostExtractors(this)}
+ override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.AdaptedProvider(JavMost().apply { name = "2. JavMost" }));registerJavMostExtractors(this)}
 }

@@ -1,0 +1,13 @@
+[
+  {
+    "id": "Beeg",
+    "origin": "https://beeg.porn",
+    "repository": "upstream-CXXX",
+    "module": "Beeg",
+    "commit": "f1bb71a85c62746e9b70b6e68e67fc48c005d116",
+    "files": {
+      "src/main/kotlin/com/watchuu/beeg/BeegPlugin.kt": "be5ecbeb4d962325424036bac759eef11e6ce94fa87ca1f07c8d646553af5440",
+      "src/main/kotlin/com/watchuu/beeg/BeegProvider.kt": "5f7eaf16610ea88cc3139520d75bbedc3a21aed4c87a08a55d2fef52db34512c"
+    }
+  }
+]

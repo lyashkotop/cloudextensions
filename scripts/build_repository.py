@@ -14,6 +14,7 @@ import tempfile
 import zipfile
 import zlib
 import kotlin_build
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 ROOT = Path(__file__).resolve().parents[1]
 CATEGORIES = {'Russian': 'ru', 'Japanese': 'ja', 'English': 'en'}
@@ -225,9 +226,16 @@ def main():
         dex = Dex(data)
         if any('Test;' in name or name.startswith('Lcom/lagradost/cloudstream3/') or name.startswith('Lcom/lagradost/nicehttp/') for name in dex.classes):
             raise ValueError('Test doubles or host API classes were included in production DEX')
+        native_results = {}
+        native_modules = [m for m in selected if m.get('runtime') == 'kotlin']
+        if native_modules:
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                jobs = {pool.submit(kotlin_build.package_dex, tools, temporary, native_common, m): m['id'] for m in native_modules}
+                for future in as_completed(jobs):
+                    native_results[jobs[future]] = future.result()
         index = []
         for module in selected:
-            module_data = kotlin_build.package_dex(tools, temporary, native_common, module) if module.get('runtime') == 'kotlin' else data
+            module_data = native_results[module['id']] if module.get('runtime') == 'kotlin' else data
             module_dex = Dex(module_data) if module.get('runtime') == 'kotlin' else dex
             module_dex.validate_entry(module)
             if module.get('runtime') == 'kotlin':

@@ -5,5 +5,5 @@ import com.javtiful.Javtiful
 import com.javtiful.registerJavtifulExtractors
 @CloudstreamPlugin
 class JavtifulPlugin: Plugin(){
- override fun load(context:Context){registerMainAPI(Javtiful().apply { name = "2. Javtiful" });registerJavtifulExtractors(this)}
+ override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.AdaptedProvider(Javtiful().apply { name = "2. Javtiful" }));registerJavtifulExtractors(this)}
 }

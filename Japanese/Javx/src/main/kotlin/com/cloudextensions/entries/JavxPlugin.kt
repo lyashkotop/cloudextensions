@@ -5,5 +5,5 @@ import com.Javx.Javx
 import com.Javx.registerJavxExtractors
 @CloudstreamPlugin
 class JavxPlugin: Plugin(){
- override fun load(context:Context){registerMainAPI(Javx().apply { name = "2. Javx" });registerJavxExtractors(this)}
+ override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.AdaptedProvider(Javx().apply { name = "2. Javx" }));registerJavxExtractors(this)}
 }

@@ -46,7 +46,7 @@ class JavEnglish : MainAPI() {
             ?: return null
 
         val img = this.selectFirst("div.post-thumbnail img, img")
-        val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(
+        val posterUrl =com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(
             img?.attr("data-src")?.takeIf { it.isNotBlank() }
                 ?: img?.attr("src")?.takeIf { it.isNotBlank() }
         )

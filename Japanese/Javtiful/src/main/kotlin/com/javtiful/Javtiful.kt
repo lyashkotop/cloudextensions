@@ -59,7 +59,7 @@ class Javtiful : MainAPI() {
             ?: this.selectFirst("a.video-card__title, h2, h3, h4")?.text()?.trim()?.takeIf { it.isNotBlank() }
             ?: return null
 
-        val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(
+        val posterUrl =com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(
             img?.attr("data-front-lazy-src")?.takeIf { it.isNotBlank() }
                 ?: img?.attr("data-src")?.takeIf { it.isNotBlank() }
                 ?: img?.attr("src")?.takeIf { it.isNotBlank() && !it.endsWith(".svg") }

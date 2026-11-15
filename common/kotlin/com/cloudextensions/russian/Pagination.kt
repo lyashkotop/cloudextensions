@@ -55,8 +55,8 @@ object Pagination {
     fun search(page: Document, spec: SiteSpec, origin: String, query: String): PageRequest {
         val encoded=URLEncoder.encode(query,"UTF-8")
         if(spec.searchMode=="path")return PageRequest(origin.trimEnd('/')+"/search/"+encoded.replace("+","%20")+"/")
-        val form=page.select("form").firstOrNull { it.selectFirst("input[name=q],input[name=search],input[name=search_query]")!=null }
-        val input=form?.selectFirst("input[name=q],input[name=search],input[name=search_query]")
+        val form=page.select("form").firstOrNull { it.selectFirst("input[name=q],input[name=search],input[name=search_query],input[name=s],input[name='search_query[query]']")!=null }
+        val input=form?.selectFirst("input[name=q],input[name=search],input[name=search_query],input[name=s],input[name='search_query[query]']")
         val values=form?.select("input[name]")?.filter { it.attr("type")!in listOf("button","reset") }?.associate { it.attr("name") to it.attr("value") }?.toMutableMap() ?: mutableMapOf()
         values[input?.attr("name") ?: "q"]=query
         val action=absolute(page.baseUri(),form?.attr("action")) ?: origin.trimEnd('/')+"/search/"

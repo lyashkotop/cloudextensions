@@ -5,5 +5,5 @@ import com.jacekun.JavGuru
 import com.jacekun.registerJavGuruExtractors
 @CloudstreamPlugin
 class JavGuruPlugin: Plugin(){
- override fun load(context:Context){registerMainAPI(JavGuru().apply { name = "2. JAVGuru" });registerJavGuruExtractors(this)}
+ override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.AdaptedProvider(JavGuru().apply { name = "2. JAVGuru" }));registerJavGuruExtractors(this)}
 }

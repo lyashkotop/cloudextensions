@@ -26,7 +26,7 @@ public final class MetadataSourceSelectionTest {
         DetailMetadata.enrich(result);
         if (!result.name.equals(title)) throw new AssertionError("Chosen listing title changed on open");
         if (!result.tags.equals(Arrays.asList("Coastal walks", "City routes"))) throw new AssertionError("Head word fragments substituted for scoped source labels");
-        if (!result.plot.equals("Длительность: 04:05")) throw new AssertionError("Exact time missing or SEO used as narrative");
+        if (!result.plot.isEmpty()) throw new AssertionError("Exact time missing or SEO used as narrative");
         String emptyTaxonomy = html.replace("<a>Coastal walks</a><a>City routes</a>", "");
         DetailMetadata.collectVideo(Jsoup.parse(emptyTaxonomy, url), true);
         result.tags = new ArrayList<>(Arrays.asList("для", "ра"));

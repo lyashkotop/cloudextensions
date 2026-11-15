@@ -1,0 +1,11 @@
+{
+  "id": "Poebon",
+  "name": "Poebon",
+  "entryClass": "com.cloudextensions.entries.PoebonPlugin",
+  "providerClass": "com.cloudextensions.sites.PoebonProvider",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Poebon.png",
+  "category": "Russian",
+  "language": "ru",
+  "runtime": "kotlin",
+  "description": "Poebon — Kotlin: source metadata, pagination, category filters and previews."
+}

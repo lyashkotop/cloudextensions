@@ -55,7 +55,7 @@ class SuperJav : MainAPI() {
         val raw = img?.attr("data-original")?.takeIf { it.isNotBlank() }
             ?: img?.attr("data-src")?.takeIf { it.isNotBlank() }
             ?: img?.attr("src")?.takeIf { it.isNotBlank() && !it.startsWith("data:") }
-        val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(raw)
+        val posterUrl =com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(raw)
 
         return newMovieSearchResponse(title, href, TvType.NSFW) {
             this.posterUrl = posterUrl

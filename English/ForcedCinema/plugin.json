@@ -5,6 +5,7 @@
   "category": "English",
   "entryClass": "com.cloudextensions.entries.ForcedCinemaPlugin",
   "providerClass": "com.streambundleextra.ForcedCinemaProvider",
-  "description": "ForcedCinema extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/ForcedCinema.png"
+  "description": "ForcedCinema — Kotlin: source metadata, pagination, category filters and previews.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/ForcedCinema.png",
+  "runtime": "kotlin"
 }

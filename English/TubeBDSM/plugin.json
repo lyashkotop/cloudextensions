@@ -1,0 +1,12 @@
+{
+  "id": "TubeBDSM",
+  "name": "TubeBDSM",
+  "entryClass": "com.cloudextensions.entries.TubeBDSMPlugin",
+  "providerClass": "com.cloudextensions.sites.TubeBDSMProvider",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/TubeBDSM.png",
+  "category": "English",
+  "language": "en",
+  "runtime": "kotlin",
+  "description": "TubeBDSM — Kotlin: source metadata, pagination, category filters and previews. Aggregator: external playback targets require Android verification.",
+  "status": 3
+}

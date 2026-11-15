@@ -41,6 +41,7 @@ object Network {
                 request.data?.let { values -> val form=FormBody.Builder();values.forEach { (k,v)->form.add(k,v) };builder.post(form.build()) }
                 val document=execute(builder.build(),request.allowNotFound)
                 if(refresh)document.setBaseUri(request.url)
+                Metadata.alias(request.url,document.baseUri())
                 cache[request]=System.nanoTime() to document
                 document
             }

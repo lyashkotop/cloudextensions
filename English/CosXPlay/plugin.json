@@ -4,7 +4,8 @@
   "language": "en",
   "category": "English",
   "entryClass": "com.cloudextensions.entries.CosXPlayPlugin",
-  "providerClass": "com.lagradost.CosXPlayProvider",
-  "description": "CosXPlay extension imported from CloudstreamAdult. Source availability depends on the site.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/CosXPlay.png"
+  "providerClass": "com.kraptor.CosXPlay",
+  "description": "CosXPlay — Kotlin source imported with original extractor registrations.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/CosXPlay.png",
+  "runtime": "kotlin"
 }

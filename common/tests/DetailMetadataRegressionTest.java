@@ -35,7 +35,7 @@ public final class DetailMetadataRegressionTest {
         if (!response.tags.equals(Arrays.asList("Coast", "Walking"))) throw new AssertionError("Source-provided labels lost");
         if (!response.name.equals(fullTitle)) throw new AssertionError("Full title clipped");
         if (!response.plot.endsWith(source)) throw new AssertionError("Source description lost");
-        if (!response.plot.startsWith("Длительность: 03:05\n\n")) throw new AssertionError("Missing metadata header");
+        if (response.plot.contains("Длительность:")) throw new AssertionError("Duplicate duration header");
         String once = response.plot;
         DetailMetadata.enrich(response);
         if (!response.plot.equals(once)) throw new AssertionError("Repeated enrichment duplicates header");
@@ -47,7 +47,7 @@ public final class DetailMetadataRegressionTest {
         response.plot = "";
         DetailMetadata.enrich(response);
         if (!response.tags.isEmpty()) throw new AssertionError("Tags manufactured");
-        if (!response.plot.equals("Длительность: 03:05")) throw new AssertionError("Unknown description should not be fabricated");
+        if (!response.plot.isEmpty()) throw new AssertionError("Unknown description should not be fabricated");
         System.out.println("PASS 8 DetailMetadata regression checks; Android adapters substituted, no provider runtime claims.");
     }
 }

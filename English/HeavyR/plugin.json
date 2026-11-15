@@ -4,7 +4,8 @@
   "language": "en",
   "category": "English",
   "entryClass": "com.cloudextensions.entries.HeavyRPlugin",
-  "providerClass": "com.lagradost.HeavyRProvider",
-  "description": "Heavy-R extension imported from CloudstreamAdult. Source availability depends on the site.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/HeavyR.png"
+  "providerClass": "com.byayzen.Heavy",
+  "description": "Heavy-R — Kotlin source imported with original extractor registrations.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/HeavyR.png",
+  "runtime": "kotlin"
 }

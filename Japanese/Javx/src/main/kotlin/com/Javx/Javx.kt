@@ -47,7 +47,7 @@ class Javx : MainAPI() {
             ?: return null
 
         val img = this.selectFirst("a img, img")
-        val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(
+        val posterUrl =com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(
             img?.attr("data-src")?.takeIf { it.isNotBlank() }
                 ?: img?.attr("data-original")?.takeIf { it.isNotBlank() }
                 ?: img?.attr("src")?.takeIf { it.isNotBlank() }

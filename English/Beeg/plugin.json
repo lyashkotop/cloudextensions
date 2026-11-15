@@ -4,7 +4,8 @@
   "language": "en",
   "category": "English",
   "entryClass": "com.cloudextensions.entries.BeegPlugin",
-  "providerClass": "com.lagradost.VideoHubProvider",
-  "description": "Beeg.porn extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Beeg.png"
+  "providerClass": "com.watchuu.beeg.BeegProvider",
+  "description": "Beeg.porn — Kotlin source imported with original extractor registrations.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Beeg.png",
+  "runtime": "kotlin"
 }

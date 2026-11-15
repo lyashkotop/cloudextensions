@@ -19,6 +19,7 @@ object Metadata {
     private val whitespace = Regex("\\s+")
     private val truncated = Regex("(?:…|\\.\\.\\.)$")
     private val tagSelector = "[itemprop=keywords]:not(meta), .video-taxonomy .tax-tags a, .video-taxonomy .tax-feature-tags a, .video-tags a, .video_tags a, #video-tags a, #tags a, .tagsbox a, #tab_video_info .item a[href*=/tag], #tab_video_info .item a[href*=/categor], .item_info a[href*=/tag/], .item_info a[href*=/category/], .video-info a[rel=tag], .video-info .tags a, .video-info .categories a, .video-details .tags a, .video-details .categories a, .video-links a[rel=tag], .video-taxonomy .tax-categories a, [itemprop=genre]"
+    fun alias(from: String,to: String) { titles[videoKey(from)]?.let { titles[videoKey(to)]=it } }
     fun clean(value: String?) = value.orEmpty().replace('\u00a0',' ').replace(whitespace," ").trim()
     private fun value(e: Element?): String = e?.let { listOf(it.attr("content"), it.attr("datetime"), it.text()).firstOrNull(String::isNotBlank) }.orEmpty()
     fun title(url: String, candidates: List<String>): String {
@@ -31,12 +32,19 @@ object Metadata {
         return chosen
     }
     fun poster(element: Element, base: String): String? {
-        val image = if (element.tagName() == "img") element else element.selectFirst("img,video[poster]") ?: return null
-        for (name in listOf("data-src", "data-original", "data-s", "data-lazy-src", "data-image", "src", "poster")) {
-            absolute(base, image.attr(name))?.let { return it }
+        val image = if(element.tagName()=="img")element else element.selectFirst("img,video[poster]") ?: return null
+        fun candidate(value:String?):String? = absolute(base,value)?.takeUnless {
+            val path=it.substringBefore('?').lowercase(Locale.ROOT)
+            path.endsWith(".svg") || Regex("/(?:blank|transparent|placeholder)\\.(?:gif|png|jpg)$").containsMatchIn(path)
         }
-        val candidate = image.attr("data-srcset").ifBlank { image.attr("srcset") }.split(',').map { it.trim().split(whitespace).firstOrNull().orEmpty() }.lastOrNull()
-        return absolute(base,candidate)
+        for(name in listOf("data-src","data-original","data-s","data-lazy-src","data-image","data-cfsrc","poster"))candidate(image.attr(name))?.let{return it}
+        val source=image.parent()?.takeIf{it.tagName()=="picture"}?.selectFirst("source[data-srcset],source[srcset]")
+        val set=image.attr("data-srcset").ifBlank{image.attr("srcset")}.ifBlank{source?.attr("data-srcset").orEmpty().ifBlank{source?.attr("srcset").orEmpty()}}
+        if(!set.startsWith("data:")) {
+            val entries=set.split(',').mapNotNull{entry->val parts=entry.trim().split(whitespace);val url=candidate(parts.firstOrNull()) ?: return@mapNotNull null;url to (parts.getOrNull(1)?.removeSuffix("w")?.toIntOrNull()?:0)}
+            (entries.filter{it.second>=480}.minByOrNull{it.second}?:entries.maxByOrNull{it.second})?.first?.let{return it}
+        }
+        return candidate(image.attr("src"))
     }
     fun cards(page: Element, spec: SiteSpec): List<VideoCard> {
         val result = LinkedHashMap<String,VideoCard>()
@@ -58,11 +66,11 @@ object Metadata {
         val current=java.net.URI(page.baseUri())
         val redirected=request.data==null && java.net.URI(request.url).path.orEmpty().contains("search") && current.path.orEmpty().trim('/').isEmpty() && current.query.isNullOrBlank()
         return page.attr("data-response-code")=="404" || redirected || page.select("h1,h2,.empty,.no-results,.no-result,.nothing-found,.list-videos .message,.message").any {
-            Regex("(?iu)(?:ничего не найдено|ничего не нашлось|нет результатов|no (?:results|videos|matches)(?: found)?|0 результатов)").containsMatchIn(it.text())
+            Regex("(?iu)(?:ничего не найдено|ничего не нашлось|нет результатов|no (?:results|videos|matches|posts)(?: found)?|nothing found|0 результатов)").containsMatchIn(it.text())
         }
     }
     fun searchCards(page: Document,spec: SiteSpec,request: PageRequest): List<VideoCard> = if(emptySearch(page,request))emptyList() else cards(page,spec)
-    private fun ownVideo(page: Document): JSONObject? {
+    internal fun ownVideo(page: Document): JSONObject? {
         val candidates = mutableListOf<JSONObject>()
         fun scan(node: Any?, depth: Int) {
             if (depth > 12) return
@@ -103,8 +111,9 @@ object Metadata {
         val year=data?.optString("uploadDate")?.take(4)?.toIntOrNull()?.takeIf { it in 1900..2100 }
         return VideoDetail(rawTitle,poster,summary,tags,duration,year)
     }
-    /** CloudStream's duration property is whole minutes; exact seconds stay in the plot. */
-    fun plot(detail: VideoDetail) = listOf(if(detail.duration.isBlank()) "" else "Длительность: ${detail.duration}",detail.description).filter(String::isNotBlank).joinToString("\n\n")
+    /** Duration belongs to the host metadata field; the plot contains only the source description. */
+    fun plot(detail: VideoDetail) = detail.description
+
     fun timing(raw: String?): String {
         val text=clean(raw)
         if(text.isBlank())return ""

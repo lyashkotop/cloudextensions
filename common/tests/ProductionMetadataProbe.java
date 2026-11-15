@@ -53,7 +53,7 @@ public final class ProductionMetadataProbe {
         Element duration = page.selectFirst("[itemscope][itemtype*=VideoObject] [itemprop=duration]");
         Class<?> timing = Class.forName("com.streambundle.SourceTiming");
         String expected = (String) timing.getMethod("parse", String.class).invoke(null, duration.attr("content"));
-        require(!expected.isEmpty() && result.plot.startsWith("Длительность: " + expected), "Exact source duration not first");
+        require(!expected.isEmpty() && !result.plot.contains("Длительность:"), "Duplicate duration in plot");
         Element declared = page.selectFirst("[itemscope][itemtype*=VideoObject] [itemprop=description]");
         require(declared != null && declared.attr("content").isEmpty(), "Fixture must declare absent description");
         require(!result.plot.contains(page.selectFirst("meta[name=description]").attr("content")), "SEO text was substituted for absent video description");

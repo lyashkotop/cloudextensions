@@ -83,7 +83,7 @@ class MissAV : MainAPI() {
         val title = if (isUncensored && !baseTitle.startsWith("Uncensored - ", ignoreCase = true))
             "Uncensored - $baseTitle" else baseTitle
 
-        val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(
+        val posterUrl =com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(
             selectFirst("img")?.let {
                 it.attr("abs:data-src").ifEmpty { it.attr("abs:src") }
             }

@@ -5,6 +5,7 @@
   "category": "English",
   "entryClass": "com.cloudextensions.entries.BDSMXPlugin",
   "providerClass": "com.streambundleextra.BdsMxProvider",
-  "description": "BDSMX extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/BDSMX.png"
+  "description": "BDSMX — Kotlin provider using the site catalogue and per-video metadata APIs.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/BDSMX.png",
+  "runtime": "kotlin"
 }

@@ -30,7 +30,7 @@ fun main(args:Array<String>) {
     verify(metadata.title==cards.single().title,"one title survives opening")
     verify(metadata.description.isEmpty(),"declared empty description does not become SEO")
     verify(metadata.tags==listOf("Real tag"),"only real declared tags; no fragments or duplicates")
-    verify(Metadata.plot(metadata)=="Длительность: 02:03","exact duration first in plot")
+    verify(Metadata.plot(metadata).isEmpty(),"duration is not duplicated in plot")
     verify(Metadata.plot(metadata.copy(duration="",description="")).isEmpty(),"no unknown duration placeholder")
     val paged=Jsoup.parse("<div class=pagination><a href='/2/'>2</a><a class=next href='/2/'>Next</a></div>","https://example.org/")
     verify(Pagination.next(paged,PageRequest(paged.baseUri()))?.url=="https://example.org/2/","source next link")
@@ -50,6 +50,8 @@ fun main(args:Array<String>) {
     verify(Metadata.cards(realMatch,noodleSpec).size==1,"Noodle genuine search block is parsed")
     val stripLazy=Jsoup.parse("<img class=js-preview src='data:image/png;base64,placeholder' data-s='https://images.example.org/actual-preview.jpg'>","https://example.org/")
     verify(Metadata.poster(stripLazy,"https://example.org/")=="https://images.example.org/actual-preview.jpg","Strip2 data-s preview survives a data URI placeholder")
+    val responsive=Jsoup.parse("<picture><source srcset='/small.jpg 320w, /actual.jpg 640w'><img src='/placeholder.svg'></picture>","https://example.org/")
+    verify(Metadata.poster(responsive,"https://example.org/")=="https://example.org/actual.jpg","responsive photo beats SVG placeholder")
     println("PASS $checks Kotlin core checks; no Android or live-playback claims")
     if(args.size==2&&args[0]=="--live-dir"){live(File(args[1]));searchLive(File(args[1]))}
 }

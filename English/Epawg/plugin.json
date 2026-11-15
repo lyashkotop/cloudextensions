@@ -4,7 +4,8 @@
   "language": "en",
   "category": "English",
   "entryClass": "com.cloudextensions.entries.EpawgPlugin",
-  "providerClass": "com.example.epawg.EpawgProvider",
-  "description": "Epawg extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Epawg.png"
+  "providerClass": "com.kraptor.EPawg",
+  "description": "Epawg — Kotlin source imported with original extractor registrations.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Epawg.png",
+  "runtime": "kotlin"
 }

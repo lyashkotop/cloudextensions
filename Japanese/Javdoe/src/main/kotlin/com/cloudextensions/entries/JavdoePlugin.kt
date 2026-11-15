@@ -5,5 +5,5 @@ import com.Javpoint.Javdoe
 import com.Javpoint.registerJavdoeExtractors
 @CloudstreamPlugin
 class JavdoePlugin: Plugin(){
- override fun load(context:Context){registerMainAPI(Javdoe().apply { name = "2. Javdoe" });registerJavdoeExtractors(this)}
+ override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.AdaptedProvider(Javdoe().apply { name = "2. Javdoe" }));registerJavdoeExtractors(this)}
 }

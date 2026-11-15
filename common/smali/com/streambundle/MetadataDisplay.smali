@@ -140,43 +140,43 @@
 .end method
 
 .method public static decorate(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
-    .registers 6
+    .registers 5
 
     .line 55
     invoke-static {p1}, Lcom/streambundle/SourceTiming;->label(Ljava/lang/String;)Ljava/lang/String;
 
-    move-result-object p0
-
     .line 56
-    sget-object v0, Lcom/streambundle/MetadataDisplay;->QUALITY:Ljava/util/Map;
+    sget-object p0, Lcom/streambundle/MetadataDisplay;->QUALITY:Ljava/util/Map;
 
     invoke-static {p1}, Lcom/streambundle/MetadataDisplay;->key(Ljava/lang/String;)Ljava/lang/String;
 
     move-result-object p1
 
-    invoke-interface {v0, p1}, Ljava/util/Map;->get(Ljava/lang/Object;)Ljava/lang/Object;
+    invoke-interface {p0, p1}, Ljava/util/Map;->get(Ljava/lang/Object;)Ljava/lang/Object;
 
-    move-result-object p1
+    move-result-object p0
 
-    check-cast p1, Ljava/lang/String;
+    check-cast p0, Ljava/lang/String;
 
     .line 57
-    new-instance v0, Ljava/lang/StringBuilder;
+    new-instance p1, Ljava/lang/StringBuilder;
 
-    invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V
+    invoke-direct {p1}, Ljava/lang/StringBuilder;-><init>()V
 
     .line 58
+    const/16 v0, 0xa
+
+    if-eqz p0, :cond_2b
+
     invoke-virtual {p0}, Ljava/lang/String;->isEmpty()Z
 
     move-result v1
 
-    const/16 v2, 0xa
+    if-nez v1, :cond_2b
 
-    if-nez v1, :cond_2a
+    const-string v1, "\u041a\u0430\u0447\u0435\u0441\u0442\u0432\u043e: "
 
-    const-string v1, "\u0414\u043b\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0441\u0442\u044c: "
-
-    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    invoke-virtual {p1, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
 
     move-result-object v1
 
@@ -184,32 +184,10 @@
 
     move-result-object p0
 
-    invoke-virtual {p0, v2}, Ljava/lang/StringBuilder;->append(C)Ljava/lang/StringBuilder;
+    invoke-virtual {p0, v0}, Ljava/lang/StringBuilder;->append(C)Ljava/lang/StringBuilder;
 
     .line 59
-    :cond_2a
-    if-eqz p1, :cond_3f
-
-    invoke-virtual {p1}, Ljava/lang/String;->isEmpty()Z
-
-    move-result p0
-
-    if-nez p0, :cond_3f
-
-    const-string p0, "\u041a\u0430\u0447\u0435\u0441\u0442\u0432\u043e: "
-
-    invoke-virtual {v0, p0}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    move-result-object p0
-
-    invoke-virtual {p0, p1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    move-result-object p0
-
-    invoke-virtual {p0, v2}, Ljava/lang/StringBuilder;->append(C)Ljava/lang/StringBuilder;
-
-    .line 60
-    :cond_3f
+    :cond_2b
     invoke-static {p2}, Lcom/streambundle/MetadataDisplay;->body(Ljava/lang/String;)Ljava/lang/String;
 
     move-result-object p0
@@ -218,24 +196,24 @@
 
     move-result-object p0
 
-    .line 61
-    invoke-virtual {v0}, Ljava/lang/StringBuilder;->length()I
+    .line 60
+    invoke-virtual {p1}, Ljava/lang/StringBuilder;->length()I
 
-    move-result p1
+    move-result p2
 
-    if-lez p1, :cond_56
+    if-lez p2, :cond_42
 
     invoke-virtual {p0}, Ljava/lang/String;->isEmpty()Z
 
-    move-result p1
+    move-result p2
 
-    if-nez p1, :cond_56
+    if-nez p2, :cond_42
 
-    invoke-virtual {v0, v2}, Ljava/lang/StringBuilder;->append(C)Ljava/lang/StringBuilder;
+    invoke-virtual {p1, v0}, Ljava/lang/StringBuilder;->append(C)Ljava/lang/StringBuilder;
 
-    .line 62
-    :cond_56
-    invoke-virtual {v0, p0}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
+    .line 61
+    :cond_42
+    invoke-virtual {p1, p0}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
 
     move-result-object p0
 
@@ -292,7 +270,7 @@
 .method public static preferTitle(Ljava/lang/String;Ljava/lang/String;Z)Ljava/lang/String;
     .registers 5
 
-    .line 66
+    .line 65
     if-eqz p1, :cond_56
 
     invoke-virtual {p1}, Ljava/lang/String;->trim()Ljava/lang/String;
@@ -307,7 +285,7 @@
 
     goto :goto_56
 
-    .line 67
+    .line 66
     :cond_d
     if-eqz p0, :cond_55
 
@@ -329,7 +307,7 @@
 
     goto :goto_55
 
-    .line 68
+    .line 67
     :cond_20
     invoke-static {p1}, Lcom/streambundle/MetadataDisplay;->truncated(Ljava/lang/String;)Z
 
@@ -345,7 +323,7 @@
 
     return-object p0
 
-    .line 69
+    .line 68
     :cond_2d
     invoke-static {p0}, Lcom/streambundle/MetadataDisplay;->truncated(Ljava/lang/String;)Z
 
@@ -361,7 +339,7 @@
 
     return-object p1
 
-    .line 70
+    .line 69
     :cond_3a
     invoke-static {p0}, Lcom/streambundle/MetadataDisplay;->truncated(Ljava/lang/String;)Z
 
@@ -387,7 +365,7 @@
 
     return-object p0
 
-    .line 71
+    .line 70
     :cond_51
     if-eqz p2, :cond_54
 
@@ -396,12 +374,12 @@
     :cond_54
     return-object p0
 
-    .line 67
+    .line 66
     :cond_55
     :goto_55
     return-object p1
 
-    .line 66
+    .line 65
     :cond_56
     :goto_56
     return-object p0
@@ -560,7 +538,7 @@
         }
     .end annotation
 
-    .line 84
+    .line 83
     const-string v0, "Recommendations"
 
     invoke-static {p1, v0}, Lcom/streambundle/MetadataDisplay;->read(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
@@ -571,7 +549,7 @@
 
     return-object p0
 
-    .line 85
+    .line 84
     :cond_9
     const-string v0, "Tags"
 
@@ -583,7 +561,7 @@
 
     move-result-object v1
 
-    .line 86
+    .line 85
     const-string v2, "Name"
 
     invoke-static {p1, v2}, Lcom/streambundle/MetadataDisplay;->read(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
@@ -594,12 +572,12 @@
 
     move-result-object p1
 
-    .line 87
+    .line 86
     new-instance v3, Ljava/util/ArrayList;
 
     invoke-direct {v3}, Ljava/util/ArrayList;-><init>()V
 
-    .line 88
+    .line 87
     invoke-interface {p0}, Ljava/util/List;->iterator()Ljava/util/Iterator;
 
     move-result-object p0
@@ -612,16 +590,16 @@
 
     if-nez v4, :cond_2d
 
-    .line 95
+    .line 94
     return-object v3
 
-    .line 88
+    .line 87
     :cond_2d
     invoke-interface {p0}, Ljava/util/Iterator;->next()Ljava/lang/Object;
 
     move-result-object v4
 
-    .line 89
+    .line 88
     invoke-static {v4, v0}, Lcom/streambundle/MetadataDisplay;->read(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
 
     move-result-object v5
@@ -630,10 +608,10 @@
 
     move-result-object v5
 
-    .line 90
+    .line 89
     invoke-interface {v5, v1}, Ljava/util/Set;->retainAll(Ljava/util/Collection;)Z
 
-    .line 91
+    .line 90
     invoke-static {v4, v2}, Lcom/streambundle/MetadataDisplay;->read(Ljava/lang/Object;Ljava/lang/String;)Ljava/lang/Object;
 
     move-result-object v6
@@ -642,10 +620,10 @@
 
     move-result-object v6
 
-    .line 92
+    .line 91
     invoke-interface {v6, p1}, Ljava/util/Set;->retainAll(Ljava/util/Collection;)Z
 
-    .line 93
+    .line 92
     invoke-interface {v5}, Ljava/util/Set;->isEmpty()Z
 
     move-result v5
@@ -808,18 +786,18 @@
 .method public static sanitizeSearch(Ljava/lang/Object;)V
     .registers 3
 
-    .line 98
+    .line 97
     instance-of v0, p0, Lorg/jsoup/nodes/Document;
 
     if-nez v0, :cond_5
 
     return-void
 
-    .line 99
+    .line 98
     :cond_5
     check-cast p0, Lorg/jsoup/nodes/Document;
 
-    .line 100
+    .line 99
     const-string v0, "(?i)(/search|[?&](s|q|k|query|search)=)"
 
     invoke-static {v0}, Ljava/util/regex/Pattern;->compile(Ljava/lang/String;)Ljava/util/regex/Pattern;
@@ -842,7 +820,7 @@
 
     return-void
 
-    .line 101
+    .line 100
     :cond_1c
     const-string v0, ":matchesOwn((?iu)(nothing found|no (?:matching )?(?:results|videos)(?: were)? found|no results|\u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e|\u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0448\u043b\u043e\u0441\u044c|\u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u043e\u0432 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e|\u0432\u0438\u0434\u0435\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e))"
 
@@ -856,12 +834,12 @@
 
     if-nez v0, :cond_2c
 
-    .line 102
+    .line 101
     invoke-virtual {p0}, Lorg/jsoup/nodes/Document;->empty()Lorg/jsoup/nodes/Element;
 
     return-void
 
-    .line 104
+    .line 103
     :cond_2c
     const-string v0, ".trending,#trending,[id*=trending],[class*=trending],.popular-videos,.recommended,.recommendations,.recommended-videos,#recommended-videos,.related,.related-videos"
 
@@ -871,7 +849,7 @@
 
     invoke-virtual {p0}, Lorg/jsoup/select/Elements;->remove()Lorg/jsoup/select/Elements;
 
-    .line 105
+    .line 104
     return-void
 .end method
 
@@ -888,17 +866,17 @@
         }
     .end annotation
 
-    .line 74
+    .line 73
     new-instance v0, Ljava/util/HashSet;
 
     invoke-direct {v0}, Ljava/util/HashSet;-><init>()V
 
-    .line 75
+    .line 74
     instance-of v1, p0, Ljava/lang/Iterable;
 
     if-eqz v1, :cond_22
 
-    .line 76
+    .line 75
     check-cast p0, Ljava/lang/Iterable;
 
     invoke-interface {p0}, Ljava/lang/Iterable;->iterator()Ljava/util/Iterator;
@@ -912,10 +890,10 @@
 
     if-nez p0, :cond_16
 
-    .line 77
+    .line 76
     goto :goto_50
 
-    .line 76
+    .line 75
     :cond_16
     invoke-interface {v1}, Ljava/util/Iterator;->next()Ljava/lang/Object;
 
@@ -929,13 +907,13 @@
 
     goto :goto_f
 
-    .line 77
+    .line 76
     :cond_22
     instance-of v1, p0, Ljava/lang/String;
 
     if-eqz v1, :cond_50
 
-    .line 78
+    .line 77
     check-cast p0, Ljava/lang/String;
 
     sget-object v1, Ljava/util/Locale;->ROOT:Ljava/util/Locale;
@@ -962,7 +940,7 @@
     :cond_39
     aget-object v3, p0, v2
 
-    .line 79
+    .line 78
     invoke-virtual {v3}, Ljava/lang/String;->length()I
 
     move-result v4
@@ -981,13 +959,13 @@
 
     invoke-interface {v0, v3}, Ljava/util/Set;->add(Ljava/lang/Object;)Z
 
-    .line 78
+    .line 77
     :cond_4d
     add-int/lit8 v2, v2, 0x1
 
     goto :goto_36
 
-    .line 81
+    .line 80
     :cond_50
     :goto_50
     return-object v0
@@ -996,7 +974,7 @@
 .method private static truncated(Ljava/lang/String;)Z
     .registers 2
 
-    .line 64
+    .line 63
     if-eqz p0, :cond_10
 
     invoke-virtual {p0}, Ljava/lang/String;->trim()Ljava/lang/String;

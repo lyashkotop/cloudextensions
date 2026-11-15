@@ -5,5 +5,5 @@ import com.JAVHd.JAVHDProvider
 import com.JAVHd.registerJAVHdExtractors
 @CloudstreamPlugin
 class JAVHdPlugin: Plugin(){
- override fun load(context:Context){registerMainAPI(JAVHDProvider().apply { name = "2. JAV HD" });registerJAVHdExtractors(this)}
+ override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.AdaptedProvider(JAVHDProvider().apply { name = "2. JAV HD" }));registerJAVHdExtractors(this)}
 }

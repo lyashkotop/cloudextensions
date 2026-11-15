@@ -20,6 +20,7 @@ object Playback {
     fun sources(page: Document): List<Source> {
         val result=mutableListOf<Source>()
         for(e in page.select("video source[src],video[src],meta[property=og:video],meta[property=og:video:url],meta[property=og:video:secure_url]")) {
+            if(e.closest("a[href],.tuba,.video-card,.tiled_item,.related,.related-videos,#related-videos,#list_videos_related_videos")!=null)continue
             val url=absolute(page.baseUri(),e.attr("src").ifBlank { e.attr("content") }) ?: continue
             if(playable(url))result+=Source(url,e.attr("label").ifBlank { e.attr("res") }.takeIf(String::isNotBlank))
         }
@@ -28,13 +29,8 @@ object Playback {
             val url=absolute(page.baseUri(),value) ?: continue
             if(playable(url))result+=Source(url,values["${key}_text"])
         }
-        for(e in page.select("script[type=application/ld+json]")) {
-            // Content URLs are accepted; embedded related metadata does not supply playback titles/tags.
-            for(m in Regex(""""contentUrl"\s*:\s*"((?:\\.|[^"\\])+)"""").findAll(e.data())) {
-                val url=absolute(page.baseUri(),unescape(m.groupValues[1])) ?: continue
-                if(playable(url))result+=Source(url)
-            }
-        }
+        val structured=Metadata.ownVideo(page)?.optString("contentUrl")
+        absolute(page.baseUri(),structured)?.takeIf(::playable)?.let { result+=Source(it) }
         return result.distinctBy { it.url }
     }
     suspend fun links(name: String,origin: String,pageUrl: String,subtitles: (SubtitleFile)->Unit,callback: (ExtractorLink)->Unit): Boolean {
