@@ -5,6 +5,7 @@
   "category": "Russian",
   "entryClass": "com.cloudextensions.entries.EbalkaPlugin",
   "providerClass": "com.example.ebalka.EbalkaProvider",
-  "description": "Ebalka extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Ebalka.png"
+  "description": "Ebalka — Kotlin: главная по категориям, поиск RU/EN, исходные метаданные и фильтры.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Ebalka.png",
+  "runtime": "kotlin"
 }

@@ -5,6 +5,7 @@
   "category": "Russian",
   "entryClass": "com.cloudextensions.entries.ProstoPornoPlugin",
   "providerClass": "com.streambundleextra.ProstoPornoProvider",
-  "description": "ProstoPorno extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/ProstoPorno.png"
+  "description": "ProstoPorno — Kotlin: главная по категориям, поиск RU/EN, исходные метаданные и фильтры.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/ProstoPorno.png",
+  "runtime": "kotlin"
 }

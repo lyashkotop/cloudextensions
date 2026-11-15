@@ -5,6 +5,7 @@
   "category": "Russian",
   "entryClass": "com.cloudextensions.entries.PerdolPlugin",
   "providerClass": "com.streambundleextra.PerdolProvider",
-  "description": "Perdol.net extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Perdol.png"
+  "description": "Perdol.net — Kotlin: главная по категориям, поиск RU/EN, исходные метаданные и фильтры.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Perdol.png",
+  "runtime": "kotlin"
 }

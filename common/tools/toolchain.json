@@ -68,5 +68,70 @@
     "file": "json-20240303.jar",
     "url": "https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar",
     "sha256": "3cf6cd6892e32e2b4c1c39e0f52f5248a2f5b37646fdfbb79a66b46b618414ed"
+  },
+  {
+    "file": "kotlin-compiler-embeddable-2.1.0.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-compiler-embeddable/2.1.0/kotlin-compiler-embeddable-2.1.0.jar",
+    "sha256": "c1b139a6f251c3b99e92befa326cb75d93a001d74c3ac601155a8cdb0d253783"
+  },
+  {
+    "file": "kotlin-script-runtime-2.1.0.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-script-runtime/2.1.0/kotlin-script-runtime-2.1.0.jar",
+    "sha256": "15a2b82119e9f145ea028029bd31166584648a419157c20948c124fa33d40e50"
+  },
+  {
+    "file": "kotlin-reflect-1.6.10.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-reflect/1.6.10/kotlin-reflect-1.6.10.jar",
+    "sha256": "3277ac102ae17aad10a55abec75ff5696c8d109790396434b496e75087854203"
+  },
+  {
+    "file": "kotlin-daemon-embeddable-2.1.0.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-daemon-embeddable/2.1.0/kotlin-daemon-embeddable-2.1.0.jar",
+    "sha256": "6aa581bd53c3500e380e4bb6b2407f6d233910012f425349c2ed5a8ddbe29eac"
+  },
+  {
+    "file": "trove4j-1.0.20200330.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/jetbrains/intellij/deps/trove4j/1.0.20200330/trove4j-1.0.20200330.jar",
+    "sha256": "c5fd725bffab51846bf3c77db1383c60aaaebfe1b7fe2f00d23fe1b7df0a439d"
+  },
+  {
+    "file": "kotlinx-coroutines-core-jvm-1.6.4.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.6.4/kotlinx-coroutines-core-jvm-1.6.4.jar",
+    "sha256": "c24c8bb27bb320c4a93871501a7e5e0c61607638907b197aef675513d4c820be"
+  },
+  {
+    "file": "annotations-13.0.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/jetbrains/annotations/13.0/annotations-13.0.jar",
+    "sha256": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+  },
+  {
+    "file": "android-4.1.1.4.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/google/android/android/4.1.1.4/android-4.1.1.4.jar",
+    "sha256": "84072541cbb711eff89f7277100ff854929a446dba7ceb1b195c340e0b4fd3cb"
+  },
+  {
+    "file": "kotlin-stdlib-2.1.0.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/2.1.0/kotlin-stdlib-2.1.0.jar",
+    "sha256": "d6f91b7b0f306cca299fec74fb7c34e4874d6f5ec5b925a0b4de21901e119c3f"
+  },
+  {
+    "file": "okhttp-4.12.0.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/squareup/okhttp3/okhttp/4.12.0/okhttp-4.12.0.jar",
+    "sha256": "b1050081b14bb7a3a7e55a4d3ef01b5dcfabc453b4573a4fc019767191d5f4e0"
+  },
+  {
+    "file": "okio-jvm-3.6.0.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/squareup/okio/okio-jvm/3.6.0/okio-jvm-3.6.0.jar",
+    "sha256": "67543f0736fc422ae927ed0e504b98bc5e269fda0d3500579337cb713da28412"
+  },
+  {
+    "file": "nicehttp-0.4.13.jar",
+    "url": "https://jitpack.io/com/github/Blatzar/NiceHttp/0.4.13/NiceHttp-0.4.13.jar",
+    "sha256": "c087fbcdcb7da488e81eae172739fcdc1a721b84e1d33ac17aa4928d7308fe4c"
+  },
+  {
+    "file": "cloudstream-sdk.jar",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/951b71cc8c716809705bb34ee4027349806f5f71/cloudstream-sdk.jar",
+    "sha256": "8ea67e87d5e8c8169ce0f38c6e3042c4fb625b2a949de7e6d9eea2b9fd2e65e5"
   }
 ]

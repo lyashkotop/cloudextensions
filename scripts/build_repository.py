@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 import zipfile
 import zlib
+import kotlin_build
 
 ROOT = Path(__file__).resolve().parents[1]
 CATEGORIES = {'Russian': 'ru', 'Japanese': 'ja', 'English': 'en'}
@@ -139,7 +140,7 @@ class Dex:
         words = self.entry('L' + module['entryClass'].replace('.', '/') + ';')
         index = registrations = 0
         types = []
-        sizes = {0x0e: 1, 0x12: 1, 0x1a: 2, 0x1b: 3, 0x22: 2, 0x6e: 3, 0x70: 3}
+        sizes = {0x0e: 1, 0x12: 1, 0x1a: 2, 0x1b: 3, 0x1f: 2, 0x22: 2, 0x6e: 3, 0x70: 3}
         while index < len(words):
             opcode = words[index] & 255
             if opcode not in sizes:
@@ -191,9 +192,10 @@ def main():
     with tempfile.TemporaryDirectory(prefix='.repository-build-', dir=ROOT) as name:
         temporary = Path(name)
         build.regenerate_smali(tools, temporary)
+        native_common = kotlin_build.prepare(tools, temporary) if any(m.get("runtime") == "kotlin" for m in selected) else None
         stage = temporary / 'smali'
         source_paths = {}
-        for directory in [ROOT / 'common/smali', *(m['folder'] / 'smali' for m in selected)]:
+        for directory in [ROOT / 'common/smali', *(m['folder'] / 'smali' for m in selected if m.get('runtime') != 'kotlin')]:
             for source in directory.rglob('*.smali'):
                 relative = source.relative_to(directory)
                 if relative in source_paths:
@@ -203,6 +205,8 @@ def main():
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(source, target)
         for module in selected:
+            if module.get('runtime') == 'kotlin':
+                continue
             target = stage / (module['entryClass'].replace('.', '/') + '.smali')
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(entry_source(module))
@@ -219,11 +223,19 @@ def main():
             raise ValueError('Test doubles or host API classes were included in production DEX')
         index = []
         for module in selected:
-            dex.validate_entry(module)
+            module_data = kotlin_build.package_dex(tools, temporary, native_common, module) if module.get('runtime') == 'kotlin' else data
+            module_dex = Dex(module_data) if module.get('runtime') == 'kotlin' else dex
+            module_dex.validate_entry(module)
+            if module.get('runtime') == 'kotlin':
+                expected_entry = 'L' + module['entryClass'].replace('.', '/') + ';'
+                if any(name.startswith('Lcom/cloudextensions/entries/') and name != expected_entry for name in module_dex.classes):
+                    raise ValueError('Foreign entry in native package: ' + module['id'])
+                if any(name.startswith(('Lkotlin/', 'Lcom/lagradost/cloudstream3/', 'Lokhttp3/')) for name in module_dex.classes):
+                    raise ValueError('Host dependency was packaged into native extension')
             relative = module['category'] + '/' + module['id'] + '.cs3'
             artifact = output / relative
             manifest = {'pluginClassName': module['entryClass'], 'name': extension_name(module), 'version': version, 'requiresResources': False}
-            package(artifact, manifest, data)
+            package(artifact, manifest, module_data)
             index.append({'url': f'https://raw.githubusercontent.com/{repository}/{config["buildsBranch"]}/{relative}',
                           'status': module.get('status', 1), 'version': version, 'apiVersion': 1,
                           'name': extension_name(module), 'internalName': module['id'], 'authors': config['authors'],
@@ -232,7 +244,7 @@ def main():
                           'fileSize': artifact.stat().st_size, 'fileHash': 'sha256-' + hashlib.sha256(artifact.read_bytes()).hexdigest()})
         (output / 'plugins.json').write_text(json.dumps(index, ensure_ascii=False, indent=2) + '\n')
         shutil.copyfile(ROOT / 'repo.json', output / 'repo.json')
-        (output / 'build-info.json').write_text(json.dumps({'version': version, 'sourceCommit': os.environ.get('GITHUB_SHA', 'local'), 'plugins': len(index), 'dexClasses': len(dex.classes), 'sourceSmaliFiles': len(source_paths), 'entryRegistrationsValidated': len(selected)}, indent=2) + '\n')
+        (output / 'build-info.json').write_text(json.dumps({'version': version, 'sourceCommit': os.environ.get('GITHUB_SHA', 'local'), 'plugins': len(index), 'dexClasses': len(dex.classes), 'sourceSmaliFiles': len(source_paths), 'entryRegistrationsValidated': len(selected), 'kotlinProviders': sum(m.get('runtime') == 'kotlin' for m in selected)}, indent=2) + '\n')
         (output / 'README.md').write_text('# Generated CloudStream builds\n\nSource: https://github.com/' + repository + '\n\nAdd this URL in CloudStream:\n\nhttps://raw.githubusercontent.com/' + repository + '/' + config['sourceBranch'] + '/repo.json\n\nGenerated files are replaced only by a successful build. Site availability is not tested by CI.\n')
     # Validate the consumer-visible index against every real output file.
     for module, item in zip(selected, index):

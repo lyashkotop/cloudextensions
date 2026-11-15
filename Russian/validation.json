@@ -1,0 +1,375 @@
+{
+  "date": "2026-11-15",
+  "baselineVersion": 70,
+  "localVersion": 71,
+  "coreChecks": 39,
+  "legacyChecks": 44,
+  "sizes": [
+    {
+      "site": "Ebalka",
+      "beforeBytes": 309503,
+      "afterBytes": 52504,
+      "reductionPercent": 83.0,
+      "dexClasses": 51
+    },
+    {
+      "site": "Huyamba",
+      "beforeBytes": 309504,
+      "afterBytes": 52613,
+      "reductionPercent": 83.0,
+      "dexClasses": 51
+    },
+    {
+      "site": "Perdol",
+      "beforeBytes": 309504,
+      "afterBytes": 52337,
+      "reductionPercent": 83.1,
+      "dexClasses": 51
+    },
+    {
+      "site": "ProstoPorno",
+      "beforeBytes": 309506,
+      "afterBytes": 50952,
+      "reductionPercent": 83.5,
+      "dexClasses": 51
+    },
+    {
+      "site": "Semyana",
+      "beforeBytes": 309503,
+      "afterBytes": 51753,
+      "reductionPercent": 83.3,
+      "dexClasses": 51
+    },
+    {
+      "site": "Strip2",
+      "beforeBytes": 309502,
+      "afterBytes": 52510,
+      "reductionPercent": 83.0,
+      "dexClasses": 51
+    },
+    {
+      "site": "Vpoisk",
+      "beforeBytes": 309502,
+      "afterBytes": 54203,
+      "reductionPercent": 82.5,
+      "dexClasses": 51
+    }
+  ],
+  "metadataSamples": [
+    {
+      "duration": "00:21",
+      "site": "Ebalka",
+      "cards": 35,
+      "titleLength": 15,
+      "poster": true,
+      "descriptionLength": 66,
+      "tags": 6
+    },
+    {
+      "duration": "19:06",
+      "site": "Semyana",
+      "cards": 43,
+      "titleLength": 57,
+      "poster": true,
+      "descriptionLength": 0,
+      "tags": 51
+    },
+    {
+      "duration": "08:54",
+      "site": "Strip2",
+      "cards": 24,
+      "titleLength": 34,
+      "poster": true,
+      "descriptionLength": 409,
+      "tags": 12
+    },
+    {
+      "duration": "17:47",
+      "site": "Vpoisk",
+      "cards": 15,
+      "titleLength": 66,
+      "poster": true,
+      "descriptionLength": 132,
+      "tags": 58
+    },
+    {
+      "duration": "15:15",
+      "site": "Perdol",
+      "cards": 24,
+      "titleLength": 40,
+      "poster": true,
+      "descriptionLength": 101,
+      "tags": 5
+    },
+    {
+      "duration": "16:53",
+      "site": "ProstoPorno",
+      "cards": 48,
+      "titleLength": 24,
+      "poster": true,
+      "descriptionLength": 145,
+      "tags": 25
+    },
+    {
+      "duration": "1:06:24",
+      "site": "Huyamba",
+      "cards": 36,
+      "titleLength": 76,
+      "poster": true,
+      "descriptionLength": 1065,
+      "tags": 38
+    }
+  ],
+  "searchSamples": [
+    {
+      "site": "Ebalka",
+      "kind": "original",
+      "http": 200,
+      "cards": 0,
+      "next": false
+    },
+    {
+      "site": "Ebalka",
+      "kind": "translated",
+      "http": 200,
+      "cards": 24,
+      "next": true
+    },
+    {
+      "site": "Ebalka",
+      "kind": "empty",
+      "http": 200,
+      "cards": 0,
+      "next": false
+    },
+    {
+      "site": "Semyana",
+      "kind": "original",
+      "http": 200,
+      "cards": 24,
+      "next": true
+    },
+    {
+      "site": "Semyana",
+      "kind": "translated",
+      "http": 200,
+      "cards": 24,
+      "next": true
+    },
+    {
+      "site": "Semyana",
+      "kind": "empty",
+      "http": 404,
+      "cards": 0,
+      "next": false
+    },
+    {
+      "site": "Strip2",
+      "kind": "original",
+      "http": 200,
+      "cards": 23,
+      "next": true
+    },
+    {
+      "site": "Strip2",
+      "kind": "translated",
+      "http": 200,
+      "cards": 24,
+      "next": true
+    },
+    {
+      "site": "Strip2",
+      "kind": "empty",
+      "http": 404,
+      "cards": 0,
+      "next": false
+    },
+    {
+      "site": "Vpoisk",
+      "kind": "original",
+      "http": 200,
+      "cards": 21,
+      "next": true
+    },
+    {
+      "site": "Vpoisk",
+      "kind": "translated",
+      "http": 200,
+      "cards": 21,
+      "next": true
+    },
+    {
+      "site": "Vpoisk",
+      "kind": "empty",
+      "http": 404,
+      "cards": 0,
+      "next": false
+    },
+    {
+      "site": "Perdol",
+      "kind": "original",
+      "http": 200,
+      "cards": 0,
+      "next": false
+    },
+    {
+      "site": "Perdol",
+      "kind": "translated",
+      "http": 200,
+      "cards": 24,
+      "next": true
+    },
+    {
+      "site": "Perdol",
+      "kind": "empty",
+      "http": 200,
+      "cards": 0,
+      "next": false
+    },
+    {
+      "site": "ProstoPorno",
+      "kind": "original",
+      "http": 200,
+      "cards": 36,
+      "next": true
+    },
+    {
+      "site": "ProstoPorno",
+      "kind": "translated",
+      "http": 200,
+      "cards": 54,
+      "next": true
+    },
+    {
+      "site": "ProstoPorno",
+      "kind": "empty",
+      "http": 200,
+      "cards": 0,
+      "next": false
+    },
+    {
+      "site": "Huyamba",
+      "kind": "original",
+      "http": 200,
+      "cards": 13,
+      "next": false
+    },
+    {
+      "site": "Huyamba",
+      "kind": "translated",
+      "http": 200,
+      "cards": 20,
+      "next": true
+    },
+    {
+      "site": "Huyamba",
+      "kind": "empty",
+      "http": 200,
+      "cards": 0,
+      "next": false
+    },
+    {
+      "site": "Ebalka",
+      "kind": "translated-page2",
+      "http": 200,
+      "cards": 24,
+      "next": true
+    },
+    {
+      "site": "Semyana",
+      "kind": "translated-page2",
+      "http": 200,
+      "cards": 24,
+      "next": true
+    },
+    {
+      "site": "Strip2",
+      "kind": "translated-page2",
+      "http": 200,
+      "cards": 24,
+      "next": true
+    },
+    {
+      "site": "Vpoisk",
+      "kind": "translated-page2",
+      "http": 200,
+      "cards": 21,
+      "next": true
+    },
+    {
+      "site": "Perdol",
+      "kind": "translated-page2",
+      "http": 200,
+      "cards": 24,
+      "next": true
+    },
+    {
+      "site": "ProstoPorno",
+      "kind": "translated-page2",
+      "http": 200,
+      "cards": 24,
+      "next": true
+    },
+    {
+      "site": "Huyamba",
+      "kind": "translated-page2",
+      "http": 200,
+      "cards": 20,
+      "next": true
+    }
+  ],
+  "images": [
+    {
+      "site": "Ebalka",
+      "http": 200,
+      "seconds": 1.704,
+      "imageSignature": true,
+      "contentType": "image/jpeg"
+    },
+    {
+      "site": "Semyana",
+      "http": 200,
+      "seconds": 0.68,
+      "imageSignature": true,
+      "contentType": "image/jpeg"
+    },
+    {
+      "site": "Strip2",
+      "http": 200,
+      "seconds": 0.74,
+      "imageSignature": true,
+      "contentType": "image/jpeg",
+      "originalHttp": 410,
+      "sourceDocumentRefreshVerified": true
+    },
+    {
+      "site": "Vpoisk",
+      "http": 200,
+      "seconds": 0.837,
+      "imageSignature": true,
+      "contentType": "image/jpeg"
+    },
+    {
+      "site": "Perdol",
+      "http": 200,
+      "seconds": 0.643,
+      "imageSignature": true,
+      "contentType": "image/jpeg"
+    },
+    {
+      "site": "ProstoPorno",
+      "http": 200,
+      "seconds": 1.032,
+      "imageSignature": true,
+      "contentType": "image/jpeg"
+    },
+    {
+      "site": "Huyamba",
+      "http": 200,
+      "seconds": 0.759,
+      "imageSignature": true,
+      "contentType": "image/jpeg"
+    }
+  ],
+  "androidPlaybackVerified": false
+}
