@@ -5,5 +5,6 @@
   "category": "Russian",
   "entryClass": "com.cloudextensions.entries.PerdolPlugin",
   "providerClass": "com.streambundleextra.PerdolProvider",
-  "description": "Perdol.net extension. Site availability and metadata depend on the source."
+  "description": "Perdol.net extension. Site availability and metadata depend on the source.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Perdol.png"
 }

@@ -5,5 +5,6 @@
   "category": "English",
   "entryClass": "com.cloudextensions.entries.ThisVidPlugin",
   "providerClass": "com.streambundleextra.ThisVidProvider",
-  "description": "ThisVid extension. Site availability and metadata depend on the source."
+  "description": "ThisVid extension. Site availability and metadata depend on the source.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/ThisVid.png"
 }

@@ -5,5 +5,6 @@
   "category": "Japanese",
   "entryClass": "com.cloudextensions.entries.JavGuruPlugin",
   "providerClass": "com.example.websites.JavGuruProvider",
-  "description": "JAVGuru extension. Site availability and metadata depend on the source."
+  "description": "JAVGuru extension. Site availability and metadata depend on the source.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/JavGuru.png"
 }

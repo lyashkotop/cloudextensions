@@ -5,5 +5,6 @@
   "category": "Russian",
   "entryClass": "com.cloudextensions.entries.VpoiskPlugin",
   "providerClass": "com.example.websites.VpoiskProvider",
-  "description": "Vpoisk extension. Site availability and metadata depend on the source."
+  "description": "Vpoisk extension. Site availability and metadata depend on the source.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Vpoisk.png"
 }

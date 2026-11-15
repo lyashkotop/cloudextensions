@@ -28,6 +28,17 @@ def modules():
                 raise ValueError('Language/category mismatch: ' + str(path))
             if not re.fullmatch(r'[A-Za-z][A-Za-z0-9]*', data['id']) or data['id'] in ids:
                 raise ValueError('Invalid or duplicated module id: ' + str(path))
+            icon = data.get('iconUrl', '')
+            if not isinstance(icon, str) or not icon.startswith('https://'):
+                raise ValueError('Each provider requires an HTTPS iconUrl: ' + str(path))
+            prefix = 'https://raw.githubusercontent.com/' + json.loads((ROOT / 'repository.json').read_text())['repository'] + '/main/'
+            if icon.startswith(prefix):
+                icon_file = (ROOT / icon[len(prefix):]).resolve()
+                if not icon_file.is_relative_to(ROOT.resolve()) or not icon_file.is_file():
+                    raise ValueError('Missing local icon: ' + str(path))
+                image = icon_file.read_bytes()
+                if not image.startswith((b'\x89PNG\r\n\x1a\n', b'\xff\xd8\xff')):
+                    raise ValueError('Icon must be a real PNG or JPEG: ' + str(path))
             ids.add(data['id'])
             data['folder'] = path.parent
             result.append(data)
@@ -210,7 +221,7 @@ def main():
                           'status': module.get('status', 1), 'version': version, 'apiVersion': 1,
                           'name': module['name'], 'internalName': module['id'], 'authors': config['authors'],
                           'description': module['description'], 'repositoryUrl': 'https://github.com/' + repository,
-                          'tvTypes': ['NSFW'], 'language': module['language'],
+                          'tvTypes': ['NSFW'], 'language': module['language'], 'iconUrl': module['iconUrl'],
                           'fileSize': artifact.stat().st_size, 'fileHash': 'sha256-' + hashlib.sha256(artifact.read_bytes()).hexdigest()})
         (output / 'plugins.json').write_text(json.dumps(index, ensure_ascii=False, indent=2) + '\n')
         shutil.copyfile(ROOT / 'repo.json', output / 'repo.json')

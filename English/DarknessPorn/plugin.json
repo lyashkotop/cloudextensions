@@ -5,5 +5,6 @@
   "category": "English",
   "entryClass": "com.cloudextensions.entries.DarknessPornPlugin",
   "providerClass": "com.streambundleextra.DarknessPornProvider",
-  "description": "DarknessPorn extension. Site availability and metadata depend on the source."
+  "description": "DarknessPorn extension. Site availability and metadata depend on the source.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/DarknessPorn.png"
 }

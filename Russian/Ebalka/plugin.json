@@ -5,5 +5,6 @@
   "category": "Russian",
   "entryClass": "com.cloudextensions.entries.EbalkaPlugin",
   "providerClass": "com.example.ebalka.EbalkaProvider",
-  "description": "Ebalka extension. Site availability and metadata depend on the source."
+  "description": "Ebalka extension. Site availability and metadata depend on the source.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Ebalka.png"
 }

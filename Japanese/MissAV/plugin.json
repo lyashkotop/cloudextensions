@@ -5,5 +5,6 @@
   "category": "Japanese",
   "entryClass": "com.cloudextensions.entries.MissAVPlugin",
   "providerClass": "com.lagradost.VideoHubProvider",
-  "description": "MissAV extension. Site availability and metadata depend on the source."
+  "description": "MissAV extension. Site availability and metadata depend on the source.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/MissAV.png"
 }
