@@ -152,11 +152,11 @@
   {
     "id": "NoodleMagazine",
     "domain": "noodlemagazine.com",
-    "source": "https://www.google.com/s2/favicons?domain=noodlemagazine.com&sz=128",
+    "source": "https://icons.duckduckgo.com/ip3/noodlemagazine.com.ico",
     "http": 200,
     "ok": true,
-    "bytes": 2209,
-    "sha256": "bc4ab5356e81d48549a1a24c4f8470f47601a40aad8a5ae7cd3bdfcd4e29b68c",
+    "bytes": 1331,
+    "sha256": "03f25e0ba8f46798a66751ceb016c8ffeb7aff5a1d63c49f574b468b2b0c1472",
     "file": "NoodleMagazine.png"
   },
   {
