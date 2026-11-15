@@ -1,0 +1,59 @@
+[
+  {
+    "id": "YouJizz",
+    "origin": "https://www.youjizz.com",
+    "repository": "https://github.com/Kraptor123/Cs-GizliKeyif",
+    "module": "YouJizz",
+    "commit": "c7e7d11b0e1831d9acc852df2cd07521de886cfa",
+    "files": {
+      "src/main/kotlin/com/kraptor/YouJizz.kt": "5e5ba9a4e825f8480e67f486b78ee6b489d066a7599c609038440a4a3b25d29f",
+      "src/main/kotlin/com/kraptor/YouJizzPlugin.kt": "f7c25f17055b45c887799be96b42f80e108ab9aecde5a14031af4da8867a5430"
+    }
+  },
+  {
+    "id": "XRares",
+    "origin": "https://www.xrares.com",
+    "repository": "https://github.com/Kraptor123/Cs-GizliKeyif",
+    "module": "XRares",
+    "commit": "c7e7d11b0e1831d9acc852df2cd07521de886cfa",
+    "files": {
+      "src/main/kotlin/com/kraptor/XRaresPlugin.kt": "c95fed8ca3ef975795fb4459a528856eddfc52ce2105db40ecd601a7c6c9cfe9",
+      "src/main/kotlin/com/kraptor/XRares.kt": "37f90e7b1d85850f4496bf33b04762954f5307b900a11fe5590856a71adccdd1"
+    }
+  },
+  {
+    "id": "SpankBang",
+    "origin": "https://spankbang.com",
+    "repository": "https://github.com/Kraptor123/Cs-GizliKeyif",
+    "module": "SpankBang",
+    "commit": "c7e7d11b0e1831d9acc852df2cd07521de886cfa",
+    "files": {
+      "src/main/kotlin/com/byayzen/SpankBang.kt": "6b2d45e62ceef69e360ee2798cf339bd4a77b91b026e6b27c699765291fb6c81",
+      "src/main/kotlin/com/byayzen/SpankBangPlugin.kt": "5b43986e69963eceb4452f2e78c0ceb89739e7c8ab37ed031d4f8e69f2affffb"
+    }
+  },
+  {
+    "id": "Whoreshub",
+    "origin": "https://www.whoreshub.com",
+    "repository": "https://github.com/Kraptor123/Cs-GizliKeyif",
+    "module": "Whoreshub",
+    "commit": "c7e7d11b0e1831d9acc852df2cd07521de886cfa",
+    "files": {
+      "src/main/kotlin/com/byayzen/Whoreshub.kt": "53e86d5da46eb48bd13fec7e75367fcce8353cf710f13ba19badbdc33f8930fe",
+      "src/main/kotlin/com/byayzen/KtPlayerExtractor.kt": "c493a6361614a41a2e2a2c010433e8b306fe5fa7b325ebf95d047e1f3e563341",
+      "src/main/kotlin/com/byayzen/WhoreshubPlugin.kt": "f78993a9753adbf466b922dc186a9cbfb6f51a9ed7463dad7a75dc7024375aa8"
+    }
+  },
+  {
+    "id": "XVideos",
+    "origin": "https://www.xvideos.com",
+    "repository": "https://github.com/Kraptor123/Cs-GizliKeyif",
+    "module": "xVideos",
+    "commit": "c7e7d11b0e1831d9acc852df2cd07521de886cfa",
+    "files": {
+      "src/main/kotlin/com/byayzen/xVideosExtractor.kt": "1c851c8d41c16a991650158b437c6b7a071885946d3fce5fd947d63e5148bdb9",
+      "src/main/kotlin/com/byayzen/xVideosPlugin.kt": "0f5d2cdd99f6074c8ee1d4ff3c508894acc47fa43a7cac1e5cf2f92d00e1f046",
+      "src/main/kotlin/com/byayzen/xVideos.kt": "50ea83d9fe3688701ccdaccaa6a35ae2256090d8d0858b11ffdf9477a03bddeb"
+    }
+  }
+]

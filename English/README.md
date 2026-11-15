@@ -1,7 +1,6 @@
 # English
 
-Первые 11 сайтов переведены на Kotlin; оставшиеся 16 в работе.
-Подробности и настоящие HTTP-проверки: [первая партия](../imports/english-ten/README.md).
+Все 27 модулей используют Kotlin. [Проверка последних 16](../imports/remaining-kotlin/README.md).
 
 - [BDSMX](BDSMX/)
 - [Beeg](Beeg/)

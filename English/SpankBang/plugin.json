@@ -4,7 +4,9 @@
   "language": "en",
   "category": "English",
   "entryClass": "com.cloudextensions.entries.SpankBangPlugin",
-  "providerClass": "com.lagradost.SpankBangProvider",
-  "description": "SpankBang extension imported from CloudstreamAdult. Source availability depends on the site.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/SpankBang.png"
+  "providerClass": "com.byayzen.SpankBang",
+  "description": "SpankBang — adapted Kotlin provider with shared search, filtering and metadata policies.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/SpankBang.png",
+  "runtime": "kotlin",
+  "status": 3
 }

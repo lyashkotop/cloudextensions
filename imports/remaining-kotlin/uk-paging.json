@@ -1,0 +1,30 @@
+[
+  {
+    "method": "GET",
+    "http": 200,
+    "cards": 24,
+    "fresh": 23,
+    "csrfInput": true,
+    "cookies": [
+      "csrftoken",
+      "PHPSESSID",
+      "__cf_bm",
+      "_cfuvid"
+    ],
+    "seconds": 0.52
+  },
+  {
+    "method": "POST",
+    "http": 200,
+    "cards": 24,
+    "fresh": 23,
+    "csrfInput": true,
+    "cookies": [
+      "csrftoken",
+      "PHPSESSID",
+      "__cf_bm",
+      "_cfuvid"
+    ],
+    "seconds": 0.48
+  }
+]

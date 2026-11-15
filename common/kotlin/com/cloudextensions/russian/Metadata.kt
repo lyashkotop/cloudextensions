@@ -13,12 +13,18 @@ import org.jsoup.nodes.Element
 /** Parses source fields only. Never derives tags from title words or a description from a URL. */
 object Metadata {
     private val titles = Collections.synchronizedMap(BoundedMap<String,String>(1024))
+    private val posters = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val durations = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val stopTag = Regex("(?iu)^(?:ра|для|и|а|но|что|это|как|при|the|and|for|with|from|of|to|in|on|an?|home|главная|tags|теги|categories|категории|all videos|все видео|(?:free |hd )?porn(?: videos?)?|порно(?: видео)?|xxx|hd|sd|[48]k|[0-9]{3,4}p)$")
     private val promo = Regex("(?iu)(?:смотрите (?:у нас|онлайн|бесплатно)|смотреть (?:онлайн|бесплатно)|бесплатные порно видео|watch (?:online|for free)|free porn videos|best porn site)")
     private val whitespace = Regex("\\s+")
     private val truncated = Regex("(?:…|\\.\\.\\.)$")
-    private val tagSelector = "[itemprop=keywords]:not(meta), .video-taxonomy .tax-tags a, .video-taxonomy .tax-feature-tags a, .video-tags a, .video_tags a, #video-tags a, #tags a, .tagsbox a, #tab_video_info .item a[href*=/tag], #tab_video_info .item a[href*=/categor], .item_info a[href*=/tag/], .item_info a[href*=/category/], .video-info a[rel=tag], .video-info .tags a, .video-info .categories a, .video-details .tags a, .video-details .categories a, .video-links a[rel=tag], .video-taxonomy .tax-categories a, [itemprop=genre]"
+    private val tagSelector = ".video-tags-list a.is-keyword, [itemprop=keywords]:not(meta), .video-taxonomy .tax-tags a, .video-taxonomy .tax-feature-tags a, .video-tags a, .video_tags a, #video-tags a, #tags a, .tagsbox a, #tab_video_info .item a[href*=/tag], #tab_video_info .item a[href*=/categor], .item_info a[href*=/tag/], .item_info a[href*=/category/], .video-info a[rel=tag], .video-info .tags a, .video-info .categories a, .video-details .tags a, .video-details .categories a, .video-links a[rel=tag], .video-taxonomy .tax-categories a, [itemprop=genre]"
+    fun description(raw:String?,title:String):String {
+        val value=clean(raw)
+        return value.takeUnless { it.isBlank() || it.trimEnd('.','!','?').equals(title.trimEnd('.','!','?'),true) || promo.containsMatchIn(it) }.orEmpty()
+    }
+    fun tag(raw:String):String? = clean(raw).takeIf { (it.length>=3 || it.matches(Regex("[A-Za-z0-9]{2}"))) && it.length<=100 && !stopTag.matches(it) }
     fun alias(from: String,to: String) { titles[videoKey(from)]?.let { titles[videoKey(to)]=it } }
     fun clean(value: String?) = value.orEmpty().replace('\u00a0',' ').replace(whitespace," ").trim()
     private fun value(e: Element?): String = e?.let { listOf(it.attr("content"), it.attr("datetime"), it.text()).firstOrNull(String::isNotBlank) }.orEmpty()
@@ -56,9 +62,11 @@ object Metadata {
             if (label.isBlank()) continue
             val tags = card.select("[rel=tag], [data-tag]").map { clean(it.text()) }.filter(String::isNotBlank).distinct()
             if (!ContentPolicy.accepts(label,tags)) continue
-            val duration = card.select(".duration, .card__duration, .video-duration, .time, [data-duration]").asSequence().map { timing(it.attr("data-duration").ifBlank { it.text() }) }.firstOrNull(String::isNotBlank).orEmpty()
+            val clocks=card.select(".prop span,.video_length,.m_time").map { clean(it.text()) }.filter { it.matches(Regex("(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}")) }
+            val duration = (card.select(".duration, .card__duration, .video-duration, .time, [data-duration]").asSequence().map { timing(it.attr("data-duration").ifBlank { it.text() }) }.toList()+clocks.map(::timing)).firstOrNull(String::isNotBlank).orEmpty()
             if (duration.isNotBlank()) durations[videoKey(url)] = duration
-            if(!result.containsKey(videoKey(url)))result[videoKey(url)]=VideoCard(label,url,poster(card,page.baseUri()),duration,tags)
+            val picture=poster(card,page.baseUri());if(picture!=null)posters[videoKey(url)]=picture
+            if(!result.containsKey(videoKey(url)))result[videoKey(url)]=VideoCard(label,url,picture,duration,tags)
         }
         return result.values.toList()
     }
@@ -89,11 +97,11 @@ object Metadata {
     }
     fun detail(page: Document, spec: SiteSpec): VideoDetail {
         val data=ownVideo(page)
-        val heading=page.selectFirst("h1[itemprop=name], h1.video-page-title, main h1, h1")?.text().orEmpty()
+        val heading=(if(spec.detailTitleSelector.isNotBlank())page.selectFirst(spec.detailTitleSelector) else null)?.text() ?: page.selectFirst("h1[itemprop=name], h1.video-page-title, h1.single-entry-title, main h1, h1:not(.site-title)")?.text().orEmpty()
         val rawTitle=title(page.baseUri(),listOf(heading,data?.optString("name").orEmpty(),page.selectFirst("meta[property=og:title]")?.attr("content").orEmpty()))
         val tags=mutableListOf<String>()
         fun add(raw: String?) { val label=clean(raw); if((label.length>=3 || label.matches(Regex("[A-Za-z0-9]{2}"))) && label.length<=100 && !stopTag.matches(label) && tags.none { it.equals(label,true) })tags+=label }
-        for(e in page.select(listOf(tagSelector,spec.tagSelector).filter(String::isNotBlank).joinToString(","))) if(e.closest("nav,header,footer,aside,.related,.related-videos,#related-videos,#relateddiv") == null) add(e.text())
+        for(e in page.select(listOf(tagSelector,spec.tagSelector).filter(String::isNotBlank).joinToString(","))) if(e.closest("nav,header,aside,.related,.related-videos,#related-videos,#relateddiv") == null && (e.closest("footer")==null || e.closest("article .single-entry-footer,article .entry-footer")!=null)) add(e.text())
         if(tags.isEmpty() && data != null) for(key in listOf("keywords","genre")) {
             when(val item=data.opt(key)) { is JSONArray -> for(i in 0 until item.length())add(item.optString(i)); is String -> item.split(',',';').forEach(::add) }
         }
@@ -101,13 +109,13 @@ object Metadata {
         val semanticDescription=page.select("[itemprop=description]").filter { it.closest(".related,.related-videos,#related-videos,#relateddiv") == null }
         val declared=semanticDescription.isNotEmpty() || data?.has("description")==true
         val descriptionFields=listOf(".video-description, .video_description, #video-description, #video_description, #tab_video_info .description, .item_info .description, .description-container",spec.descriptionSelector).filter(String::isNotBlank).joinToString(",")
-        val summaryCandidates=page.select(descriptionFields).filter { it.closest(".related,.related-videos,#related-videos,#relateddiv") == null }.map(::value) + listOf(data?.optString("description").orEmpty()) + semanticDescription.map(::value) + if(declared)emptyList() else listOf(page.selectFirst("meta[property=og:description]")?.attr("content").orEmpty())
-        val summary=summaryCandidates.map(::clean).firstOrNull { it.isNotBlank() && !it.equals(rawTitle,true) && !promo.containsMatchIn(it) }.orEmpty()
-        val durationCandidates=listOf(data?.optString("duration").orEmpty()) + page.select("[itemprop=duration],meta[property=video:duration],meta[property=og:video:duration],meta[property=og:duration],.video-info .duration,.item_info .duration,.video-details .duration,.video-duration").filter { it.closest(".related,.related-videos,#related-videos,#relateddiv,nav,aside") == null }.map(::value)
+        val summaryCandidates=page.select(descriptionFields).filter { it.closest(".related,.related-videos,#related-videos,#relateddiv") == null }.map(::value) + listOf(data?.optString("description").orEmpty()) + semanticDescription.map(::value) + if(declared)emptyList() else listOf(page.selectFirst("meta[property=og:description]")?.attr("content").orEmpty(),page.selectFirst("meta[name=description]")?.attr("content").orEmpty())
+        val summary=summaryCandidates.map(::clean).firstOrNull { it.isNotBlank() && !it.trimEnd('.','!','?').equals(rawTitle.trimEnd('.','!','?'),true) && !promo.containsMatchIn(it) }.orEmpty()
+        val durationCandidates=listOf(data?.optString("duration").orEmpty()) + page.select(listOf("[itemprop=duration],meta[property=video:duration],meta[property=og:video:duration],meta[property=og:duration],.video-info .duration,.item_info .duration,.video-details .duration,.video-duration",spec.durationSelector).filter(String::isNotBlank).joinToString(",")).filter { it.closest(".related,.related-videos,#related-videos,#relateddiv,nav,aside") == null }.map(::value)
         val duration=durationCandidates.asSequence().map(::timing).firstOrNull(String::isNotBlank) ?: durations[videoKey(page.baseUri())].orEmpty()
         if(duration.isNotBlank())durations[videoKey(page.baseUri())]=duration
         val thumbnail=data?.opt("thumbnailUrl"); val structuredPoster=if(thumbnail is JSONArray)thumbnail.optString(0) else thumbnail?.toString()
-        val poster=absolute(page.baseUri(),page.selectFirst("meta[property=og:image]")?.attr("content")) ?: absolute(page.baseUri(),structuredPoster) ?: page.selectFirst("video[poster]")?.let { absolute(page.baseUri(),it.attr("poster")) }
+        val poster=absolute(page.baseUri(),page.selectFirst("meta[property=og:image]")?.attr("content")) ?: absolute(page.baseUri(),structuredPoster) ?: page.selectFirst("video[poster]")?.let { absolute(page.baseUri(),it.attr("poster")) } ?: posters[videoKey(page.baseUri())]
         val year=data?.optString("uploadDate")?.take(4)?.toIntOrNull()?.takeIf { it in 1900..2100 }
         return VideoDetail(rawTitle,poster,summary,tags,duration,year)
     }

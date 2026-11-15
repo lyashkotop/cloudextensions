@@ -2,14 +2,12 @@
 """Compile shared code once and produce an independently registered plugin per site."""
 import argparse
 import hashlib
-import importlib.util
 import json
 import os
 from pathlib import Path
 import re
 import shutil
 import struct
-import subprocess
 import tempfile
 import zipfile
 import zlib
@@ -55,31 +53,6 @@ def modules():
         raise ValueError('No plugin modules found')
     return result
 
-
-def entry_source(module):
-    entry = 'L' + module['entryClass'].replace('.', '/') + ';'
-    block = (module['folder'] / 'registration.smali.inc').read_text().strip()
-    if 'registerMainAPI' in block or 'return-' in block:
-        raise ValueError('Registration fragment must contain construction only')
-    provider = 'L' + module['providerClass'].replace('.', '/') + ';'
-    if 'new-instance v0, ' + provider not in block:
-        raise ValueError('Provider class does not match registration fragment')
-    return f'''.class public final {entry}
-.super Lcom/lagradost/cloudstream3/plugins/Plugin;
-.annotation runtime Lcom/lagradost/cloudstream3/plugins/CloudstreamPlugin;
-.end annotation
-.method public constructor <init>()V
-    .registers 1
-    invoke-direct {{p0}}, Lcom/lagradost/cloudstream3/plugins/Plugin;-><init>()V
-    return-void
-.end method
-.method public load(Landroid/content/Context;)V
-    .registers 7
-{block}
-    invoke-virtual {{p0, v0}}, {entry}->registerMainAPI(Lcom/lagradost/cloudstream3/MainAPI;)V
-    return-void
-.end method
-'''
 
 
 class Dex:
@@ -180,12 +153,14 @@ def main():
     repository = config['repository']
     if os.environ.get('GITHUB_REPOSITORY', repository) != repository:
         raise ValueError('Configure repository.json and repo.json for this repository before publishing')
-    spec = importlib.util.spec_from_file_location('shared_build', ROOT / 'common/tools/build.py')
-    build = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(build)
     tools = args.tools.resolve()
-    build.verify_tools(tools)
+    for tool in json.loads((ROOT / 'common/tools/toolchain.json').read_text()):
+        path=tools / tool['file']
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest()!=tool['sha256']:
+            raise ValueError('Missing or mismatched tool: ' + str(path))
     selected = modules()
+    if any(m.get("runtime")!="kotlin" for m in selected):
+        raise ValueError("All providers must use native Kotlin")
     output = args.output.resolve()
     if output == ROOT or ROOT in output.parents and output.name in CATEGORIES:
         raise ValueError('Output cannot overwrite source directories')
@@ -196,36 +171,7 @@ def main():
             old.unlink()
     with tempfile.TemporaryDirectory(prefix='.repository-build-', dir=ROOT) as name:
         temporary = Path(name)
-        build.regenerate_smali(tools, temporary)
-        native_common = kotlin_build.prepare(tools, temporary) if any(m.get("runtime") == "kotlin" for m in selected) else None
-        stage = temporary / 'smali'
-        source_paths = {}
-        for directory in [ROOT / 'common/smali', *(m['folder'] / 'smali' for m in selected if m.get('runtime') != 'kotlin')]:
-            for source in directory.rglob('*.smali'):
-                relative = source.relative_to(directory)
-                if relative in source_paths:
-                    raise ValueError('Duplicate smali path: ' + str(relative))
-                source_paths[relative] = source
-                target = stage / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(source, target)
-        for module in selected:
-            if module.get('runtime') == 'kotlin':
-                continue
-            target = stage / (module['entryClass'].replace('.', '/') + '.smali')
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(entry_source(module))
-        raw_dex = temporary / 'classes.dex'
-        classpath = str(tools / '*')
-        build.assemble(classpath, stage, raw_dex)
-        stripped = temporary / 'stripped'
-        build.run(['java', '-cp', classpath, 'org.jf.baksmali.Main', 'disassemble', '--debug-info', 'false', raw_dex, '-o', stripped])
-        compact = temporary / 'compact.dex'
-        build.assemble(classpath, stripped, compact)
-        data = compact.read_bytes()
-        dex = Dex(data)
-        if any('Test;' in name or name.startswith('Lcom/lagradost/cloudstream3/') or name.startswith('Lcom/lagradost/nicehttp/') for name in dex.classes):
-            raise ValueError('Test doubles or host API classes were included in production DEX')
+        native_common = kotlin_build.prepare(tools, temporary)
         native_results = {}
         native_modules = [m for m in selected if m.get('runtime') == 'kotlin']
         if native_modules:
@@ -235,8 +181,8 @@ def main():
                     native_results[jobs[future]] = future.result()
         index = []
         for module in selected:
-            module_data = native_results[module['id']] if module.get('runtime') == 'kotlin' else data
-            module_dex = Dex(module_data) if module.get('runtime') == 'kotlin' else dex
+            module_data = native_results[module['id']]
+            module_dex = Dex(module_data)
             module_dex.validate_entry(module)
             if module.get('runtime') == 'kotlin':
                 expected_entry = 'L' + module['entryClass'].replace('.', '/') + ';'
@@ -256,7 +202,7 @@ def main():
                           'fileSize': artifact.stat().st_size, 'fileHash': 'sha256-' + hashlib.sha256(artifact.read_bytes()).hexdigest()})
         (output / 'plugins.json').write_text(json.dumps(index, ensure_ascii=False, indent=2) + '\n')
         shutil.copyfile(ROOT / 'repo.json', output / 'repo.json')
-        (output / 'build-info.json').write_text(json.dumps({'version': version, 'sourceCommit': os.environ.get('GITHUB_SHA', 'local'), 'plugins': len(index), 'dexClasses': len(dex.classes), 'sourceSmaliFiles': len(source_paths), 'entryRegistrationsValidated': len(selected), 'kotlinProviders': sum(m.get('runtime') == 'kotlin' for m in selected)}, indent=2) + '\n')
+        (output / 'build-info.json').write_text(json.dumps({'version': version, 'sourceCommit': os.environ.get('GITHUB_SHA', 'local'), 'plugins': len(index), 'dexClasses': sum(len(Dex(raw).classes) for raw in native_results.values()), 'entryRegistrationsValidated': len(selected), 'kotlinProviders': sum(m.get('runtime') == 'kotlin' for m in selected)}, indent=2) + '\n')
         (output / 'README.md').write_text('# Generated CloudStream builds\n\nSource: https://github.com/' + repository + '\n\nAdd this URL in CloudStream:\n\nhttps://raw.githubusercontent.com/' + repository + '/' + config['sourceBranch'] + '/repo.json\n\nGenerated files are replaced only by a successful build. Site availability is not tested by CI.\n')
     # Validate the consumer-visible index against every real output file.
     for module, item in zip(selected, index):

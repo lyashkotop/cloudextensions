@@ -5,6 +5,7 @@
   "category": "English",
   "entryClass": "com.cloudextensions.entries.PervertiumPlugin",
   "providerClass": "com.streambundleextra.PervertiumProvider",
-  "description": "Pervertium extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Pervertium.png"
+  "description": "Pervertium — native Kotlin source with real metadata, bilingual search, source pagination and filters.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Pervertium.png",
+  "runtime": "kotlin"
 }

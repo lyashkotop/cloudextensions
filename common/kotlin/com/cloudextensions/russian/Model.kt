@@ -11,6 +11,7 @@ data class SiteSpec(
     val sections: List<Section>, val searchMode: String = "get",
     val tagSelector: String = "", val descriptionSelector: String = "",
     val related: String = "#related-videos, #relateddiv, .related-videos, .related, .related-videos-holder, #list_videos_related_videos",
+    val detailTitleSelector: String = "", val durationSelector: String = "",
 )
 data class VideoCard(val title: String, val url: String, val poster: String?, val duration: String = "", val tags: List<String> = emptyList())
 data class VideoDetail(val title: String, val poster: String?, val description: String, val tags: List<String>, val duration: String, val year: Int?)

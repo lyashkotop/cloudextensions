@@ -25,9 +25,14 @@ object Playback {
             if(playable(url))result+=Source(url,e.attr("label").ifBlank { e.attr("res") }.takeIf(String::isNotBlank))
         }
         val values=variables.findAll(page.html()).associate { it.groupValues[1] to unescape(it.groupValues[3]) }
-        for((key,value) in values)if(!key.endsWith("_text")&&!value.startsWith("function/")) {
-            val url=absolute(page.baseUri(),value) ?: continue
+        val license=Regex("""license_code\s*:\s*(['"])([^'"]*)\1""").find(page.html())?.groupValues?.get(2)
+        for((key,value) in values)if(!key.endsWith("_text")) {
+            val decoded=KvsUrls.decode(value,license) ?: continue
+            val url=absolute(page.baseUri(),decoded) ?: continue
             if(playable(url))result+=Source(url,values["${key}_text"])
+        }
+        for(match in Regex("""html5player\.setVideo(HLS|UrlHigh|UrlLow)\(['"]([^'"]+)['"]""").findAll(page.html())) {
+            absolute(page.baseUri(),unescape(match.groupValues[2]))?.takeIf(::playable)?.let { result+=Source(it) }
         }
         val structured=Metadata.ownVideo(page)?.optString("contentUrl")
         absolute(page.baseUri(),structured)?.takeIf(::playable)?.let { result+=Source(it) }

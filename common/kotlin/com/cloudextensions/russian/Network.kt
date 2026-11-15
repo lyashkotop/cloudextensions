@@ -2,6 +2,7 @@ package com.cloudextensions.russian
 
 import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import java.io.IOException
 import java.util.Collections
 import java.util.concurrent.TimeUnit
@@ -22,6 +23,8 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
 object Network {
+    private val cloudflare by lazy { CloudflareKiller() }
+    private class HttpFailure(val code:Int,host:String): IOException("HTTP $code: $host")
     private val cache = Collections.synchronizedMap(BoundedMap<PageRequest,Pair<Long,Document>>(24))
     private val locks = ConcurrentHashMap<PageRequest,Mutex>()
     private val permits = Semaphore(4)
@@ -39,7 +42,15 @@ object Network {
                 val builder=Request.Builder().url(fetchUrl)
                 for((k,v) in headers(referer)+request.headers)builder.header(k,v)
                 request.data?.let { values -> val form=FormBody.Builder();values.forEach { (k,v)->form.add(k,v) };builder.post(form.build()) }
-                val document=execute(builder.build(),request.allowNotFound)
+                val document=try { execute(builder.build(),request.allowNotFound) } catch(failure:HttpFailure) {
+                    if(failure.code !in setOf(403,503))throw failure
+                    // Use the host's cookie-aware WebView challenge handler on Android.
+                    val extra=headers(referer)+request.headers
+                    val response=if(request.data==null)app.get(fetchUrl,headers=extra,interceptor=cloudflare)
+                        else app.post(fetchUrl,headers=extra,data=request.data,interceptor=cloudflare)
+                    if(response.code !in 200..299 && !(request.allowNotFound && response.code==404))throw HttpFailure(response.code,builder.build().url.host)
+                    response.document.apply { attr("data-response-code",response.code.toString()) }
+                }
                 if(refresh)document.setBaseUri(request.url)
                 Metadata.alias(request.url,document.baseUri())
                 cache[request]=System.nanoTime() to document
@@ -56,9 +67,11 @@ object Network {
             override fun onResponse(call: Call,response: Response) {
                 try {
                     response.use {
-                        if(!it.isSuccessful && !(allowNotFound && it.code==404))throw ErrorLoadingException("HTTP ${it.code}: ${request.url.host}")
+                        if(!it.isSuccessful && !(allowNotFound && it.code==404))throw HttpFailure(it.code,request.url.host)
                         val text=it.body?.string() ?: throw ErrorLoadingException("Пустой ответ: ${request.url.host}")
-                        val page=Jsoup.parse(text,it.request.url.toString())
+                        val envelope=if(text.trimStart().startsWith("{"))try { org.json.JSONObject(text) }catch(_:Exception){null} else null
+                        val page=Jsoup.parse(envelope?.optString("html")?.takeIf(String::isNotBlank) ?: text,it.request.url.toString())
+                        if(envelope?.has("results_remaining")==true)page.attr("data-results-remaining",envelope.optInt("results_remaining").toString())
                         page.attr("data-response-code",it.code.toString())
                         if(continuation.isActive)continuation.resume(page)
                     }

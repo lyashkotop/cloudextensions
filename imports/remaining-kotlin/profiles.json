@@ -1,0 +1,508 @@
+{
+  "UKDevilz": {
+    "origin": "https://ukdevilz.com",
+    "cards": ".list_videos .item, #list_videos .item",
+    "link": "a.item_link[href]",
+    "titleSelector": ".title",
+    "searchMode": "path:/video/",
+    "sections": [
+      [
+        "Latest",
+        "/home"
+      ],
+      [
+        "Popular",
+        "/popular/month"
+      ]
+    ]
+  },
+  "ThisVid": {
+    "origin": "https://thisvid.com",
+    "cards": "a.tumbpu:has(img)",
+    "link": "a[href]",
+    "titleSelector": ".title",
+    "sections": [
+      [
+        "Latest",
+        "/"
+      ],
+      [
+        "Popular",
+        "/popular/"
+      ]
+    ],
+    "tagSelector": ".box ul.description a[href*=/tags/], .box ul.description a[href*=/categories/]",
+    "descriptionSelector": ".video-info .description",
+    "durationSelector": ".box .title-description:matchesOwn([0-9]+:[0-9]{2})"
+  },
+  "PornVideos": {
+    "origin": "https://www.pornvideos.rs",
+    "cards": "a[href*=/video/]:has(.plugthumb)",
+    "link": "a[href]",
+    "titleSelector": ".titlebox",
+    "sections": [
+      [
+        "Latest",
+        "/"
+      ]
+    ],
+    "tagSelector": ".videoinfo a[href*=/category/], .video-info a[href*=/tag/], .tags a",
+    "descriptionSelector": ".videoinfo .description, .video-description",
+    "detailTitleSelector": ".videopage h2"
+  },
+  "HurtSex": {
+    "origin": "https://www.hurtsex.com",
+    "cards": "a[href*=/video/]:has(.plugthumb)",
+    "link": "a[href]",
+    "titleSelector": ".titlebox",
+    "sections": [
+      [
+        "Latest",
+        "/"
+      ]
+    ],
+    "tagSelector": ".videoinfo a[href*=/category/], .tags a",
+    "descriptionSelector": ".videoinfo .description"
+  },
+  "Pervertium": {
+    "origin": "https://www.pervertium.com",
+    "cards": ".pop-thumb:has(img)",
+    "link": "a[href]",
+    "titleSelector": ".title",
+    "sections": [
+      [
+        "Latest",
+        "/"
+      ],
+      [
+        "Popular",
+        "/most-popular/"
+      ]
+    ]
+  },
+  "PunishWorld": {
+    "origin": "https://punishworld.com",
+    "cards": ".video-block:has(img)",
+    "link": "a.thumb[href]",
+    "titleSelector": ".title",
+    "sections": [
+      [
+        "Latest",
+        "/"
+      ]
+    ],
+    "tagSelector": ".video-tags a, .video-info a[href*=/tag/]",
+    "descriptionSelector": ".video-description, .video-info .description"
+  },
+  "PunishBang": {
+    "origin": "https://www.punishbang.com",
+    "cards": ".list-videos .item, .video-block:has(img)",
+    "link": "a[href]",
+    "titleSelector": ".title",
+    "sections": [
+      [
+        "Latest",
+        "/"
+      ]
+    ]
+  },
+  "SickR": {
+    "origin": "https://sick-r.com",
+    "cards": ".listing__item.item-video",
+    "link": "a[href]",
+    "titleSelector": ".title, .listing__item-title",
+    "sections": [
+      [
+        "Latest",
+        "/"
+      ],
+      [
+        "Popular",
+        "/most-popular/"
+      ]
+    ],
+    "tagSelector": ".info-wrapper .info-tag",
+    "descriptionSelector": ".info-row:has(.info-title:matchesOwn(Description)) .info-value"
+  },
+  "SickJunk": {
+    "origin": "https://sickjunk.com",
+    "cards": "article.genaral-post-item:has(img)",
+    "link": ".genpost-featured-image a[href],h2 a[href]",
+    "titleSelector": ".entry-title",
+    "sections": [
+      [
+        "Latest",
+        "/"
+      ]
+    ],
+    "tagSelector": "article .single-entry-footer .awaken-category-list a",
+    "descriptionSelector": ".entry-content > p, .genpost-entry-content > p",
+    "detailTitleSelector": "h1.single-entry-title"
+  },
+  "TubeSafari": {
+    "origin": "https://tubesafari.com",
+    "cards": ".vid_li:has(a[href*=/video]), .vid_li:has(a[href*=/watch/])",
+    "link": "a[href*=/video],a[href*=/watch/]",
+    "titleSelector": ".vid_title,.video_title",
+    "searchMode": "get",
+    "sections": [
+      [
+        "Swallow",
+        "/search/swallow"
+      ],
+      [
+        "Fetish",
+        "/search/fetish"
+      ],
+      [
+        "Shower",
+        "/search/shower"
+      ],
+      [
+        "Pov",
+        "/search/pov"
+      ],
+      [
+        "Party",
+        "/search/party"
+      ],
+      [
+        "Lesbian",
+        "/search/lesbian"
+      ],
+      [
+        "Amateur Anal",
+        "/search/amateur-anal"
+      ],
+      [
+        "Asian Anal",
+        "/search/asian-anal"
+      ],
+      [
+        "Latex",
+        "/search/latex"
+      ],
+      [
+        "Ass Licking",
+        "/search/ass-licking"
+      ],
+      [
+        "Japanese",
+        "/search/japanese"
+      ],
+      [
+        "Best Blowjob",
+        "/search/best-blowjob"
+      ],
+      [
+        "Squirting",
+        "/search/squirting"
+      ],
+      [
+        "Bts",
+        "/search/bts"
+      ],
+      [
+        "Bdsm",
+        "/search/bdsm"
+      ],
+      [
+        "Throat Fuck",
+        "/search/throat-fuck"
+      ],
+      [
+        "Amateur Couple",
+        "/search/amateur-couple"
+      ],
+      [
+        "Casting",
+        "/search/casting"
+      ],
+      [
+        "Natural",
+        "/search/natural"
+      ],
+      [
+        "Milf",
+        "/search/milf"
+      ],
+      [
+        "Cumshot",
+        "/search/cumshot"
+      ],
+      [
+        "Edging",
+        "/search/edging"
+      ],
+      [
+        "Cfnm",
+        "/search/cfnm"
+      ],
+      [
+        "Fisting",
+        "/search/fisting"
+      ],
+      [
+        "Missionary",
+        "/search/missionary"
+      ],
+      [
+        "Solo Girl",
+        "/search/solo-girl"
+      ],
+      [
+        "Curvy",
+        "/search/curvy"
+      ],
+      [
+        "Femdom Pegging",
+        "/search/femdom-pegging"
+      ],
+      [
+        "Dirty Talk",
+        "/search/dirty-talk"
+      ],
+      [
+        "Interracial",
+        "/search/interracial"
+      ],
+      [
+        "Amateur Milf",
+        "/search/amateur-milf"
+      ],
+      [
+        "Massage",
+        "/search/massage"
+      ],
+      [
+        "4K",
+        "/search/4k"
+      ],
+      [
+        "Real Homemade",
+        "/search/real-homemade"
+      ],
+      [
+        "British",
+        "/search/british"
+      ],
+      [
+        "Face Fuck",
+        "/search/face-fuck"
+      ],
+      [
+        "Facesitting",
+        "/search/facesitting"
+      ],
+      [
+        "Big Cock",
+        "/search/big-cock"
+      ],
+      [
+        "Sex",
+        "/search/sex"
+      ],
+      [
+        "Panties",
+        "/search/panties"
+      ],
+      [
+        "Pinay",
+        "/search/pinay"
+      ],
+      [
+        "Czech",
+        "/search/czech"
+      ],
+      [
+        "Pornstar",
+        "/search/pornstar"
+      ],
+      [
+        "Parody",
+        "/search/parody"
+      ],
+      [
+        "Blonde",
+        "/search/blonde"
+      ],
+      [
+        "Real Orgasm",
+        "/search/real-orgasm"
+      ],
+      [
+        "Latina",
+        "/search/latina"
+      ],
+      [
+        "Mexicana",
+        "/search/mexicana"
+      ],
+      [
+        "German",
+        "/search/german"
+      ],
+      [
+        "Ass Eating",
+        "/search/ass-eating"
+      ],
+      [
+        "Kink",
+        "/search/kink"
+      ],
+      [
+        "Cuckold",
+        "/search/cuckold"
+      ],
+      [
+        "Anal Creampie",
+        "/search/anal-creampie"
+      ],
+      [
+        "Orgasm",
+        "/search/orgasm"
+      ],
+      [
+        "Pov Blowjob",
+        "/search/pov-blowjob"
+      ],
+      [
+        "Bukkake",
+        "/search/bukkake"
+      ],
+      [
+        "Big Tits",
+        "/search/big-tits"
+      ],
+      [
+        "Creampie",
+        "/search/creampie"
+      ],
+      [
+        "Big Booty",
+        "/search/big-booty"
+      ],
+      [
+        "Gangbang",
+        "/search/gangbang"
+      ],
+      [
+        "Cum In Mouth",
+        "/search/cum-in-mouth"
+      ],
+      [
+        "Sloppy Blowjob",
+        "/search/sloppy-blowjob"
+      ],
+      [
+        "Huge Tits",
+        "/search/huge-tits"
+      ],
+      [
+        "Reaction",
+        "/search/reaction"
+      ],
+      [
+        "Riding Dick",
+        "/search/riding-dick"
+      ],
+      [
+        "Pussy Eating",
+        "/search/pussy-eating"
+      ],
+      [
+        "Dildo",
+        "/search/dildo"
+      ],
+      [
+        "Cum Swallowing",
+        "/search/cum-swallowing"
+      ],
+      [
+        "Mature",
+        "/search/mature"
+      ],
+      [
+        "Facial",
+        "/search/facial"
+      ],
+      [
+        "Femdom Handjob",
+        "/search/femdom-handjob"
+      ],
+      [
+        "Orgy",
+        "/search/orgy"
+      ],
+      [
+        "Solo Squirt",
+        "/search/solo-squirt"
+      ],
+      [
+        "Threesome",
+        "/search/threesome"
+      ],
+      [
+        "Squirt",
+        "/search/squirt"
+      ],
+      [
+        "Big Ass",
+        "/search/big-ass"
+      ],
+      [
+        "Chubby",
+        "/search/chubby"
+      ],
+      [
+        "Amador",
+        "/search/amador"
+      ],
+      [
+        "Arab",
+        "/search/arab"
+      ],
+      [
+        "Riding",
+        "/search/riding"
+      ],
+      [
+        "Cum On Face",
+        "/search/cum-on-face"
+      ],
+      [
+        "Deepthroat",
+        "/search/deepthroat"
+      ],
+      [
+        "Russian",
+        "/search/russian"
+      ],
+      [
+        "Italian",
+        "/search/italian"
+      ]
+    ],
+    "tagSelector": ".video_tags a, .video_info a[href*=/search/], .tags a",
+    "descriptionSelector": ".video_description, .video_description p"
+  },
+  "Xnxx": {
+    "origin": "https://www.xnxx.com",
+    "cards": ".mozaique .thumb-block:not(.thumb-cat)",
+    "link": "p a[href],.thumb a[href]",
+    "titleSelector": "p a",
+    "searchMode": "path",
+    "sections": [
+      [
+        "Popular",
+        "/best"
+      ],
+      [
+        "Most viewed",
+        "/hits"
+      ]
+    ],
+    "tagSelector": ".metadata-row.video-tags a.is-keyword, .metadata-row.video-tags a[href*=/search/]",
+    "descriptionSelector": ".metadata-row.video-description"
+  }
+}

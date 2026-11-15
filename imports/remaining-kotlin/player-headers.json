@@ -1,0 +1,34 @@
+[
+  {
+    "site": "YouJizz",
+    "number": 0,
+    "quality": "240",
+    "http": 206,
+    "mediaHeader": true,
+    "bytesRead": 512
+  },
+  {
+    "site": "YouJizz",
+    "number": 0,
+    "quality": "Auto",
+    "http": 200,
+    "mediaHeader": true,
+    "bytesRead": 512
+  },
+  {
+    "site": "YouJizz",
+    "number": 1,
+    "quality": "240",
+    "http": 206,
+    "mediaHeader": true,
+    "bytesRead": 512
+  },
+  {
+    "site": "YouJizz",
+    "number": 1,
+    "quality": "Auto",
+    "http": 200,
+    "mediaHeader": true,
+    "bytesRead": 512
+  }
+]

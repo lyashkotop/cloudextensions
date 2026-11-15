@@ -4,7 +4,8 @@
   "language": "en",
   "category": "English",
   "entryClass": "com.cloudextensions.entries.XVideosPlugin",
-  "providerClass": "com.lagradost.XVideosProvider",
-  "description": "xVideos extension imported from CloudstreamAdult. Source availability depends on the site.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/XVideos.png"
+  "providerClass": "com.byayzen.xVideos",
+  "description": "xVideos — adapted Kotlin provider with shared search, filtering and metadata policies.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/XVideos.png",
+  "runtime": "kotlin"
 }

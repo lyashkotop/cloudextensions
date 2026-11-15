@@ -5,6 +5,7 @@
   "category": "English",
   "entryClass": "com.cloudextensions.entries.UKDevilzPlugin",
   "providerClass": "com.example.websites.UKDevilzProvider",
-  "description": "UKDevilz extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/UKDevilz.png"
+  "description": "UKDevilz — native Kotlin source with real metadata, bilingual search, source pagination and filters.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/UKDevilz.png",
+  "runtime": "kotlin"
 }

@@ -4,7 +4,8 @@
   "language": "en",
   "category": "English",
   "entryClass": "com.cloudextensions.entries.YouJizzPlugin",
-  "providerClass": "com.streambundleextra.YouJizzProvider",
-  "description": "YouJizz extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/YouJizz.png"
+  "providerClass": "com.kraptor.YouJizz",
+  "description": "YouJizz — adapted Kotlin provider with shared search, filtering and metadata policies.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/YouJizz.png",
+  "runtime": "kotlin"
 }

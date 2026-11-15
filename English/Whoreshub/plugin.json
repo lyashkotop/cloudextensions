@@ -4,7 +4,8 @@
   "language": "en",
   "category": "English",
   "entryClass": "com.cloudextensions.entries.WhoreshubPlugin",
-  "providerClass": "com.lagradost.WhoreshubProvider",
-  "description": "Whoreshub extension imported from CloudstreamAdult. Source availability depends on the site.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Whoreshub.png"
+  "providerClass": "com.byayzen.Whoreshub",
+  "description": "Whoreshub — adapted Kotlin provider with shared search, filtering and metadata policies.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Whoreshub.png",
+  "runtime": "kotlin"
 }

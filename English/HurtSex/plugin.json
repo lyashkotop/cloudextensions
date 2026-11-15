@@ -5,6 +5,7 @@
   "category": "English",
   "entryClass": "com.cloudextensions.entries.HurtSexPlugin",
   "providerClass": "com.streambundleextra.HurtSexProvider",
-  "description": "HurtSex extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/HurtSex.png"
+  "description": "HurtSex — native Kotlin source with real metadata, bilingual search, source pagination and filters.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/HurtSex.png",
+  "runtime": "kotlin"
 }

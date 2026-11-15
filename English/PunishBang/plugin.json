@@ -5,6 +5,8 @@
   "category": "English",
   "entryClass": "com.cloudextensions.entries.PunishBangPlugin",
   "providerClass": "com.streambundleextra.PunishBangProvider",
-  "description": "PunishBang extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/PunishBang.png"
+  "description": "PunishBang — native Kotlin source with real metadata, bilingual search, source pagination and filters. Cloudflare returned HTTP 403 during live checks.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/PunishBang.png",
+  "runtime": "kotlin",
+  "status": 3
 }

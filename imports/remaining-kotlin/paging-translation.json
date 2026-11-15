@@ -1,0 +1,56 @@
+[
+  {
+    "check": "TubeSafari-page2",
+    "http": 200,
+    "seconds": 0.59,
+    "remaining": 360,
+    "cards": 120,
+    "freshUrls": 120
+  },
+  {
+    "check": "UKDevilz-page2",
+    "http": 403,
+    "seconds": 0.45,
+    "cards": 0,
+    "freshUrls": 0
+  },
+  {
+    "check": "ThisVid-page2",
+    "http": 200,
+    "seconds": 1.45,
+    "cards": 36,
+    "freshUrls": 37
+  },
+  {
+    "check": "translation-ru-en-1",
+    "http": 200,
+    "seconds": 0.35,
+    "nonempty": true,
+    "hasRussian": false,
+    "hasEnglish": true
+  },
+  {
+    "check": "translation-ru-en-2",
+    "http": 200,
+    "seconds": 1.56,
+    "nonempty": true,
+    "hasRussian": false,
+    "hasEnglish": true
+  },
+  {
+    "check": "translation-en-ru-1",
+    "http": 200,
+    "seconds": 0.3,
+    "nonempty": true,
+    "hasRussian": true,
+    "hasEnglish": false
+  },
+  {
+    "check": "translation-en-ru-2",
+    "http": 200,
+    "seconds": 1.01,
+    "nonempty": true,
+    "hasRussian": true,
+    "hasEnglish": false
+  }
+]

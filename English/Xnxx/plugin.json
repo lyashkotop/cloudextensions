@@ -5,6 +5,7 @@
   "category": "English",
   "entryClass": "com.cloudextensions.entries.XnxxPlugin",
   "providerClass": "com.lagradost.XnxxProvider",
-  "description": "XNXX extension imported from CloudstreamAdult. Source availability depends on the site.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Xnxx.jpg"
+  "description": "XNXX — native Kotlin source with real metadata, bilingual search, source pagination and filters.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Xnxx.jpg",
+  "runtime": "kotlin"
 }

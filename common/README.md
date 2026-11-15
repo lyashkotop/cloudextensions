@@ -1,13 +1,12 @@
-# Shared source
+# Shared Kotlin core
 
-The repository build entry point is `../scripts/build_repository.py`.
-Provider-specific smali is stored in the language folders. This directory alone
-is not a complete plugin source tree; the builder combines it with every module.
+`kotlin/` contains HTTP, source metadata, images, filtering, RU/EN translation,
+real pagination, playback and upstream-provider adapters. Each package includes only
+classes reachable from its own entry point; CloudStream and Kotlin libraries are supplied
+by the host application.
 
-Maintained Java classes in `java/` are compiled automatically. Other historical
-Java files moved to `../reference/java/`; they are documentation, not build inputs.
-The editable implementation of those historical classes is in the matching smali file.
+`tests-kotlin/` verifies shared contracts. `probes/` reads saved real HTTP pages and
+reports metadata counts without displaying media. `tools/` pins compilers and SDK with SHA-256.
 
-The original v64 findings and limitations remain in CHANGES-RU.md and VALIDATION.json.
-Current repository requirements are in ../REQUIREMENTS.md. A successful build is not
-an Android playback test or a guarantee of external site availability.
+The former Smali/Java implementation is preserved in Git history through `ed12096`.
+All 48 providers now compile from Kotlin; no legacy bytecode sources are bundled.

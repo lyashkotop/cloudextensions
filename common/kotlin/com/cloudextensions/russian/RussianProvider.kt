@@ -12,7 +12,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.jsoup.nodes.Document
 
-/** Native Kotlin implementation shared only by the seven Russian sources. No legacy provider delegation. */
+/** Native Kotlin implementation shared by source profiles across all language groups. No legacy provider delegation. */
 open class RussianProvider(val spec: SiteSpec): MainAPI() {
     override var name=spec.title
     override var mainUrl=spec.origin
@@ -126,7 +126,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI() {
     }
     override suspend fun load(url: String): LoadResponse {
         val document=page(PageRequest(url))
-        val detail=Metadata.detail(document,spec)
+        val detail=DetailEnrichment.complete(document,spec,Metadata.detail(document,spec))
         if(detail.title.isBlank())throw ErrorLoadingException("На странице нет названия видео")
         if(!ContentPolicy.accepts(detail.title,detail.tags))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         val recommendations=related(document,detail,url)

@@ -4,7 +4,8 @@
   "language": "en",
   "category": "English",
   "entryClass": "com.cloudextensions.entries.XRaresPlugin",
-  "providerClass": "com.lagradost.XRaresProvider",
-  "description": "XRares extension imported from CloudstreamAdult. Source availability depends on the site.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/XRares.png"
+  "providerClass": "com.kraptor.XRares",
+  "description": "XRares — adapted Kotlin provider with shared search, filtering and metadata policies.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/XRares.png",
+  "runtime": "kotlin"
 }

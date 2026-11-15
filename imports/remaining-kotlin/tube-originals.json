@@ -1,0 +1,34 @@
+[
+  {
+    "site": "TubeSafari-embed-0",
+    "http": 200,
+    "seconds": 0.85,
+    "images": 1,
+    "metadata": 0,
+    "canonical": false
+  },
+  {
+    "site": "TubeSafari-canonical-0",
+    "http": 200,
+    "seconds": 1.09,
+    "images": 3,
+    "metadata": 9,
+    "canonical": false
+  },
+  {
+    "site": "TubeSafari-embed-1",
+    "http": 404,
+    "seconds": 0.9,
+    "images": 0,
+    "metadata": 0,
+    "canonical": false
+  },
+  {
+    "site": "TubeSafari-canonical-1",
+    "http": 404,
+    "seconds": 1.05,
+    "images": 1,
+    "metadata": 0,
+    "canonical": false
+  }
+]
