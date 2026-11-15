@@ -1,0 +1,11 @@
+{
+  "id": "Javtiful",
+  "name": "Javtiful",
+  "language": "ja",
+  "category": "Japanese",
+  "entryClass": "com.cloudextensions.entries.JavtifulPlugin",
+  "providerClass": "com.javtiful.Javtiful",
+  "runtime": "kotlin",
+  "description": "Javtiful — Kotlin source imported with original extractor registrations.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Javtiful.png"
+}

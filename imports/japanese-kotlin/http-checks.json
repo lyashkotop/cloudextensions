@@ -1,0 +1,212 @@
+[
+  {
+    "site": "MissAV",
+    "http": 403,
+    "url": "https://missav.live/",
+    "seconds": 0.29,
+    "imagesDeclared": 0,
+    "imageSamples": []
+  },
+  {
+    "site": "JavGuru",
+    "http": 200,
+    "url": "https://jav.guru/",
+    "seconds": 1.23,
+    "imagesDeclared": 25,
+    "imageSamples": [
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      }
+    ]
+  },
+  {
+    "site": "JavMost",
+    "http": 200,
+    "url": "https://www.javmost.ws/",
+    "seconds": 1.61,
+    "imagesDeclared": 26,
+    "imageSamples": [
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      }
+    ]
+  },
+  {
+    "site": "JAVHd",
+    "http": 200,
+    "url": "https://javhd.today/",
+    "seconds": 3.31,
+    "imagesDeclared": 33,
+    "imageSamples": [
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      }
+    ]
+  },
+  {
+    "site": "Javtiful",
+    "http": 200,
+    "url": "https://javtiful.com/main",
+    "seconds": 1.51,
+    "imagesDeclared": 86,
+    "imageSamples": [
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      }
+    ]
+  },
+  {
+    "site": "Javx",
+    "http": 200,
+    "url": "https://javx.org/",
+    "seconds": 1.16,
+    "imagesDeclared": 37,
+    "imageSamples": [
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      }
+    ]
+  },
+  {
+    "site": "SuperJav",
+    "http": 403,
+    "url": "https://supjav.com/",
+    "seconds": 0.22,
+    "imagesDeclared": 0,
+    "imageSamples": []
+  },
+  {
+    "site": "Javdoe",
+    "http": 200,
+    "url": "https://javdoe.sh/",
+    "seconds": 1.23,
+    "imagesDeclared": 2,
+    "imageSamples": [
+      {
+        "http": 403,
+        "image": false
+      },
+      {
+        "http": 200,
+        "image": true
+      }
+    ]
+  },
+  {
+    "site": "JavGG",
+    "http": 200,
+    "url": "https://javgg.net/",
+    "seconds": 0.96,
+    "imagesDeclared": 150,
+    "imageSamples": [
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      }
+    ]
+  },
+  {
+    "site": "JavEnglish",
+    "http": 200,
+    "url": "https://javenglish.cc/",
+    "seconds": 1.37,
+    "imagesDeclared": 37,
+    "imageSamples": [
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      }
+    ]
+  },
+  {
+    "site": "Javangel",
+    "http": 200,
+    "url": "https://jav-angel.net/",
+    "seconds": 3.3,
+    "imagesDeclared": 2,
+    "imageSamples": [
+      {
+        "http": 200,
+        "image": false
+      }
+    ]
+  },
+  {
+    "site": "Javseen",
+    "http": 200,
+    "url": "https://javseen.tv/",
+    "seconds": 1.48,
+    "imagesDeclared": 2,
+    "imageSamples": [
+      {
+        "http": 200,
+        "image": true
+      },
+      {
+        "http": 200,
+        "image": true
+      }
+    ]
+  }
+]

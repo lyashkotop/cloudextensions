@@ -2,7 +2,7 @@ new-instance v0, Lcom/streambundleextra/DarknessPornProvider;
 
     invoke-direct {v0}, Lcom/streambundleextra/DarknessPornProvider;-><init>()V
 
-    const-string v1, "DarknessPorn"
+    const-string v1, "3. DarknessPorn"
 
     invoke-virtual {v0, v1}, Lcom/lagradost/cloudstream3/MainAPI;->setName(Ljava/lang/String;)V
 

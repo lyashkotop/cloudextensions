@@ -12,7 +12,7 @@ new-instance v1, Lcom/lagradost/CatalogSite;
 
     invoke-direct {v0, v1}, Lcom/lagradost/VideoHubProvider;-><init>(Lcom/lagradost/CatalogSite;)V
 
-    const-string v1, "Beeg.porn"
+    const-string v1, "3. Beeg.porn"
 
     invoke-virtual {v0, v1}, Lcom/lagradost/cloudstream3/MainAPI;->setName(Ljava/lang/String;)V
 

@@ -140,7 +140,7 @@ class Dex:
         words = self.entry('L' + module['entryClass'].replace('.', '/') + ';')
         index = registrations = 0
         types = []
-        sizes = {0x0e: 1, 0x12: 1, 0x1a: 2, 0x1b: 3, 0x1f: 2, 0x22: 2, 0x6e: 3, 0x70: 3}
+        sizes = {0x00: 1, 0x07: 1, 0x08: 2, 0x09: 3, 0x0e: 1, 0x12: 1, 0x1a: 2, 0x1b: 3, 0x1f: 2, 0x22: 2, 0x62: 2, 0x6e: 3, 0x70: 3, 0x71: 3}
         while index < len(words):
             opcode = words[index] & 255
             if opcode not in sizes:

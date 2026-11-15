@@ -10,7 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 LIBRARIES = ('cloudstream-sdk.jar', 'kotlin-stdlib-2.1.0.jar', 'jsoup-1.18.3.jar',
              'json-20240303.jar', 'android-4.1.1.4.jar', 'okhttp-4.12.0.jar',
              'okio-jvm-3.6.0.jar', 'nicehttp-0.4.13.jar',
-             'kotlinx-coroutines-core-jvm-1.6.4.jar', 'annotations-13.0.jar')
+             'kotlinx-coroutines-core-jvm-1.6.4.jar', 'annotations-13.0.jar', 'gson-2.13.2.jar', 'jackson-annotations-2.17.2.jar',
+             'jackson-core-2.17.2.jar', 'jackson-databind-2.17.2.jar',
+             'jackson-module-kotlin-2.17.2.jar', 'rhino-1.8.0.jar')
 
 
 def compile_sources(tools, sources, destination, extra=()):

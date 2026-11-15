@@ -2,7 +2,7 @@ new-instance v0, Lcom/streambundleextra/PunishBangProvider;
 
     invoke-direct {v0}, Lcom/streambundleextra/PunishBangProvider;-><init>()V
 
-    const-string v1, "PunishBang"
+    const-string v1, "3. PunishBang"
 
     invoke-virtual {v0, v1}, Lcom/lagradost/cloudstream3/MainAPI;->setName(Ljava/lang/String;)V
 

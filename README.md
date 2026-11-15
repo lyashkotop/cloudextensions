@@ -76,3 +76,5 @@ YouJizz не исправлен. Для русских провайдеров р
 Состояние перехода русских сайтов на Kotlin: [Russian/VALIDATION.md](Russian/VALIDATION.md).
 
 Адаптация присланного Noodle Magazine: [Russian/NoodleMagazine](Russian/NoodleMagazine/README.md).
+
+Японские Kotlin-модули и ограничения проверки: [Japanese](Japanese/README.md).

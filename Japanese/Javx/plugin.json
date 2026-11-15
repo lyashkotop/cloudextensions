@@ -1,0 +1,11 @@
+{
+  "id": "Javx",
+  "name": "Javx",
+  "language": "ja",
+  "category": "Japanese",
+  "entryClass": "com.cloudextensions.entries.JavxPlugin",
+  "providerClass": "com.Javx.Javx",
+  "runtime": "kotlin",
+  "description": "Javx — Kotlin source imported with original extractor registrations.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Javx.png"
+}

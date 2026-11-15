@@ -2,7 +2,7 @@ new-instance v0, Lcom/streambundleextra/SickRProvider;
 
     invoke-direct {v0}, Lcom/streambundleextra/SickRProvider;-><init>()V
 
-    const-string v1, "SICK-R"
+    const-string v1, "3. SICK-R"
 
     invoke-virtual {v0, v1}, Lcom/lagradost/cloudstream3/MainAPI;->setName(Ljava/lang/String;)V
 

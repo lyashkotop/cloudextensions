@@ -1,0 +1,11 @@
+{
+  "id": "Javseen",
+  "name": "Javseen",
+  "language": "ja",
+  "category": "Japanese",
+  "entryClass": "com.cloudextensions.entries.JavseenPlugin",
+  "providerClass": "com.byayzen.Javseen",
+  "runtime": "kotlin",
+  "description": "Javseen — Kotlin source imported with original extractor registrations.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Javseen.png"
+}

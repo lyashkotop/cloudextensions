@@ -4,7 +4,9 @@
   "language": "ja",
   "category": "Japanese",
   "entryClass": "com.cloudextensions.entries.MissAVPlugin",
-  "providerClass": "com.lagradost.VideoHubProvider",
-  "description": "MissAV extension. Site availability and metadata depend on the source.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/MissAV.png"
+  "providerClass": "com.byayzen.MissAV",
+  "description": "MissAV — Kotlin source imported with original extractor registrations. Требуется проверка доступа и разметки в Android.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/MissAV.png",
+  "runtime": "kotlin",
+  "status": 3
 }

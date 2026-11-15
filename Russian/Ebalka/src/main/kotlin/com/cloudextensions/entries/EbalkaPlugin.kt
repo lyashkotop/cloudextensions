@@ -7,5 +7,5 @@ import com.example.ebalka.EbalkaProvider
 
 @CloudstreamPlugin
 class EbalkaPlugin: Plugin() {
-    override fun load(context: Context) { registerMainAPI(EbalkaProvider()) }
+    override fun load(context: Context) { registerMainAPI(EbalkaProvider().apply { name = "1. Ebalka" }) }
 }

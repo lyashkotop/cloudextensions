@@ -1,0 +1,155 @@
+[
+  {
+    "id": "MissAV",
+    "origin": "https://missav.live",
+    "repository": "upstream-Cs-GizliKeyif",
+    "module": "MissAV",
+    "commit": "c7e7d11b0e1831d9acc852df2cd07521de886cfa",
+    "files": {
+      "src/main/kotlin/com/byayzen/MissAV.kt": "4c3672d7c8f34480a5d2c24fd697e9bfe7c40509dac0096718c7bf584bb04508",
+      "src/main/kotlin/com/byayzen/MissAVPlugin.kt": "6b3bf6f205856d154782567a3d28d6808023c2c78f50158d293e2535c1ff7248"
+    }
+  },
+  {
+    "id": "JavGuru",
+    "origin": "https://jav.guru",
+    "repository": "upstream-CXXX",
+    "module": "JavGuru",
+    "commit": "f1bb71a85c62746e9b70b6e68e67fc48c005d116",
+    "files": {
+      "src/main/kotlin/com/jacekun/JavGuruPlugin.kt": "a70c94dcf72404b8f4a6b6a4c533c29b02e0ffe161f2e4fc0d19df428df500e2",
+      "src/main/kotlin/com/jacekun/JavGuru.kt": "66d03cb61ac7614af03fe1b72bef2662179a5989228baab102f26d62c2cfb06a"
+    }
+  },
+  {
+    "id": "JavMost",
+    "origin": "https://www.javmost.ws",
+    "repository": "upstream-CXXX",
+    "module": "JavMost",
+    "commit": "f1bb71a85c62746e9b70b6e68e67fc48c005d116",
+    "files": {
+      "src/main/kotlin/com/jacekun/JavMostPlugin.kt": "45c1abbc492bd006870363c66e739e780aedb429a324939361ea46bab693905d",
+      "src/main/kotlin/com/jacekun/JavMost.kt": "3747679b4dd60f15fd7c681738d5686e5b72d3f3fd5c9c12ddfee8f23411bab4"
+    }
+  },
+  {
+    "id": "JAVHd",
+    "origin": "https://javhd.today",
+    "repository": "upstream-CXXX",
+    "module": "JAVHd",
+    "commit": "f1bb71a85c62746e9b70b6e68e67fc48c005d116",
+    "files": {
+      "src/main/kotlin/com/JAVHd/JAVHDExtractors.kt": "ad43b81bb54fef6d7630f7470727fcf2c91975b90c5f17a4591b5add6bf6e13b",
+      "src/main/kotlin/com/JAVHd/JAVHDProvider.kt": "181c617ea7d10cce061416a3e7fc8a937975fc9aae8468453c619f46cb5f5667",
+      "src/main/kotlin/com/JAVHd/JAVHDPlugin.kt": "d314f1a3efa441ee3510030574f241f9399437a52b561ae2c7b76dd1722232cd"
+    }
+  },
+  {
+    "id": "Javtiful",
+    "origin": "https://javtiful.com",
+    "repository": "upstream-CXXX",
+    "module": "Javtiful",
+    "commit": "f1bb71a85c62746e9b70b6e68e67fc48c005d116",
+    "files": {
+      "src/main/kotlin/com/javtiful/JavtifulPlugin.kt": "3338512c5a7441e4a5276284a6bc431dadf6146e87cce081666e33f7592d53bb",
+      "src/main/kotlin/com/javtiful/Javtiful.kt": "48438b4046a61c106f8edeebdf2dbfd356924d07cab9dc090f003e18bff4366c"
+    }
+  },
+  {
+    "id": "Javx",
+    "origin": "https://javx.org",
+    "repository": "upstream-CXXX",
+    "module": "Javx",
+    "commit": "f1bb71a85c62746e9b70b6e68e67fc48c005d116",
+    "files": {
+      "src/main/kotlin/com/Javx/JavxPlugin.kt": "c68ec1ff5617481a732ab30e6ca25beae7cbaacf397884ae8e085f708ceb1a65",
+      "src/main/kotlin/com/Javx/Javx.kt": "64c796860194141ea12ae036593805f4fd308f384c20b725f18ff878d833da09"
+    }
+  },
+  {
+    "id": "SuperJav",
+    "origin": "https://supjav.com",
+    "repository": "upstream-CXXX",
+    "module": "SuperJav",
+    "commit": "f1bb71a85c62746e9b70b6e68e67fc48c005d116",
+    "files": {
+      "src/main/kotlin/com/CXXX/SuperJav.kt": "a379bddc5f6df140cbebd67597c71a4478114c11b41dae31d262fd0727996d4f",
+      "src/main/kotlin/com/CXXX/SuperJavPlugin.kt": "e487c7daa0feb0fdd05c1b5526bd15c95290de5151ed6ae30f80f9c6b604abdc"
+    }
+  },
+  {
+    "id": "Javdoe",
+    "origin": "https://javdoe.sh",
+    "repository": "upstream-CXXX",
+    "module": "JAVPoint",
+    "commit": "f1bb71a85c62746e9b70b6e68e67fc48c005d116",
+    "files": {
+      "src/main/kotlin/com/Javpoint/Extractor.kt": "221c98fd2886c3006609e731ac877f9b99b70b7888cb53232b2fb59d4f599dd8",
+      "src/main/kotlin/com/Javpoint/Javangel.kt": "872058b23d08846bf21304340470294f8bc0e97aec3f1a9bd10b8681551d0a62",
+      "src/main/kotlin/com/Javpoint/JavEnglish.kt": "865d041a6a56c9b87d27120ac0bc3a4d7332484d16e8fcc7be5ce5f16bce8725",
+      "src/main/kotlin/com/Javpoint/javdoe.kt": "e7af55a97ad5f3360ae6a1df751f899af04e44c9727a7c730fd06905e4bd9712",
+      "src/main/kotlin/com/Javpoint/Javguru.kt": "bda9078efbaa193ef419812be75c9d1441d14cf486b06c39d29680a475f24562",
+      "src/main/kotlin/com/Javpoint/Javgg.kt": "733a6ddd1a0d32818842b39f8aa2ed385dd5fa39b3b2784787831d1238806bc2",
+      "src/main/kotlin/com/Javpoint/JavpointProvider.kt": "7dda4ac32de8185c390b2e612f07588fa69ad7211c304f44e380809b678a1a11"
+    }
+  },
+  {
+    "id": "JavGG",
+    "origin": "https://javgg.net",
+    "repository": "upstream-CXXX",
+    "module": "JAVPoint",
+    "commit": "f1bb71a85c62746e9b70b6e68e67fc48c005d116",
+    "files": {
+      "src/main/kotlin/com/Javpoint/Extractor.kt": "221c98fd2886c3006609e731ac877f9b99b70b7888cb53232b2fb59d4f599dd8",
+      "src/main/kotlin/com/Javpoint/Javangel.kt": "872058b23d08846bf21304340470294f8bc0e97aec3f1a9bd10b8681551d0a62",
+      "src/main/kotlin/com/Javpoint/JavEnglish.kt": "865d041a6a56c9b87d27120ac0bc3a4d7332484d16e8fcc7be5ce5f16bce8725",
+      "src/main/kotlin/com/Javpoint/javdoe.kt": "e7af55a97ad5f3360ae6a1df751f899af04e44c9727a7c730fd06905e4bd9712",
+      "src/main/kotlin/com/Javpoint/Javguru.kt": "bda9078efbaa193ef419812be75c9d1441d14cf486b06c39d29680a475f24562",
+      "src/main/kotlin/com/Javpoint/Javgg.kt": "733a6ddd1a0d32818842b39f8aa2ed385dd5fa39b3b2784787831d1238806bc2",
+      "src/main/kotlin/com/Javpoint/JavpointProvider.kt": "7dda4ac32de8185c390b2e612f07588fa69ad7211c304f44e380809b678a1a11"
+    }
+  },
+  {
+    "id": "JavEnglish",
+    "origin": "https://javenglish.cc",
+    "repository": "upstream-CXXX",
+    "module": "JAVPoint",
+    "commit": "f1bb71a85c62746e9b70b6e68e67fc48c005d116",
+    "files": {
+      "src/main/kotlin/com/Javpoint/Extractor.kt": "221c98fd2886c3006609e731ac877f9b99b70b7888cb53232b2fb59d4f599dd8",
+      "src/main/kotlin/com/Javpoint/Javangel.kt": "872058b23d08846bf21304340470294f8bc0e97aec3f1a9bd10b8681551d0a62",
+      "src/main/kotlin/com/Javpoint/JavEnglish.kt": "865d041a6a56c9b87d27120ac0bc3a4d7332484d16e8fcc7be5ce5f16bce8725",
+      "src/main/kotlin/com/Javpoint/javdoe.kt": "e7af55a97ad5f3360ae6a1df751f899af04e44c9727a7c730fd06905e4bd9712",
+      "src/main/kotlin/com/Javpoint/Javguru.kt": "bda9078efbaa193ef419812be75c9d1441d14cf486b06c39d29680a475f24562",
+      "src/main/kotlin/com/Javpoint/Javgg.kt": "733a6ddd1a0d32818842b39f8aa2ed385dd5fa39b3b2784787831d1238806bc2",
+      "src/main/kotlin/com/Javpoint/JavpointProvider.kt": "7dda4ac32de8185c390b2e612f07588fa69ad7211c304f44e380809b678a1a11"
+    }
+  },
+  {
+    "id": "Javangel",
+    "origin": "https://jav-angel.net",
+    "repository": "upstream-CXXX",
+    "module": "JAVPoint",
+    "commit": "f1bb71a85c62746e9b70b6e68e67fc48c005d116",
+    "files": {
+      "src/main/kotlin/com/Javpoint/Extractor.kt": "221c98fd2886c3006609e731ac877f9b99b70b7888cb53232b2fb59d4f599dd8",
+      "src/main/kotlin/com/Javpoint/Javangel.kt": "872058b23d08846bf21304340470294f8bc0e97aec3f1a9bd10b8681551d0a62",
+      "src/main/kotlin/com/Javpoint/JavEnglish.kt": "865d041a6a56c9b87d27120ac0bc3a4d7332484d16e8fcc7be5ce5f16bce8725",
+      "src/main/kotlin/com/Javpoint/javdoe.kt": "e7af55a97ad5f3360ae6a1df751f899af04e44c9727a7c730fd06905e4bd9712",
+      "src/main/kotlin/com/Javpoint/Javguru.kt": "bda9078efbaa193ef419812be75c9d1441d14cf486b06c39d29680a475f24562",
+      "src/main/kotlin/com/Javpoint/Javgg.kt": "733a6ddd1a0d32818842b39f8aa2ed385dd5fa39b3b2784787831d1238806bc2",
+      "src/main/kotlin/com/Javpoint/JavpointProvider.kt": "7dda4ac32de8185c390b2e612f07588fa69ad7211c304f44e380809b678a1a11"
+    }
+  },
+  {
+    "id": "Javseen",
+    "origin": "https://javseen.tv",
+    "repository": "upstream-Cs-GizliKeyif",
+    "module": "Javseen",
+    "commit": "c7e7d11b0e1831d9acc852df2cd07521de886cfa",
+    "files": {
+      "src/main/kotlin/com/byayzen/Javseen.kt": "73d6704b745c588ec81d861eaa7cce5ab7f85531e3970bc8eb66a6501bd77532",
+      "src/main/kotlin/com/byayzen/JavseenPlugin.kt": "46b8f84675728b6a268f23e833c9ffa4827384797a81de9dbe9ebab872871e3e"
+    }
+  }
+]

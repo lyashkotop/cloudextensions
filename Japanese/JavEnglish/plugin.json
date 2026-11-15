@@ -1,0 +1,11 @@
+{
+  "id": "JavEnglish",
+  "name": "Jav English",
+  "language": "ja",
+  "category": "Japanese",
+  "entryClass": "com.cloudextensions.entries.JavEnglishPlugin",
+  "providerClass": "com.Javpoint.JavEnglish",
+  "runtime": "kotlin",
+  "description": "Jav English — Kotlin source imported with original extractor registrations.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/JavEnglish.png"
+}

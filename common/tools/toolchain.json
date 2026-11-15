@@ -133,5 +133,35 @@
     "file": "cloudstream-sdk.jar",
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/951b71cc8c716809705bb34ee4027349806f5f71/cloudstream-sdk.jar",
     "sha256": "8ea67e87d5e8c8169ce0f38c6e3042c4fb625b2a949de7e6d9eea2b9fd2e65e5"
+  },
+  {
+    "file": "gson-2.13.2.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.13.2/gson-2.13.2.jar",
+    "sha256": "dd0ce1b55a3ed2080cb70f9c655850cda86c206862310009dcb5e5c95265a5e0"
+  },
+  {
+    "file": "jackson-module-kotlin-2.17.2.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/fasterxml/jackson/module/jackson-module-kotlin/2.17.2/jackson-module-kotlin-2.17.2.jar",
+    "sha256": "f96986fe7bc25559f938324065bd7a0e96c0d59acf17a48e26e517a9abd411e8"
+  },
+  {
+    "file": "rhino-1.8.0.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/mozilla/rhino/1.8.0/rhino-1.8.0.jar",
+    "sha256": "e7ff37ec00b4c19ea16f42b5b3a601616d559dbb76e65bc9d094bd6bda2a925d"
+  },
+  {
+    "file": "jackson-annotations-2.17.2.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.17.2/jackson-annotations-2.17.2.jar",
+    "sha256": "873a606e23507969f9bbbea939d5e19274a88775ea5a169ba7e2d795aa5156e1"
+  },
+  {
+    "file": "jackson-core-2.17.2.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-core/2.17.2/jackson-core-2.17.2.jar",
+    "sha256": "721a189241dab0525d9e858e5cb604d3ecc0ede081e2de77d6f34fa5779a5b46"
+  },
+  {
+    "file": "jackson-databind-2.17.2.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.17.2/jackson-databind-2.17.2.jar",
+    "sha256": "c04993f33c0f845342653784f14f38373d005280e6359db5f808701cfae73c0c"
   }
 ]

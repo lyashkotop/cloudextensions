@@ -7,5 +7,5 @@ import com.example.websites.SemyanaProvider
 
 @CloudstreamPlugin
 class SemyanaPlugin: Plugin() {
-    override fun load(context: Context) { registerMainAPI(SemyanaProvider()) }
+    override fun load(context: Context) { registerMainAPI(SemyanaProvider().apply { name = "1. Semyana" }) }
 }

@@ -1,0 +1,132 @@
+package com.Javx
+
+import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.extractors.StreamWishExtractor
+import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.loadExtractor
+import org.jsoup.nodes.Element
+
+class Javx : MainAPI() {
+    override var lang = "ja"
+    override var name = "Javx"
+    override var mainUrl = "https://javx.org"
+    override val supportedTypes = setOf(TvType.NSFW)
+    override val hasDownloadSupport = true
+    override val hasMainPage = true
+    override val hasQuickSearch = false
+    override val vpnStatus = VPNStatus.MightBeNeeded
+
+    override val mainPage = mainPageOf(
+        "?filter=latest" to "Latest",
+        "videos" to "Popular",
+        "english-subtitles" to "English Subtitles",
+        "category/milf" to "Milf",
+        "category/cheating-wife" to "Cheating Wife",
+    )
+
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        val url = if (page <= 1) {
+            if (request.data.startsWith("?")) "$mainUrl/${request.data}" else "$mainUrl/${request.data}/"
+        } else {
+            if (request.data.startsWith("?")) "$mainUrl/page/$page/${request.data}" else "$mainUrl/${request.data}/page/$page/"
+        }
+        val document = app.get(url).document
+        val responseList = document.select("article").mapNotNull { it.toSearchResult() }
+        return newHomePageResponse(
+            HomePageList(request.name, responseList.distinctBy { it.url }, isHorizontalImages = true),
+            hasNext = responseList.isNotEmpty()
+        )
+    }
+
+    private fun Element.toSearchResult(): SearchResponse? {
+        val linkElem = this.selectFirst("a[href*='/video/'], a") ?: return null
+        val href = fixUrlNull(linkElem.attr("href")) ?: return null
+
+        val title = linkElem.attr("title").takeIf { it.isNotBlank() }
+            ?: this.selectFirst("header span, h2, h3, a")?.text()?.takeIf { it.isNotBlank() }
+            ?: return null
+
+        val img = this.selectFirst("a img, img")
+        val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(
+            img?.attr("data-src")?.takeIf { it.isNotBlank() }
+                ?: img?.attr("data-original")?.takeIf { it.isNotBlank() }
+                ?: img?.attr("src")?.takeIf { it.isNotBlank() }
+        )
+
+        return newMovieSearchResponse(title, href, TvType.NSFW) {
+            this.posterUrl = posterUrl
+            this.posterHeaders = com.cloudextensions.russian.Network.headers(mainUrl)
+            posterHeaders = mapOf("referer" to "$mainUrl/")
+        }
+    }
+
+    override suspend fun search(query: String): List<SearchResponse> = search(query, 1).items
+
+    override suspend fun search(query: String, page: Int): SearchResponseList {
+        val encoded = query.trim().replace(" ", "+")
+        val document = app.get("$mainUrl/page/$page/?s=$encoded").document
+        val results = document.select("article").mapNotNull { it.toSearchResult() }.distinctBy { it.url }
+        return newSearchResponseList(results, results.isNotEmpty())
+    }
+
+    override suspend fun load(url: String): LoadResponse {
+        val document = app.get(url).document
+        val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim()
+            ?: document.title().substringBefore(" - JavX").trim()
+        val description = document.selectFirst("meta[property=og:description]")?.attr("content")?.trim()
+        val poster = fixUrlNull(document.selectFirst("meta[property='og:image']")?.attr("content"))
+
+        val tags = document.select("a[href*='/tag/'], a[href*='/category/']")
+            .map { it.text().trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+
+        val recommendations = document.select("article")
+            .mapNotNull { it.toSearchResult() }
+            .distinctBy { it.url }
+            .filter { it.url != url }
+
+        return newMovieLoadResponse(title, url, TvType.NSFW, url) {
+            this.posterUrl = poster
+            posterHeaders = mapOf("referer" to "$mainUrl/")
+            this.plot = description
+            this.tags = tags
+            this.recommendations = recommendations
+        }
+    }
+
+    override suspend fun loadLinks(
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val body = app.get(data).text
+
+        val embeds = Regex(
+            """https?://[a-z0-9.\-]*(?:streamtape|voe|dood|mixdrop|netu|streamwish|filemoon)[a-z0-9.\-]*\.[a-z]{2,10}/e/[A-Za-z0-9]+"""
+        ).findAll(body).map { it.value }.distinct().toList()
+
+        embeds.forEach { href ->
+            runCatching {
+                loadExtractor(href, "$mainUrl/", subtitleCallback, callback)
+            }
+        }
+
+        val doc = app.get(data).document
+        doc.select("iframe[src]").forEach { iframe ->
+            val src = fixUrlNull(iframe.attr("src")) ?: return@forEach
+            if (!src.contains("google") && !src.contains("facebook") && !src.endsWith(".mp4")) {
+                runCatching {
+                    loadExtractor(src, "$mainUrl/", subtitleCallback, callback)
+                }
+            }
+        }
+
+        return true
+    }
+}
+
+class StreamwishHG : StreamWishExtractor() {
+    override val mainUrl = "https://hglink.to"
+}

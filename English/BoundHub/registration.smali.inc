@@ -2,7 +2,7 @@ new-instance v0, Lcom/streambundleextra/BoundHubProvider;
 
     invoke-direct {v0}, Lcom/streambundleextra/BoundHubProvider;-><init>()V
 
-    const-string v1, "BoundHub"
+    const-string v1, "3. BoundHub"
 
     invoke-virtual {v0, v1}, Lcom/lagradost/cloudstream3/MainAPI;->setName(Ljava/lang/String;)V
 

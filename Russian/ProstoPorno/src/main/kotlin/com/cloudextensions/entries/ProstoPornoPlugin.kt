@@ -7,5 +7,5 @@ import com.streambundleextra.ProstoPornoProvider
 
 @CloudstreamPlugin
 class ProstoPornoPlugin: Plugin() {
-    override fun load(context: Context) { registerMainAPI(ProstoPornoProvider()) }
+    override fun load(context: Context) { registerMainAPI(ProstoPornoProvider().apply { name = "1. ProstoPorno" }) }
 }

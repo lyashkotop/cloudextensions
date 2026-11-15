@@ -7,5 +7,5 @@ import com.example.websites.Strip2Provider
 
 @CloudstreamPlugin
 class Strip2Plugin: Plugin() {
-    override fun load(context: Context) { registerMainAPI(Strip2Provider()) }
+    override fun load(context: Context) { registerMainAPI(Strip2Provider().apply { name = "1. Strip2" }) }
 }

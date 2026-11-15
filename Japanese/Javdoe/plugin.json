@@ -1,0 +1,12 @@
+{
+  "id": "Javdoe",
+  "name": "Javdoe",
+  "language": "ja",
+  "category": "Japanese",
+  "entryClass": "com.cloudextensions.entries.JavdoePlugin",
+  "providerClass": "com.Javpoint.Javdoe",
+  "runtime": "kotlin",
+  "description": "Javdoe — Kotlin source imported with original extractor registrations. Требуется проверка доступа и разметки в Android.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Javdoe.png",
+  "status": 3
+}
