@@ -1,0 +1,9 @@
+{
+  "id": "SickR",
+  "name": "SICK-R",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.SickRPlugin",
+  "providerClass": "com.streambundleextra.SickRProvider",
+  "description": "SICK-R extension. Site availability and metadata depend on the source."
+}

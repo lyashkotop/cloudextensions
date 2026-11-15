@@ -1,0 +1,9 @@
+{
+  "id": "SickJunk",
+  "name": "SickJunk",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.SickJunkPlugin",
+  "providerClass": "com.streambundleextra.SickJunkProvider",
+  "description": "SickJunk extension. Site availability and metadata depend on the source."
+}

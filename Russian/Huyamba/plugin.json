@@ -1,0 +1,9 @@
+{
+  "id": "Huyamba",
+  "name": "Huyamba",
+  "language": "ru",
+  "category": "Russian",
+  "entryClass": "com.cloudextensions.entries.HuyambaPlugin",
+  "providerClass": "com.streambundleextra.HuyambaProvider",
+  "description": "Huyamba extension. Site availability and metadata depend on the source."
+}

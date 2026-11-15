@@ -1,0 +1,9 @@
+{
+  "id": "BDSMX",
+  "name": "BDSMX",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.BDSMXPlugin",
+  "providerClass": "com.streambundleextra.BdsMxProvider",
+  "description": "BDSMX extension. Site availability and metadata depend on the source."
+}

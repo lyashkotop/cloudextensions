@@ -1,0 +1,9 @@
+{
+  "id": "Semyana",
+  "name": "Semyana",
+  "language": "ru",
+  "category": "Russian",
+  "entryClass": "com.cloudextensions.entries.SemyanaPlugin",
+  "providerClass": "com.example.websites.SemyanaProvider",
+  "description": "Semyana extension. Site availability and metadata depend on the source."
+}

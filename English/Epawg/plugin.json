@@ -1,0 +1,9 @@
+{
+  "id": "Epawg",
+  "name": "Epawg",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.EpawgPlugin",
+  "providerClass": "com.example.epawg.EpawgProvider",
+  "description": "Epawg extension. Site availability and metadata depend on the source."
+}

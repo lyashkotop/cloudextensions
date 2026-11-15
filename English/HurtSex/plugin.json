@@ -1,0 +1,9 @@
+{
+  "id": "HurtSex",
+  "name": "HurtSex",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.HurtSexPlugin",
+  "providerClass": "com.streambundleextra.HurtSexProvider",
+  "description": "HurtSex extension. Site availability and metadata depend on the source."
+}

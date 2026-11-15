@@ -1,0 +1,1 @@
+package com.streambundleextra; public class VideoMetadata { public static long cached(String u){return -1;} public static String format(long s){throw new UnsupportedOperationException();} public static void remember(String u,long s){throw new UnsupportedOperationException();} }

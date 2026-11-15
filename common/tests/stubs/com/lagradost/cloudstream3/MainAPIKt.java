@@ -1,0 +1,1 @@
+package com.lagradost.cloudstream3; import kotlin.jvm.functions.Function1; public class MainAPIKt { public static MovieSearchResponse newMovieSearchResponse$default(MainAPI a,String b,String c,TvType d,boolean e,Function1 f,int g,Object h){throw new UnsupportedOperationException();} }

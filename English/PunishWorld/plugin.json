@@ -1,0 +1,9 @@
+{
+  "id": "PunishWorld",
+  "name": "Punishworld",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.PunishWorldPlugin",
+  "providerClass": "com.streambundleextra.PunishWorldProvider",
+  "description": "Punishworld extension. Site availability and metadata depend on the source."
+}

@@ -1,0 +1,9 @@
+{
+  "id": "UKDevilz",
+  "name": "UKDevilz",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.UKDevilzPlugin",
+  "providerClass": "com.example.websites.UKDevilzProvider",
+  "description": "UKDevilz extension. Site availability and metadata depend on the source."
+}

@@ -1,0 +1,1 @@
+package com.lagradost.cloudstream3; public class MainAPI { public String getMainUrl(){throw new UnsupportedOperationException();} }

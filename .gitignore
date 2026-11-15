@@ -1,0 +1,10 @@
+.tools/
+.release/
+.repository-build-*/
+.build-*/
+__pycache__/
+*.pyc
+*.dex
+*.cs3
+
+.release-version

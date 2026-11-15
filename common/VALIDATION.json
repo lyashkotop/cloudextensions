@@ -1,0 +1,46 @@
+{
+  "version": 64,
+  "bytes": 300669,
+  "sha256": "a134c7f7b6447b7daf386dabe60b74420a2a398b9867d803b568a1043667e467",
+  "class_count": 594,
+  "unchanged_class_instruction_streams": 587,
+  "changed_existing_classes": [
+    "Lcom/example/websites/WebVideoProvider;",
+    "Lcom/streambundle/MetadataDisplay;",
+    "Lcom/streambundle/v38/BundleMetadata;",
+    "Lcom/streambundle/v38/DetailMetadata$Info;",
+    "Lcom/streambundle/v38/DetailMetadata;"
+  ],
+  "added_classes": [
+    "Lcom/streambundle/SourceTiming$1;",
+    "Lcom/streambundle/SourceTiming;"
+  ],
+  "registered_providers": 27,
+  "public_and_protected_method_signatures_preserved": true,
+  "test_doubles_not_packaged": true,
+  "dex_checksums_valid": true,
+  "zip_crc_valid": true,
+  "neutral_jvm_checks_passed": 44,
+  "real_assembler_failure_test_passed": true,
+  "semyana_real_html_production_bytecode_probe": {
+    "title_matches_listing_and_source": true,
+    "production_metadata_executed": true,
+    "all_tags_match_visible_source": true,
+    "exact_duration_matches_source": true,
+    "language_change_keeps_selected_title": true,
+    "related_cards_after_filter": 10,
+    "related_cards_parsed": 10,
+    "screening_evidence_matches_source_tags": true,
+    "android_ui_tested": false,
+    "source_tag_count": 52,
+    "seo_description_rejected": true
+  },
+  "probe_scope": "Production DEX converted to JVM bytecode; Android API type declarations used only as class-loading adapters. No Android UI or playback execution. Original BundleMetadata and WebVideoParser algorithms executed, not substitutes.",
+  "unresolved": [
+    "PunishBang HTTP 403",
+    "YouJizz empty search not reproduced or repaired",
+    "no links found / stream access not repaired",
+    "all provider UI buttons not tested",
+    "precise duration cannot be supplied when the source supplies none"
+  ]
+}

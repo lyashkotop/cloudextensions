@@ -1,0 +1,62 @@
+name: Build and publish extensions
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'reference/**'
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: extensions-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Set up Java
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Cache pinned build tools
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .tools
+          key: cloudextensions-tools-${{ runner.os }}-${{ hashFiles('common/tools/toolchain.json') }}
+      - name: Fetch and verify build tools
+        run: python common/tools/fetch_tools.py --directory .tools
+      - name: Compile, check and package all providers
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          python -c 'import json, os; from pathlib import Path; c=json.loads(Path("repository.json").read_text()); Path(".release-version").write_text(str(c["versionBase"]+int(os.environ["RUN_NUMBER"])))'
+          python scripts/build_repository.py --version "$(cat .release-version)"
+      - name: Publish builds branch
+        if: github.event_name != 'pull_request'
+        run: python scripts/publish_builds.py
+      - name: Save build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cloudextensions-${{ github.run_number }}
+          path: .release/
+          include-hidden-files: false
+          retention-days: 14

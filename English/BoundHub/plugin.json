@@ -1,0 +1,9 @@
+{
+  "id": "BoundHub",
+  "name": "BoundHub",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.BoundHubPlugin",
+  "providerClass": "com.streambundleextra.BoundHubProvider",
+  "description": "BoundHub extension. Site availability and metadata depend on the source."
+}

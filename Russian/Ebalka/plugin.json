@@ -1,0 +1,9 @@
+{
+  "id": "Ebalka",
+  "name": "Ebalka",
+  "language": "ru",
+  "category": "Russian",
+  "entryClass": "com.cloudextensions.entries.EbalkaPlugin",
+  "providerClass": "com.example.ebalka.EbalkaProvider",
+  "description": "Ebalka extension. Site availability and metadata depend on the source."
+}

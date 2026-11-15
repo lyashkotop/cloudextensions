@@ -1,0 +1,9 @@
+{
+  "id": "PunishBang",
+  "name": "PunishBang",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.PunishBangPlugin",
+  "providerClass": "com.streambundleextra.PunishBangProvider",
+  "description": "PunishBang extension. Site availability and metadata depend on the source."
+}

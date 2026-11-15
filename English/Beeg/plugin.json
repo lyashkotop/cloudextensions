@@ -1,0 +1,9 @@
+{
+  "id": "Beeg",
+  "name": "Beeg.porn",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.BeegPlugin",
+  "providerClass": "com.lagradost.VideoHubProvider",
+  "description": "Beeg.porn extension. Site availability and metadata depend on the source."
+}

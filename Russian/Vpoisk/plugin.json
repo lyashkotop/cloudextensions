@@ -1,0 +1,9 @@
+{
+  "id": "Vpoisk",
+  "name": "Vpoisk",
+  "language": "ru",
+  "category": "Russian",
+  "entryClass": "com.cloudextensions.entries.VpoiskPlugin",
+  "providerClass": "com.example.websites.VpoiskProvider",
+  "description": "Vpoisk extension. Site availability and metadata depend on the source."
+}

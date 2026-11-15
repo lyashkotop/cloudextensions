@@ -1,0 +1,9 @@
+{
+  "id": "MissAV",
+  "name": "MissAV",
+  "language": "ja",
+  "category": "Japanese",
+  "entryClass": "com.cloudextensions.entries.MissAVPlugin",
+  "providerClass": "com.lagradost.VideoHubProvider",
+  "description": "MissAV extension. Site availability and metadata depend on the source."
+}

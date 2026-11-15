@@ -1,0 +1,9 @@
+{
+  "id": "HcBDSMX",
+  "name": "hcBDSM",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.HcBDSMXPlugin",
+  "providerClass": "com.streambundleextra.HcBdsMxProvider",
+  "description": "hcBDSM extension. Site availability and metadata depend on the source."
+}

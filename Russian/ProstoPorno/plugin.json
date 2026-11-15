@@ -1,0 +1,9 @@
+{
+  "id": "ProstoPorno",
+  "name": "ProstoPorno",
+  "language": "ru",
+  "category": "Russian",
+  "entryClass": "com.cloudextensions.entries.ProstoPornoPlugin",
+  "providerClass": "com.streambundleextra.ProstoPornoProvider",
+  "description": "ProstoPorno extension. Site availability and metadata depend on the source."
+}

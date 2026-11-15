@@ -1,0 +1,9 @@
+{
+  "id": "YouJizz",
+  "name": "YouJizz",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.YouJizzPlugin",
+  "providerClass": "com.streambundleextra.YouJizzProvider",
+  "description": "YouJizz extension. Site availability and metadata depend on the source."
+}

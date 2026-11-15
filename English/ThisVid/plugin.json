@@ -1,0 +1,9 @@
+{
+  "id": "ThisVid",
+  "name": "ThisVid",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.ThisVidPlugin",
+  "providerClass": "com.streambundleextra.ThisVidProvider",
+  "description": "ThisVid extension. Site availability and metadata depend on the source."
+}

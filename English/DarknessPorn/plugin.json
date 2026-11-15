@@ -1,0 +1,9 @@
+{
+  "id": "DarknessPorn",
+  "name": "DarknessPorn",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.DarknessPornPlugin",
+  "providerClass": "com.streambundleextra.DarknessPornProvider",
+  "description": "DarknessPorn extension. Site availability and metadata depend on the source."
+}

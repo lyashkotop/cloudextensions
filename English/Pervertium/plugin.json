@@ -1,0 +1,9 @@
+{
+  "id": "Pervertium",
+  "name": "Pervertium",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.PervertiumPlugin",
+  "providerClass": "com.streambundleextra.PervertiumProvider",
+  "description": "Pervertium extension. Site availability and metadata depend on the source."
+}

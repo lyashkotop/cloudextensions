@@ -1,0 +1,9 @@
+{
+  "id": "TubeSafari",
+  "name": "TubeSafari",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.TubeSafariPlugin",
+  "providerClass": "com.example.tubesafari.TubeSafariProvider",
+  "description": "TubeSafari extension. Site availability and metadata depend on the source."
+}

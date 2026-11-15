@@ -1,0 +1,9 @@
+{
+  "id": "Strip2",
+  "name": "Strip2",
+  "language": "ru",
+  "category": "Russian",
+  "entryClass": "com.cloudextensions.entries.Strip2Plugin",
+  "providerClass": "com.example.websites.Strip2Provider",
+  "description": "Strip2 extension. Site availability and metadata depend on the source."
+}

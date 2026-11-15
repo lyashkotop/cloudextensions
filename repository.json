@@ -1,0 +1,11 @@
+{
+  "repository": "lyashkotop/cloudextensions",
+  "sourceBranch": "main",
+  "buildsBranch": "builds",
+  "versionBase": 64,
+  "repoName": "CloudExtensions",
+  "description": "Independent CloudStream providers grouped by language.",
+  "authors": [
+    "lyashkotop"
+  ]
+}

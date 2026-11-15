@@ -1,0 +1,9 @@
+{
+  "id": "ForcedCinema",
+  "name": "ForcedCinema",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.ForcedCinemaPlugin",
+  "providerClass": "com.streambundleextra.ForcedCinemaProvider",
+  "description": "ForcedCinema extension. Site availability and metadata depend on the source."
+}

@@ -1,0 +1,9 @@
+{
+  "id": "PornVideos",
+  "name": "PornVideos.rs",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.PornVideosPlugin",
+  "providerClass": "com.lagradost.VideoHubProvider",
+  "description": "PornVideos.rs extension. Site availability and metadata depend on the source."
+}
