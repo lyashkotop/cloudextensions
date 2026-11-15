@@ -1,7 +1,8 @@
 # English
 
-Все 27 модулей используют Kotlin. [Проверка последних 16](../imports/remaining-kotlin/README.md).
+Все 28 модулей используют Kotlin. [Проверка последних 16](../imports/remaining-kotlin/README.md).
 
+- [BDSM Streak](BDSMStreak/)
 - [BDSMX](BDSMX/)
 - [Beeg](Beeg/)
 - [BoundHub](BoundHub/)

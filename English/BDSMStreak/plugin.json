@@ -1,0 +1,11 @@
+{
+  "id": "BDSMStreak",
+  "name": "BDSM Streak",
+  "category": "English",
+  "language": "en",
+  "runtime": "kotlin",
+  "entryClass": "com.cloudextensions.entries.BDSMStreakPlugin",
+  "providerClass": "com.cloudextensions.sites.BDSMStreakProvider",
+  "description": "BDSM Streak \u2014 Kotlin: source metadata, previews, bilingual search and source pagination.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/BDSMStreak.png"
+}

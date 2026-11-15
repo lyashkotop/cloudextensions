@@ -478,5 +478,15 @@
     "bytes": 1538,
     "sha256": "d2076e7094b442309094afe43fe75066b9baea60e794a1cad8968ee378e79c22",
     "file": "Poebon.png"
+  },
+  {
+    "id": "BDSMStreak",
+    "domain": "bdsmstreak.com",
+    "source": "https://bdsmstreak.com/assets/v2/icon-32.png",
+    "http": 200,
+    "ok": true,
+    "bytes": 757,
+    "sha256": "28f4b55c38b80046595354f62c66dc1dc3e555016e4006ab2986b32909653f88",
+    "file": "BDSMStreak.png"
   }
 ]
