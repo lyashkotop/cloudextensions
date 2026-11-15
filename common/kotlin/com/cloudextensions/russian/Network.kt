@@ -37,7 +37,7 @@ object Network {
                 val refresh=java.net.URI(request.url).host.orEmpty().endsWith(".strip2.co") && request.data==null
                 val fetchUrl=if(refresh)request.url+(if(request.url.contains('?')) "&" else "?")+"_refresh="+(System.currentTimeMillis()/60_000) else request.url
                 val builder=Request.Builder().url(fetchUrl)
-                for((k,v) in headers(referer))builder.header(k,v)
+                for((k,v) in headers(referer)+request.headers)builder.header(k,v)
                 request.data?.let { values -> val form=FormBody.Builder();values.forEach { (k,v)->form.add(k,v) };builder.post(form.build()) }
                 val document=execute(builder.build(),request.allowNotFound)
                 if(refresh)document.setBaseUri(request.url)

@@ -22,7 +22,7 @@ LANGUAGE_LABELS = {'ru': '1 · RU', 'ja': '2 · JA', 'en': '3 · EN'}
 
 def extension_name(module):
     """CloudStream sorts extension names; rank prefixes preserve language groups."""
-    return LANGUAGE_LABELS[module['language']] + ' · ' + module['name']
+    return LANGUAGE_LABELS[module['language']] + ' · ' + (module.get('displayFlag', '') + ' ' if module.get('displayFlag') else '') + module['name']
 
 
 def modules():
@@ -189,6 +189,10 @@ def main():
     if output == ROOT or ROOT in output.parents and output.name in CATEGORIES:
         raise ValueError('Output cannot overwrite source directories')
     output.mkdir(parents=True, exist_ok=True)
+    expected = {m['category'] + '/' + m['id'] + '.cs3' for m in selected}
+    for old in output.glob('*/*.cs3'):
+        if old.relative_to(output).as_posix() not in expected:
+            old.unlink()
     with tempfile.TemporaryDirectory(prefix='.repository-build-', dir=ROOT) as name:
         temporary = Path(name)
         build.regenerate_smali(tools, temporary)

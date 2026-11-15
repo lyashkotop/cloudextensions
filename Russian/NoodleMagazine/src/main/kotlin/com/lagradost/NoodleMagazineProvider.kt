@@ -19,7 +19,7 @@ import org.jsoup.nodes.Document
 class NoodleMagazineProvider: MainAPI() {
     override var mainUrl="https://tyler-brown.com"
     override var name="Noodle Magazine"
-    override var lang="en"
+    override var lang="ru"
     override val supportedTypes=setOf(TvType.NSFW)
     override val hasMainPage=true
     override val hasQuickSearch=false
@@ -28,7 +28,7 @@ class NoodleMagazineProvider: MainAPI() {
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description")
     private val history=Collections.synchronizedMap(object:LinkedHashMap<String,MutableMap<Int,List<SearchResponse>>>(16,.75f,true){override fun removeEldestEntry(eldest:MutableMap.MutableEntry<String,MutableMap<Int,List<SearchResponse>>>?)=size>24})
     private fun route(query:String,page:Int)=PageRequest("$mainUrl/video/"+URLEncoder.encode(query,"UTF-8").replace("+","%20")+"?p="+(page-1),allowNotFound=true)
-    private suspend fun document(request:PageRequest)=Network.page(request,"$mainUrl/")
+    private suspend fun document(request:PageRequest)=Network.page(request.copy(headers=mapOf("Cookie" to "ui_lang=ru","Accept-Language" to "ru-RU,ru;q=0.9")),"$mainUrl/")
     private fun response(card:VideoCard):SearchResponse=newMovieSearchResponse(card.title,card.url,TvType.NSFW){posterUrl=card.poster;posterHeaders=Network.headers("$mainUrl/")}
     private suspend fun results(query:String,page:Int):List<SearchResponse>{val request=route(query,page);return Metadata.searchCards(document(request),spec,request).map(::response)}
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse {

@@ -34,8 +34,8 @@ https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/repo.json
 
 ## Где редактировать
 
-- `Russian/` — семь провайдеров на Kotlin: `src/main/kotlin`, отдельные регистрации и `plugin.json`.
-- `English/NoodleMagazine/` — адаптированный Kotlin-провайдер; остальные `English/` и `Japanese/` пока используют прежнюю реализацию.
+- `Russian/` — русские провайдеры на Kotlin: `src/main/kotlin`, отдельные регистрации и `plugin.json`.
+- `Russian/NoodleMagazine/` — адаптированный Kotlin-провайдер; остальные `English/` пока используют прежнюю реализацию.
 - `common/kotlin/` — общая Kotlin-логика русских провайдеров.
 - `common/java/` — поддерживаемые Java-обработчики метаданных, автоматически компилируемые в сборке.
 - `common/smali/` — общая библиотека, парсеры и другая логика в редактируемом байткоде.
@@ -75,4 +75,4 @@ YouJizz не исправлен. Для русских провайдеров р
 
 Состояние перехода русских сайтов на Kotlin: [Russian/VALIDATION.md](Russian/VALIDATION.md).
 
-Адаптация присланного Noodle Magazine: [English/NoodleMagazine](English/NoodleMagazine/README.md).
+Адаптация присланного Noodle Magazine: [Russian/NoodleMagazine](Russian/NoodleMagazine/README.md).

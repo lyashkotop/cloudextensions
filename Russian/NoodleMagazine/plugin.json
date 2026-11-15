@@ -1,11 +1,12 @@
 {
   "id": "NoodleMagazine",
   "name": "Noodle Magazine",
-  "language": "en",
-  "category": "English",
+  "language": "ru",
+  "category": "Russian",
   "entryClass": "com.cloudextensions.entries.NoodleMagazinePlugin",
   "providerClass": "com.lagradost.NoodleMagazineProvider",
   "description": "Noodle Magazine — Kotlin: native search pagination, source metadata, recommendations and quality labels.",
   "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/NoodleMagazine.png",
-  "runtime": "kotlin"
+  "runtime": "kotlin",
+  "displayFlag": "🇷🇺"
 }

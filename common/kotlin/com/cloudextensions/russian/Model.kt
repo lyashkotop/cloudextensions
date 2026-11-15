@@ -14,7 +14,7 @@ data class SiteSpec(
 )
 data class VideoCard(val title: String, val url: String, val poster: String?, val duration: String = "", val tags: List<String> = emptyList())
 data class VideoDetail(val title: String, val poster: String?, val description: String, val tags: List<String>, val duration: String, val year: Int?)
-data class PageRequest(val url: String, val data: Map<String, String>? = null, val allowNotFound: Boolean = false)
+data class PageRequest(val url: String, val data: Map<String, String>? = null, val allowNotFound: Boolean = false, val headers: Map<String,String> = emptyMap())
 
 internal class BoundedMap<K,V>(private val capacity: Int): LinkedHashMap<K,V>(16, .75f, true) {
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K,V>?) = size > capacity
