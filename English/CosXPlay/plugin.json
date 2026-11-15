@@ -1,0 +1,10 @@
+{
+  "id": "CosXPlay",
+  "name": "CosXPlay",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.CosXPlayPlugin",
+  "providerClass": "com.lagradost.CosXPlayProvider",
+  "description": "CosXPlay extension imported from CloudstreamAdult. Source availability depends on the site.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/CosXPlay.png"
+}

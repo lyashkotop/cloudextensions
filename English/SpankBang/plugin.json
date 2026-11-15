@@ -1,0 +1,10 @@
+{
+  "id": "SpankBang",
+  "name": "SpankBang",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.SpankBangPlugin",
+  "providerClass": "com.lagradost.SpankBangProvider",
+  "description": "SpankBang extension imported from CloudstreamAdult. Source availability depends on the site.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/SpankBang.png"
+}

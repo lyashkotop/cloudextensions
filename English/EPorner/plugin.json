@@ -1,0 +1,10 @@
+{
+  "id": "EPorner",
+  "name": "EPorner",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.EPornerPlugin",
+  "providerClass": "com.lagradost.EPornerProvider",
+  "description": "EPorner extension imported from CloudstreamAdult. Source availability depends on the site.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/EPorner.png"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "NoodleMagazine",
+  "name": "Noodle Magazine",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.NoodleMagazinePlugin",
+  "providerClass": "com.lagradost.NoodleMagazineProvider",
+  "description": "Noodle Magazine extension imported from CloudstreamAdult. Source availability depends on the site.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/NoodleMagazine.png"
+}

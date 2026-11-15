@@ -30,6 +30,16 @@
     "file": "BoundHub.png"
   },
   {
+    "id": "CosXPlay",
+    "domain": "cosxplay.com",
+    "source": "https://www.google.com/s2/favicons?domain=cosxplay.com&sz=128",
+    "http": 200,
+    "ok": true,
+    "bytes": 3881,
+    "sha256": "3100918f8ce1744b059419cda9328484c7c8ba2abe8515b8cf435b8f3219b474",
+    "file": "CosXPlay.png"
+  },
+  {
     "id": "DarknessPorn",
     "domain": "darknessporn.com",
     "source": "https://www.google.com/s2/favicons?domain=darknessporn.com&sz=128",
@@ -60,6 +70,16 @@
     "file": "Epawg.png"
   },
   {
+    "id": "EPorner",
+    "domain": "eporner.com",
+    "source": "https://www.google.com/s2/favicons?domain=eporner.com&sz=128",
+    "http": 200,
+    "ok": true,
+    "bytes": 282,
+    "sha256": "a87685e5f21e16c1cc4efa838567eaf51c125822aa79d33de839b38d310a6ee8",
+    "file": "EPorner.png"
+  },
+  {
     "id": "ForcedCinema",
     "domain": "forcedcinema.net",
     "source": "https://www.google.com/s2/favicons?domain=forcedcinema.net&sz=128",
@@ -78,6 +98,16 @@
     "bytes": 104,
     "sha256": "a3e12867cd764cec2e6dd6b09b9e6aeb06eca12e33ac1fc6ae63d40968c9bd49",
     "file": "HcBDSMX.png"
+  },
+  {
+    "id": "HeavyR",
+    "domain": "heavy-r.com",
+    "source": "https://www.google.com/s2/favicons?domain=heavy-r.com&sz=128",
+    "http": 200,
+    "ok": true,
+    "bytes": 897,
+    "sha256": "b977ee35f24e68fd9f69887d109f1e9b12026ba59595fa3b5bbdfaa552656ddb",
+    "file": "HeavyR.png"
   },
   {
     "id": "HurtSex",
@@ -118,6 +148,16 @@
     "bytes": 1615,
     "sha256": "5c66ca2f4fb0e37a4d18157541bb4f93cf645167513f6d37fc413c6a4ac6e566",
     "file": "MissAV.png"
+  },
+  {
+    "id": "NoodleMagazine",
+    "domain": "noodlemagazine.com",
+    "source": "https://www.google.com/s2/favicons?domain=noodlemagazine.com&sz=128",
+    "http": 200,
+    "ok": true,
+    "bytes": 2209,
+    "sha256": "bc4ab5356e81d48549a1a24c4f8470f47601a40aad8a5ae7cd3bdfcd4e29b68c",
+    "file": "NoodleMagazine.png"
   },
   {
     "id": "Perdol",
@@ -210,6 +250,16 @@
     "file": "SickR.png"
   },
   {
+    "id": "SpankBang",
+    "domain": "spankbang.com",
+    "source": "https://www.google.com/s2/favicons?domain=spankbang.com&sz=128",
+    "http": 200,
+    "ok": true,
+    "bytes": 1642,
+    "sha256": "6cad1913284374a53e0f15707e5b7fc19868a7eac58d9c2d8ad96ca7c09fa9a9",
+    "file": "SpankBang.png"
+  },
+  {
     "id": "Strip2",
     "domain": "vps402.strip2.co",
     "source": "https://www.google.com/s2/favicons?domain=vps402.strip2.co&sz=128",
@@ -258,6 +308,46 @@
     "bytes": 2368,
     "sha256": "93046e13a7f923eac345c4ed7c925496e7c84708e5f5c647beb93374b2cb1ff3",
     "file": "Vpoisk.png"
+  },
+  {
+    "id": "Whoreshub",
+    "domain": "whoreshub.com",
+    "source": "https://www.google.com/s2/favicons?domain=whoreshub.com&sz=128",
+    "http": 200,
+    "ok": true,
+    "bytes": 350,
+    "sha256": "bcad5b084dda264b9f971bbf8c23602b2d31da7509fbd4356657ceb30cce2fa0",
+    "file": "Whoreshub.png"
+  },
+  {
+    "id": "Xnxx",
+    "domain": "xnxx.com",
+    "source": "https://www.google.com/s2/favicons?domain=xnxx.com&sz=128",
+    "http": 200,
+    "ok": true,
+    "bytes": 2185,
+    "sha256": "0c8ea546468cf5bb4d67344ec0ec7cd4beb56440e7bd10ebd2f6b90cb2cc6159",
+    "file": "Xnxx.jpg"
+  },
+  {
+    "id": "XRares",
+    "domain": "xrares.com",
+    "source": "https://www.google.com/s2/favicons?domain=xrares.com&sz=128",
+    "http": 200,
+    "ok": true,
+    "bytes": 1268,
+    "sha256": "14ca6daa2c92f4f1ad704b8bda5dbc14c1897dbbbc9f600f3ac5d2bc05ed6ce4",
+    "file": "XRares.png"
+  },
+  {
+    "id": "XVideos",
+    "domain": "xvideos.com",
+    "source": "https://www.google.com/s2/favicons?domain=xvideos.com&sz=128",
+    "http": 200,
+    "ok": true,
+    "bytes": 1392,
+    "sha256": "937cefe507c18edbc043b291c9866cceb3cec3971252057dfd57a411199de0bf",
+    "file": "XVideos.png"
   },
   {
     "id": "YouJizz",

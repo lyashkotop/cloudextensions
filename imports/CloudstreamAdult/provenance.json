@@ -1,0 +1,101 @@
+{
+  "file": "CloudstreamAdult.cs3",
+  "sha256": "3611f15d53dc3d69968520992a98e6852f075989c1bfa3fe4bf1f865c12e842f",
+  "manifest": {
+    "requiresResources": false,
+    "version": 1,
+    "pluginClassName": "com.lagradost.AdultProvidersPlugin",
+    "name": "CloudstreamAdult"
+  },
+  "modules": [
+    {
+      "id": "CosXPlay",
+      "name": "CosXPlay",
+      "mainUrl": "https://cosxplay.com",
+      "language": "en"
+    },
+    {
+      "id": "EPorner",
+      "name": "EPorner",
+      "mainUrl": "https://www.eporner.com",
+      "language": "en"
+    },
+    {
+      "id": "HeavyR",
+      "name": "Heavy-R",
+      "mainUrl": "https://heavy-r.com",
+      "language": "en"
+    },
+    {
+      "id": "NoodleMagazine",
+      "name": "Noodle Magazine",
+      "mainUrl": "https://www.noodlemagazine.com",
+      "language": "en"
+    },
+    {
+      "id": "SpankBang",
+      "name": "SpankBang",
+      "mainUrl": "https://spankbang.com",
+      "language": "en"
+    },
+    {
+      "id": "Whoreshub",
+      "name": "Whoreshub",
+      "mainUrl": "https://whoreshub.com",
+      "language": "en"
+    },
+    {
+      "id": "XRares",
+      "name": "XRares",
+      "mainUrl": "https://xrares.com",
+      "language": "en"
+    },
+    {
+      "id": "XVideos",
+      "name": "xVideos",
+      "mainUrl": "https://www.xvideos.com",
+      "language": "en"
+    },
+    {
+      "id": "Xnxx",
+      "name": "XNXX",
+      "mainUrl": "https://www.xnxx.com",
+      "language": "en"
+    }
+  ],
+  "sharedClasses": [
+    {
+      "class": "AdultVideoProvider$searchAt$1",
+      "removedKotlin23Calls": 0
+    },
+    {
+      "class": "AdultVideoProvider$load$1",
+      "removedKotlin23Calls": 0
+    },
+    {
+      "class": "AdultVideoProvider",
+      "removedKotlin23Calls": 20
+    },
+    {
+      "class": "AdultVideoProvider$loadLinks$1",
+      "removedKotlin23Calls": 0
+    },
+    {
+      "class": "AdultVideoProvider$loadLinks$4",
+      "removedKotlin23Calls": 0
+    },
+    {
+      "class": "AdultVideoProvider$load$2",
+      "removedKotlin23Calls": 0
+    },
+    {
+      "class": "AdultVideoProvider$$ExternalSyntheticLambda0",
+      "removedKotlin23Calls": 0
+    },
+    {
+      "class": "AdultProvidersKt",
+      "removedKotlin23Calls": 0
+    }
+  ],
+  "originalEntryIncluded": false
+}

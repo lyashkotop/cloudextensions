@@ -1,0 +1,10 @@
+{
+  "id": "Xnxx",
+  "name": "XNXX",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.XnxxPlugin",
+  "providerClass": "com.lagradost.XnxxProvider",
+  "description": "XNXX extension imported from CloudstreamAdult. Source availability depends on the site.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Xnxx.jpg"
+}

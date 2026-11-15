@@ -1,0 +1,10 @@
+{
+  "id": "XVideos",
+  "name": "xVideos",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.XVideosPlugin",
+  "providerClass": "com.lagradost.XVideosProvider",
+  "description": "xVideos extension imported from CloudstreamAdult. Source availability depends on the site.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/XVideos.png"
+}
