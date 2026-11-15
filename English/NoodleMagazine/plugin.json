@@ -5,6 +5,7 @@
   "category": "English",
   "entryClass": "com.cloudextensions.entries.NoodleMagazinePlugin",
   "providerClass": "com.lagradost.NoodleMagazineProvider",
-  "description": "Noodle Magazine extension imported from CloudstreamAdult. Source availability depends on the site.",
-  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/NoodleMagazine.png"
+  "description": "Noodle Magazine — Kotlin: native search pagination, source metadata, recommendations and quality labels.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/NoodleMagazine.png",
+  "runtime": "kotlin"
 }

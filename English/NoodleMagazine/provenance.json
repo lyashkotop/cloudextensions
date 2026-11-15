@@ -1,0 +1,13 @@
+{
+  "source": "Kotlin files supplied by the repository owner",
+  "files": {
+    "provider": {
+      "name": "NoodleMagazineProvider.kt",
+      "sha256": "70a5e4e5495bf97660d10f6c85685f57f03b46f18460fc0415724ff428461a90"
+    },
+    "plugin": {
+      "name": "NoodleMagazinePlugin.kt",
+      "sha256": "df37eae297d8f2dd01d85275fe4c6cf82559a482dfa9c5b01b12ad96ecbca6c4"
+    }
+  }
+}

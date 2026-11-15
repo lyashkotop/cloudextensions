@@ -35,7 +35,7 @@ https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/repo.json
 ## Где редактировать
 
 - `Russian/` — семь провайдеров на Kotlin: `src/main/kotlin`, отдельные регистрации и `plugin.json`.
-- `English/`, `Japanese/` — остальные сайты на прежней smali-реализации.
+- `English/NoodleMagazine/` — адаптированный Kotlin-провайдер; остальные `English/` и `Japanese/` пока используют прежнюю реализацию.
 - `common/kotlin/` — общая Kotlin-логика русских провайдеров.
 - `common/java/` — поддерживаемые Java-обработчики метаданных, автоматически компилируемые в сборке.
 - `common/smali/` — общая библиотека, парсеры и другая логика в редактируемом байткоде.
@@ -55,7 +55,8 @@ python scripts/build_repository.py --version 65
 
 Требуются Python 3.9+ и Java 21. Папка `.release/` содержит тот же формат, что публикуется в `builds`.
 
-Русские пакеты содержат только свой провайдер, регистрацию и Kotlin-ядро (примерно 50 КБ).
+Kotlin-пакеты содержат только свой провайдер, регистрацию и используемые общие классы.
+Русские пакеты занимают примерно 50 КБ.
 SDK и остальные сайты туда не копируются. Старые пакеты других языков пока включают прежнюю общую библиотеку.
 Имена классов и ID источников сохранены. При изменении общего кода набор пересобирается.
 
@@ -73,3 +74,5 @@ YouJizz не исправлен. Для русских провайдеров р
 Импортированные девять расширений CloudstreamAdult и их ограничения: [imports/CloudstreamAdult](imports/CloudstreamAdult/README.md).
 
 Состояние перехода русских сайтов на Kotlin: [Russian/VALIDATION.md](Russian/VALIDATION.md).
+
+Адаптация присланного Noodle Magazine: [English/NoodleMagazine](English/NoodleMagazine/README.md).

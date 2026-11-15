@@ -21,7 +21,7 @@ import okhttp3.Response
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 
-internal object Network {
+object Network {
     private val cache = Collections.synchronizedMap(BoundedMap<PageRequest,Pair<Long,Document>>(24))
     private val locks = ConcurrentHashMap<PageRequest,Mutex>()
     private val permits = Semaphore(4)

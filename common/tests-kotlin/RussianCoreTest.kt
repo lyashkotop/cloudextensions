@@ -43,6 +43,11 @@ fun main(args:Array<String>) {
     val ajax=Jsoup.parse("""<div class=pagination><a class=next href='#search' data-block-id='list_videos_search' data-parameters='q:two%20words;from_videos+from_albums:2'>Next</a></div>""","https://example.org/search/?q=two+words")
     val cursor=Pagination.next(ajax,PageRequest(ajax.baseUri()))?.url.orEmpty()
     verify(cursor.contains("from_videos=2")&&cursor.contains("from_albums=2")&&cursor.contains("q=two+words"),"source AJAX cursor preserves search and both page fields")
+    val noodleSpec=spec.copy(cards="#list_videos div.item",titleSelector=".title")
+    val noMatch=Jsoup.parse("<div class=list_videos><div class=item><a href='/watch/1/' title='Fallback recommendation'>Fallback recommendation</a></div></div>","https://example.org/video/absent")
+    verify(Metadata.cards(noMatch,noodleSpec).isEmpty(),"Noodle fallback recommendations are not search results")
+    val realMatch=Jsoup.parse("<div id=list_videos><div class=item><a href='/watch/2/' title='Source result'>Source result</a></div></div>","https://example.org/video/query")
+    verify(Metadata.cards(realMatch,noodleSpec).size==1,"Noodle genuine search block is parsed")
     println("PASS $checks Kotlin core checks; no Android or live-playback claims")
     if(args.size==2&&args[0]=="--live-dir"){live(File(args[1]));searchLive(File(args[1]))}
 }
