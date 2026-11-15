@@ -4,5 +4,6 @@
   "manifestVersion": 1,
   "pluginLists": [
     "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/plugins.json"
-  ]
+  ],
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/repository.png"
 }

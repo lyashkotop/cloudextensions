@@ -15,14 +15,21 @@ import zipfile
 import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
-CATEGORIES = {'Russian': 'ru', 'English': 'en', 'Japanese': 'ja'}
+CATEGORIES = {'Russian': 'ru', 'Japanese': 'ja', 'English': 'en'}
+LANGUAGE_LABELS = {'ru': '1 · RU', 'ja': '2 · JA', 'en': '3 · EN'}
+
+
+def extension_name(module):
+    """CloudStream sorts extension names; rank prefixes preserve language groups."""
+    return LANGUAGE_LABELS[module['language']] + ' · ' + module['name']
 
 
 def modules():
     result = []
     ids = set()
     for category, language in CATEGORIES.items():
-        for path in sorted((ROOT / category).glob('*/plugin.json')):
+        paths = sorted((ROOT / category).glob('*/plugin.json'), key=lambda p: json.loads(p.read_text())['name'].casefold())
+        for path in paths:
             data = json.loads(path.read_text())
             if data['category'] != category or data['language'] != language:
                 raise ValueError('Language/category mismatch: ' + str(path))
@@ -215,11 +222,11 @@ def main():
             dex.validate_entry(module)
             relative = module['category'] + '/' + module['id'] + '.cs3'
             artifact = output / relative
-            manifest = {'pluginClassName': module['entryClass'], 'name': module['name'], 'version': version, 'requiresResources': False}
+            manifest = {'pluginClassName': module['entryClass'], 'name': extension_name(module), 'version': version, 'requiresResources': False}
             package(artifact, manifest, data)
             index.append({'url': f'https://raw.githubusercontent.com/{repository}/{config["buildsBranch"]}/{relative}',
                           'status': module.get('status', 1), 'version': version, 'apiVersion': 1,
-                          'name': module['name'], 'internalName': module['id'], 'authors': config['authors'],
+                          'name': extension_name(module), 'internalName': module['id'], 'authors': config['authors'],
                           'description': module['description'], 'repositoryUrl': 'https://github.com/' + repository,
                           'tvTypes': ['NSFW'], 'language': module['language'], 'iconUrl': module['iconUrl'],
                           'fileSize': artifact.stat().st_size, 'fileHash': 'sha256-' + hashlib.sha256(artifact.read_bytes()).hexdigest()})
