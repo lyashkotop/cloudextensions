@@ -32,7 +32,7 @@ object Metadata {
     }
     fun poster(element: Element, base: String): String? {
         val image = if (element.tagName() == "img") element else element.selectFirst("img,video[poster]") ?: return null
-        for (name in listOf("data-src", "data-original", "data-lazy-src", "data-image", "src", "poster")) {
+        for (name in listOf("data-src", "data-original", "data-s", "data-lazy-src", "data-image", "src", "poster")) {
             absolute(base, image.attr(name))?.let { return it }
         }
         val candidate = image.attr("data-srcset").ifBlank { image.attr("srcset") }.split(',').map { it.trim().split(whitespace).firstOrNull().orEmpty() }.lastOrNull()

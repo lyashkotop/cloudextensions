@@ -48,6 +48,8 @@ fun main(args:Array<String>) {
     verify(Metadata.cards(noMatch,noodleSpec).isEmpty(),"Noodle fallback recommendations are not search results")
     val realMatch=Jsoup.parse("<div id=list_videos><div class=item><a href='/watch/2/' title='Source result'>Source result</a></div></div>","https://example.org/video/query")
     verify(Metadata.cards(realMatch,noodleSpec).size==1,"Noodle genuine search block is parsed")
+    val stripLazy=Jsoup.parse("<img class=js-preview src='data:image/png;base64,placeholder' data-s='https://images.example.org/actual-preview.jpg'>","https://example.org/")
+    verify(Metadata.poster(stripLazy,"https://example.org/")=="https://images.example.org/actual-preview.jpg","Strip2 data-s preview survives a data URI placeholder")
     println("PASS $checks Kotlin core checks; no Android or live-playback claims")
     if(args.size==2&&args[0]=="--live-dir"){live(File(args[1]));searchLive(File(args[1]))}
 }
