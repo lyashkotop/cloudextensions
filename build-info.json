@@ -1,8 +1,8 @@
 {
-  "version": 68,
-  "sourceCommit": "62a4b9383315caf6d9b83d7b81ff510677fa32d2",
-  "plugins": 27,
-  "dexClasses": 621,
-  "sourceSmaliFiles": 594,
-  "entryRegistrationsValidated": 27
+  "version": 69,
+  "sourceCommit": "b5628694c5b0f04b4411bb652033ff2c893b95cb",
+  "plugins": 36,
+  "dexClasses": 647,
+  "sourceSmaliFiles": 611,
+  "entryRegistrationsValidated": 36
 }
