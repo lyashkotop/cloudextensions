@@ -2,147 +2,147 @@
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/Russian/Ebalka.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "1 · RU · Ebalka",
     "internalName": "Ebalka",
     "authors": [
       "lyashkotop"
     ],
-    "description": "Ebalka extension. Site availability and metadata depend on the source.",
+    "description": "Ebalka — Kotlin: главная по категориям, поиск RU/EN, исходные метаданные и фильтры.",
     "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
     "tvTypes": [
       "NSFW"
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Ebalka.png",
-    "fileSize": 309503,
-    "fileHash": "sha256-817fe64267dfe1f289011610a771f1d2b4302129f823c4f419dbb24c60e1d40a"
+    "fileSize": 52504,
+    "fileHash": "sha256-a04000ea909051b91037af732bbce5931ec01157e6cb255e9f3798439a861571"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/Russian/Huyamba.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "1 · RU · Huyamba",
     "internalName": "Huyamba",
     "authors": [
       "lyashkotop"
     ],
-    "description": "Huyamba extension. Site availability and metadata depend on the source.",
+    "description": "Huyamba — Kotlin: главная по категориям, поиск RU/EN, исходные метаданные и фильтры.",
     "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
     "tvTypes": [
       "NSFW"
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Huyamba.png",
-    "fileSize": 309504,
-    "fileHash": "sha256-053eca6bff7bb2f533ccc793bded31726b0f384bd410d2ba75b8896235219d09"
+    "fileSize": 52613,
+    "fileHash": "sha256-4d14f384dc736e0cfdab431bb31cdfe274aee1dbb6881cf44c95e14c3d6d69cf"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/Russian/Perdol.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "1 · RU · Perdol.net",
     "internalName": "Perdol",
     "authors": [
       "lyashkotop"
     ],
-    "description": "Perdol.net extension. Site availability and metadata depend on the source.",
+    "description": "Perdol.net — Kotlin: главная по категориям, поиск RU/EN, исходные метаданные и фильтры.",
     "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
     "tvTypes": [
       "NSFW"
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Perdol.png",
-    "fileSize": 309504,
-    "fileHash": "sha256-0b278b37ea73b3f5fa85455121cad5657a10aba11d4d8030c879a1325a341f00"
+    "fileSize": 52337,
+    "fileHash": "sha256-d7205b7a7b77f8389e33a4e3a565f96a1a3d1df42404a0f51066aa7e13bb5656"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/Russian/ProstoPorno.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "1 · RU · ProstoPorno",
     "internalName": "ProstoPorno",
     "authors": [
       "lyashkotop"
     ],
-    "description": "ProstoPorno extension. Site availability and metadata depend on the source.",
+    "description": "ProstoPorno — Kotlin: главная по категориям, поиск RU/EN, исходные метаданные и фильтры.",
     "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
     "tvTypes": [
       "NSFW"
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/ProstoPorno.png",
-    "fileSize": 309506,
-    "fileHash": "sha256-55f7440947bc908b7cad042d765f8001a273d9950a961828e93e8d76d972ad83"
+    "fileSize": 50952,
+    "fileHash": "sha256-d5bb8ad46afbc13f0db8b49673675ce904613987269b77ec7e7ca67a57126194"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/Russian/Semyana.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "1 · RU · Semyana",
     "internalName": "Semyana",
     "authors": [
       "lyashkotop"
     ],
-    "description": "Semyana extension. Site availability and metadata depend on the source.",
+    "description": "Semyana — Kotlin: главная по категориям, поиск RU/EN, исходные метаданные и фильтры.",
     "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
     "tvTypes": [
       "NSFW"
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Semyana.png",
-    "fileSize": 309503,
-    "fileHash": "sha256-77d81b0b8a9c5f077b7105533bee3d8f3d37fc78ae2b4500f41c15bfc6f21596"
+    "fileSize": 51753,
+    "fileHash": "sha256-f958e331341717b1569a32a8332ecbb94bb8fccfcf3f641fb03a1fafb89ae357"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/Russian/Strip2.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "1 · RU · Strip2",
     "internalName": "Strip2",
     "authors": [
       "lyashkotop"
     ],
-    "description": "Strip2 extension. Site availability and metadata depend on the source.",
+    "description": "Strip2 — Kotlin: главная по категориям, поиск RU/EN, исходные метаданные и фильтры.",
     "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
     "tvTypes": [
       "NSFW"
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Strip2.jpg",
-    "fileSize": 309502,
-    "fileHash": "sha256-15cffa7732d99c0155af8250853f10f207a516d36c4177bb627a031ffd13c61e"
+    "fileSize": 52510,
+    "fileHash": "sha256-8d518115bb941feb690ded25ea8f9ca085a0ed19359f848e9495f160cd9ec8db"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/Russian/Vpoisk.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "1 · RU · Vpoisk",
     "internalName": "Vpoisk",
     "authors": [
       "lyashkotop"
     ],
-    "description": "Vpoisk extension. Site availability and metadata depend on the source.",
+    "description": "Vpoisk — Kotlin: главная по категориям, поиск RU/EN, исходные метаданные и фильтры.",
     "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
     "tvTypes": [
       "NSFW"
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Vpoisk.png",
-    "fileSize": 309502,
-    "fileHash": "sha256-e6d462cbfe7f355c7394b53f7fbed04b9821b6809e8c31ce2f1e69dd70129a15"
+    "fileSize": 54203,
+    "fileHash": "sha256-bdfbdc1b83d99b92b2f82f3ac9bf9c4fa28f3eb861c4edd7dd6ae848833cd72d"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/Japanese/JavGuru.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "2 · JA · JAVGuru",
     "internalName": "JavGuru",
@@ -156,13 +156,13 @@
     ],
     "language": "ja",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/JavGuru.png",
-    "fileSize": 309505,
-    "fileHash": "sha256-fb7ccef349fb1a18f51b87607b9a06b3a33ddf26c89352abf70567c6b9bf0c7d"
+    "fileSize": 305285,
+    "fileHash": "sha256-f0f551cf2821d75e8b50b511d56761226872a1b8b7286212091f4deb0e3f2bce"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/Japanese/MissAV.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "2 · JA · MissAV",
     "internalName": "MissAV",
@@ -176,13 +176,13 @@
     ],
     "language": "ja",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/MissAV.png",
-    "fileSize": 309503,
-    "fileHash": "sha256-5769a9f18704ad9dd7118d5c1506fb69131394e207207f3be496d9815ad805c0"
+    "fileSize": 305283,
+    "fileHash": "sha256-06fb8af1cd1580af147a4ca5b172323c1920e00f1f746735a2fa8dd6a208bc89"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/BDSMX.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · BDSMX",
     "internalName": "BDSMX",
@@ -196,13 +196,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/BDSMX.png",
-    "fileSize": 309502,
-    "fileHash": "sha256-c5aeb981828c9f8ec2d125fc5c376724f836fb26757658c17b3a7b6825e7e585"
+    "fileSize": 305282,
+    "fileHash": "sha256-df24bbf1e74818029d3670441b48470c219b764ac03e39c07417d5ee6f0d0a53"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/Beeg.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · Beeg.porn",
     "internalName": "Beeg",
@@ -216,13 +216,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Beeg.png",
-    "fileSize": 309503,
-    "fileHash": "sha256-18039e4b2c4fd649ac063b64d994c1bc44c4326fcad4a28004041a843e9aa79e"
+    "fileSize": 305283,
+    "fileHash": "sha256-2f702089dc97f0a4589de2823b7baa8f6fb04b367d25da3f27934947d12a5ab2"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/BoundHub.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · BoundHub",
     "internalName": "BoundHub",
@@ -236,13 +236,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/BoundHub.png",
-    "fileSize": 309505,
-    "fileHash": "sha256-adcffa6d888639b4e2a45a10a6d2684443191b50628584530b9caff9e61a5311"
+    "fileSize": 305285,
+    "fileHash": "sha256-5d8132f5031c3f10a64616908651b02fcb272122a53cfea5ca2dd40ab28c5bb2"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/CosXPlay.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · CosXPlay",
     "internalName": "CosXPlay",
@@ -256,13 +256,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/CosXPlay.png",
-    "fileSize": 309505,
-    "fileHash": "sha256-8c4d675e2494f3f6fac18d3b3d312750b67972a398659bd61074eac2d82c6475"
+    "fileSize": 305285,
+    "fileHash": "sha256-485fe79c4058c8611a626fe577d4c583fdf462bc176a187ba6b04fdba19d34de"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/DarknessPorn.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · DarknessPorn",
     "internalName": "DarknessPorn",
@@ -276,13 +276,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/DarknessPorn.png",
-    "fileSize": 309506,
-    "fileHash": "sha256-14301620e029b15c2fa7e53ffe58aa3850401e4e5a3a3f7184664855729e5c27"
+    "fileSize": 305286,
+    "fileHash": "sha256-e126b2fae80cd002053e61190c52700f12236d0058e31860f428c46bd4aa9051"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/Epawg.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · Epawg",
     "internalName": "Epawg",
@@ -296,13 +296,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Epawg.png",
-    "fileSize": 309502,
-    "fileHash": "sha256-2aeabc5041fd64e085245c1699f28d3c37bea739ce70a964c54d5b2ec6737e37"
+    "fileSize": 305282,
+    "fileHash": "sha256-1f53c62cf357af2b6a9ede1d410a858d5c960dcbd9721632b2b02caa42292fe1"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/EPorner.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · EPorner",
     "internalName": "EPorner",
@@ -316,13 +316,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/EPorner.png",
-    "fileSize": 309503,
-    "fileHash": "sha256-fbb9e3fffa317003e12e957e67b7ff01e13602d00ac215661385bde826f01286"
+    "fileSize": 305283,
+    "fileHash": "sha256-6f0f50cf8d1fa0d5ef8234895043c43f6859e942d307e3d48ed395019f31db81"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/ForcedCinema.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · ForcedCinema",
     "internalName": "ForcedCinema",
@@ -336,13 +336,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/ForcedCinema.png",
-    "fileSize": 309508,
-    "fileHash": "sha256-8e3506dd3d25e8f6dc789d62172051a39bc80a9030236db6ced68af5ece9ca8d"
+    "fileSize": 305288,
+    "fileHash": "sha256-45baf67e42568fb620eba2cea2e946a9f7cb0e4570426ee5282bcf465897e024"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/HcBDSMX.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · hcBDSM",
     "internalName": "HcBDSMX",
@@ -356,13 +356,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/HcBDSMX.png",
-    "fileSize": 309505,
-    "fileHash": "sha256-1d841e1162b0c776d6ce328091f92731feff2e0d083c13db1d4fcf1847b14e98"
+    "fileSize": 305285,
+    "fileHash": "sha256-8f764810b85428e07af93c563333c99955747ea61c08a6f574f827663cd2912e"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/HeavyR.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · Heavy-R",
     "internalName": "HeavyR",
@@ -376,13 +376,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/HeavyR.png",
-    "fileSize": 309505,
-    "fileHash": "sha256-3329dcb5863bdb6586e82ce0b38ffd80b6addb136e6ffcd1e967daff2ab2e754"
+    "fileSize": 305285,
+    "fileHash": "sha256-da37411320c58066a6d0449e81232320bfdf1aa0be180a552b638f1e2a5fdf87"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/HurtSex.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · HurtSex",
     "internalName": "HurtSex",
@@ -396,13 +396,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/HurtSex.png",
-    "fileSize": 309504,
-    "fileHash": "sha256-cba013da008513882ef13a43f1915b60a32b6229aa3fc97d2f47257eeb54a4bf"
+    "fileSize": 305284,
+    "fileHash": "sha256-6294ba96319d698ac77e8f31d4bbd6def0ae1e898a77a562ccaab65d4575e348"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/NoodleMagazine.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · Noodle Magazine",
     "internalName": "NoodleMagazine",
@@ -416,13 +416,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/NoodleMagazine.png",
-    "fileSize": 309511,
-    "fileHash": "sha256-473f48caacd8abf77f0fa86d993b60fe76849e9afd74112b49d0a021bdf5ffed"
+    "fileSize": 305291,
+    "fileHash": "sha256-6a29d3f04e4d44b3dadb26231c6189f72db1a3ab92ea6c6814550b1437ca87fb"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/Pervertium.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · Pervertium",
     "internalName": "Pervertium",
@@ -436,13 +436,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Pervertium.png",
-    "fileSize": 309506,
-    "fileHash": "sha256-5a2c664c1a0d63b5a80465473b57524eb3db34a3d6abf1390018533057f28453"
+    "fileSize": 305286,
+    "fileHash": "sha256-7f791c1e8391d8c7debfce8344099bcd530920926816f124b1930e53ad593e7b"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/PornVideos.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · PornVideos.rs",
     "internalName": "PornVideos",
@@ -456,13 +456,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/PornVideos.png",
-    "fileSize": 309506,
-    "fileHash": "sha256-65d4ee48945c8f281ab1c81cb8908787363c781a81f06a0314a4d48999c4979b"
+    "fileSize": 305286,
+    "fileHash": "sha256-fd8ba1cc4fbb14b10051fe151e12bb7bbeae2ec9e711d362bf1e2245f8f956b4"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/PunishBang.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · PunishBang",
     "internalName": "PunishBang",
@@ -476,13 +476,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/PunishBang.png",
-    "fileSize": 309507,
-    "fileHash": "sha256-fc4f7e3ed046bc6b4bf4aa8cd0d53c019825ccbf4b94fd1d570e2554b37ebae6"
+    "fileSize": 305287,
+    "fileHash": "sha256-29508d522d6cac43557f42790d2618a2032de870b11b2102a10c26339f988a21"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/PunishWorld.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · Punishworld",
     "internalName": "PunishWorld",
@@ -496,13 +496,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/PunishWorld.png",
-    "fileSize": 309509,
-    "fileHash": "sha256-1f8b873596165aedcb0fe863871d5b191363cc44e6bcfe6c7d552ea52bf27321"
+    "fileSize": 305289,
+    "fileHash": "sha256-1faefde8306a8dbcbd7945b1cfb4d57fb07c9b581a3933999eb81313b051b37b"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/SickR.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · SICK-R",
     "internalName": "SickR",
@@ -516,13 +516,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/SickR.png",
-    "fileSize": 309506,
-    "fileHash": "sha256-704f840940247efda4ac2e481bcee1b44d5d01bd2cccc374bd5f5c5aa5266495"
+    "fileSize": 305286,
+    "fileHash": "sha256-0502f5dc4bae2bec65c91a5436350ce57a396357713ab4798ff6479fa3a2808d"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/SickJunk.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · SickJunk",
     "internalName": "SickJunk",
@@ -536,13 +536,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/SickJunk.jpg",
-    "fileSize": 309505,
-    "fileHash": "sha256-e55685a2d39e0a6890541993ecf755cf7ebbd097f86f03356454afe0ee40f3a8"
+    "fileSize": 305285,
+    "fileHash": "sha256-247d95b1dbfe4e30d0dda0e4ecc9824b44768668d7e6d363b41639d343737408"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/SpankBang.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · SpankBang",
     "internalName": "SpankBang",
@@ -556,13 +556,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/SpankBang.png",
-    "fileSize": 309507,
-    "fileHash": "sha256-4e0511a63e8533bf600770b236f2ba470a8551572390cb10bf47c49a2ddeac76"
+    "fileSize": 305287,
+    "fileHash": "sha256-d49093853ebe34eb284e7979770cd14ac8b8407770a4560506cb2b9c0f388fab"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/ThisVid.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · ThisVid",
     "internalName": "ThisVid",
@@ -576,13 +576,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/ThisVid.png",
-    "fileSize": 309504,
-    "fileHash": "sha256-a644cd8418c5d53ab3d41e955bd20fb993a90c93f365a05a852f7d5248176e4a"
+    "fileSize": 305284,
+    "fileHash": "sha256-acc58706d8d83b601b46dcaa297d3ee81dc1a7723eac6ae102a07ed77ddb3fc7"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/TubeSafari.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · TubeSafari",
     "internalName": "TubeSafari",
@@ -596,13 +596,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/TubeSafari.jpg",
-    "fileSize": 309507,
-    "fileHash": "sha256-af72a9cb5a9590a3737285d911dd08b3a9d9d7067e982dfbea4dbfae0b3c07cd"
+    "fileSize": 305287,
+    "fileHash": "sha256-c09b1605f83d489d1af23f4109e7a3c1715ebad1dd5c546781dea37e3dc5cf8f"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/UKDevilz.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · UKDevilz",
     "internalName": "UKDevilz",
@@ -616,13 +616,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/UKDevilz.png",
-    "fileSize": 309505,
-    "fileHash": "sha256-3b31d661ad3fd329b169aab9f132e04de9875cf446e248830d54a50639c6359f"
+    "fileSize": 305285,
+    "fileHash": "sha256-270e59c93fd88f679c0cc48386b40deff0658b8d79200fa7e853dd8b67ca63ab"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/Whoreshub.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · Whoreshub",
     "internalName": "Whoreshub",
@@ -636,13 +636,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Whoreshub.png",
-    "fileSize": 309505,
-    "fileHash": "sha256-6609867dfb3392b823dd997f69527c8f7f5b6330c09e5d9966aec4e87c8ca809"
+    "fileSize": 305285,
+    "fileHash": "sha256-f9731eb8e9f57b73dd06562dd85a77c3dbb1d8669f8f262352f3956170af2e26"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/Xnxx.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · XNXX",
     "internalName": "Xnxx",
@@ -656,13 +656,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Xnxx.jpg",
-    "fileSize": 309502,
-    "fileHash": "sha256-80a15fa8d1e6366013a43aa82c3e52f5b9a05e75125005dc6d025a0e94504d84"
+    "fileSize": 305282,
+    "fileHash": "sha256-233859d082839384473f0b74f960fa8be78e3d0fdeca5d36273214f5927ae0d8"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/XRares.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · XRares",
     "internalName": "XRares",
@@ -676,13 +676,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/XRares.png",
-    "fileSize": 309501,
-    "fileHash": "sha256-50a958468eeb24ce735df23f0cfae91828e4ddf62cf72bb9213ae0c154a3a462"
+    "fileSize": 305281,
+    "fileHash": "sha256-12c4aafcfd118c02c27515c91792731a92c2adaa65cc62c8e1853bca1a365385"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/XVideos.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · xVideos",
     "internalName": "XVideos",
@@ -696,13 +696,13 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/XVideos.png",
-    "fileSize": 309505,
-    "fileHash": "sha256-4a1a807fc58b308838dfb5c73f01b1581bfa23a064cbd7e25982ba690cfdf986"
+    "fileSize": 305285,
+    "fileHash": "sha256-a5bb71cbb445fa2f58211754669e2cd42dfc519904f4197f3bfb0761b172b013"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/English/YouJizz.cs3",
     "status": 1,
-    "version": 70,
+    "version": 71,
     "apiVersion": 1,
     "name": "3 · EN · YouJizz",
     "internalName": "YouJizz",
@@ -716,7 +716,7 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/YouJizz.png",
-    "fileSize": 309504,
-    "fileHash": "sha256-30e76d4bf5a0a4fb09c8d0562af285319fb728ba61b66c1903809ef904f1e594"
+    "fileSize": 305284,
+    "fileHash": "sha256-367ddf5b8aff2ea4d434a6fdfe53ec5cc1033faa5f00110b761606dc32c870d2"
   }
 ]

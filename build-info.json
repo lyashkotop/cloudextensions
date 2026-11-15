@@ -1,8 +1,9 @@
 {
-  "version": 70,
-  "sourceCommit": "64a0bea10ad390a6b1aeaabf45124f92bc8fad4f",
+  "version": 71,
+  "sourceCommit": "92a811ab8b20151bc6d32f6ed4381392578ef1e5",
   "plugins": 36,
-  "dexClasses": 647,
-  "sourceSmaliFiles": 611,
-  "entryRegistrationsValidated": 36
+  "dexClasses": 619,
+  "sourceSmaliFiles": 590,
+  "entryRegistrationsValidated": 36,
+  "kotlinProviders": 7
 }
