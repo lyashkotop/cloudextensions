@@ -24,7 +24,7 @@ class NoodleMagazineProvider: MainAPI() {
     override val hasMainPage=true
     override val hasQuickSearch=false
     override val hasDownloadSupport=true
-    override val mainPage=mainPageOf("/home" to "Latest","/popular/month" to "Popular","/popular/trending" to "Trending","blonde" to "Blonde","milf" to "MILF","jav" to "JAV","lesbian" to "Lesbian")
+    override val mainPage=mainPageOf("/popular/month" to "Popular","/popular/trending" to "Trending","blonde" to "Blonde","milf" to "MILF","jav" to "JAV","lesbian" to "Lesbian")
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description")
     private val history=Collections.synchronizedMap(object:LinkedHashMap<String,MutableMap<Int,List<SearchResponse>>>(16,.75f,true){override fun removeEldestEntry(eldest:MutableMap.MutableEntry<String,MutableMap<Int,List<SearchResponse>>>?)=size>24})
     private fun route(query:String,page:Int)=PageRequest("$mainUrl/video/"+URLEncoder.encode(query,"UTF-8").replace("+","%20")+"?p="+(page-1),allowNotFound=true)

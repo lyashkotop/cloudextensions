@@ -9,7 +9,7 @@ class UKDevilzProvider: RussianProvider(SiteSpec(
  titleSelector=".title",
  searchMode="path:/video/",
  tagSelector="#videoTagsBar a.vtag", descriptionSelector=".l_info .description",
- sections=listOf(Section("Latest","/home"),Section("Popular","/popular/month"))
+ sections=listOf(Section("Popular","/popular/month"))
 )){
  override var lang="en"
  override val englishSearchFirst=true
