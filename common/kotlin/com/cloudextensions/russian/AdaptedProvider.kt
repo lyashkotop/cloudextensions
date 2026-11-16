@@ -87,7 +87,7 @@ class AdaptedProvider(private val source: MainAPI): MainAPI() {
     override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean {
         val seen=Collections.synchronizedSet(mutableSetOf<String>())
         try { source.loadLinks(data,isCasting,subtitleCallback){if(seen.add(it.url))callback(it)} }
-        catch(e:CancellationException){throw e}catch(_:Exception){}
+        catch(e:CancellationException){throw e}catch(e:ErrorLoadingException){throw e}catch(_:Exception){}
         if(seen.isEmpty() && data.startsWith("http") && !data.contains(" kraptor ")) {
             Playback.links(name,mainUrl,data,subtitleCallback){if(seen.add(it.url))callback(it)}
         }

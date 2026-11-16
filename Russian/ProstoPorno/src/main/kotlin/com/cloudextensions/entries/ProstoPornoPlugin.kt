@@ -7,5 +7,5 @@ import com.streambundleextra.ProstoPornoProvider
 
 @CloudstreamPlugin
 class ProstoPornoPlugin: Plugin() {
-    override fun load(context: Context) { registerMainAPI(com.cloudextensions.russian.ReliableProvider(ProstoPornoProvider().apply { name = "1. ProstoPorno" })) }
+    override fun load(context: Context) { com.cloudextensions.russian.Translation.configure(context);registerMainAPI(com.cloudextensions.russian.ReliableProvider(ProstoPornoProvider().apply { name = "1. ProstoPorno" })) }
 }

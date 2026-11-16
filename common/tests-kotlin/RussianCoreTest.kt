@@ -106,6 +106,22 @@ fun main(args:Array<String>) {
         verify(handled,"host API linkage failure reaches the UI as a load error rather than a crashed loading coroutine")
     }
     verify(Metadata.imageUrl("old serialized bookmark payload","https://photos.example/frame.jpg")=="https://photos.example/frame.jpg","an absolute image URL does not depend on a legacy bookmark payload being a valid base URI")
+    val flow=Jsoup.parse("""<div class=flowplayer data-item='{"sources":[{"src":"https://media.example/video.mp4","type":"video/mp4"}]}'></div>""","https://source.example/")
+    verify(Playback.sources(flow).single().url=="https://media.example/video.mp4","Flowplayer data-item is a real stream source")
+    val ph=Jsoup.parse("""<script>var x={mediaDefinitions:[{"format":"hls","videoUrl":"https://media.example/master.m3u8","quality":"480"}]};</script>""","https://source.example/")
+    verify(Playback.sources(ph).single().url=="https://media.example/master.m3u8","declared embed HLS is parsed without a WebView")
+    for(word in listOf("cuckold","cuckolds","куколд","куколды","trans"))verify(!ContentPolicy.accepts(word),"new blocked category $word")
+    verify(ContentPolicy.accepts("transport"),"trans is matched as a word, not a transport substring")
+    verify(ContentPolicy.accepts("trans lesbians"),"explicit lesbian exception is retained")
+    verify(Metadata.title("https://example.org/null-title",listOf("null","Original full title"))=="Original full title","JSON null never becomes the title")
+    verify(Translation.target("big грудь")=="en","mixed two-word query gets an English companion")
+    kotlinx.coroutines.runBlocking {
+        verify(Translation.translated("парень")=="guy","Russian query receives English companion")
+        verify(Translation.translated("guy")=="парень","English query receives Russian companion")
+        verify(Translation.translated("два слова")=="two words","two Russian words receive English companion")
+        verify(Translation.translated("two words")=="два слова","two English words receive Russian companion")
+        verify(Translation.originalOnly{Translation.translated("guy")}==null,"the source does not recursively translate the coordinator's companion query")
+    }
     println("PASS $checks Kotlin core checks; no Android or live-playback claims")
     if(args.size==2&&args[0]=="--live-dir"){live(File(args[1]));searchLive(File(args[1]))}
 }

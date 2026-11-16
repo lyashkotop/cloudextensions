@@ -3,7 +3,7 @@ package com.cloudextensions.russian
 /** Same category choices as the previous bundle; explicit allowed words take precedence. */
 object ContentPolicy {
     @Volatile var enabled = true
-    val blockedWords = listOf(
+    val blockedWords = listOf("cuckolding","куколдство","куколдинг","куколдский","транс","трансы","cuckold","cuckolds","куколд","куколды","куколда","куколдом","trans",
         "пеггинг",
         "пегинг",
         "gay",

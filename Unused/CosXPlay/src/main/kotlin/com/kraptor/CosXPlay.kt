@@ -116,7 +116,7 @@ class CosXPlay : MainAPI() {
     override suspend fun quickSearch(query: String): List<SearchResponse>? = search(query)
 
     override suspend fun load(url: String): LoadResponse? {
-        val document = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
+        val document = app.get(url).document
 
         val title           = document.selectFirst("h1")?.text()?.trim() ?: return null
         val poster          = document.selectFirst("script:containsData(\"thumbnail\")")?.data()?.substringAfter("\"thumbnail\":\"")?.substringBefore("\"")

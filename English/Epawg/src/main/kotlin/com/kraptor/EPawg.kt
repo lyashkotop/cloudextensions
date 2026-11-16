@@ -98,6 +98,7 @@ class EPawg : MainAPI() {
     }
 
     private fun Element.toMainPageResult(): SearchResponse? {
+        if(selectFirst(".line-private,.ico-private")!=null)return null
         val title = this.selectFirst("a")?.attr("title") ?: return null
         val href = fixUrlNull(this.selectFirst("a")?.attr("href")) ?: return null
         val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(this.selectFirst("img.thumb.lazy-load")?.attr("data-original"))
@@ -117,6 +118,7 @@ class EPawg : MainAPI() {
         return newSearchResponseList(aramaCevap, hasNext = true)
     }
     private fun Element.toSearchResult(): SearchResponse? {
+        if(selectFirst(".private,.private-video,.label-private,.icon-lock,.line-private,.ico-private")!=null)return null
         val title = this.selectFirst("a")?.attr("title") ?: return null
         val href = fixUrlNull(this.selectFirst("a")?.attr("href")) ?: return null
         val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(this.selectFirst("img.thumb.lazy-load")?.attr("data-original"))
@@ -129,6 +131,7 @@ class EPawg : MainAPI() {
     override suspend fun load(url: String): LoadResponse? {
         val document = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
         val textDoc = document.html()
+        if(document.selectFirst(".no-player")?.text()?.contains("private video",true)==true)throw ErrorLoadingException("Приватное видео: сайт требует входа")
 
         val title = document.selectFirst("div.headline h1")?.text()?.trim() ?: return null
         val posterUrl = Regex(
@@ -156,6 +159,7 @@ class EPawg : MainAPI() {
     }
 
     private fun Element.toRecommendationResult(): SearchResponse? {
+        if(selectFirst(".line-private,.ico-private")!=null)return null
         val title = this.selectFirst("strong.title")?.text()?.trim() ?: return null
         val href = fixUrlNull(this.selectFirst("a")?.attr("href")) ?: return null
 
@@ -175,7 +179,8 @@ class EPawg : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val pageHtml = app.get(data).text
-        return KtPlayerExtractor.getLinks(name, mainUrl, data, pageHtml, callback = callback)
+        val document=com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(data),mainUrl)
+        if(document.selectFirst(".no-player")?.text()?.contains("private video",true)==true)throw ErrorLoadingException("Приватное видео: сайт требует входа")
+        return com.cloudextensions.russian.Playback.links(name,mainUrl,data,subtitleCallback,callback)
     }
 }

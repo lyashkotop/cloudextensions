@@ -21,14 +21,15 @@ object Metadata {
     private val whitespace = Regex("\\s+")
     private val truncated = Regex("(?:…|\\.\\.\\.)$")
     private val tagSelector = ".tags .tags-list a, .tags-list.single-vide a, .video-info #tab1 .tags-outer a, #video-info-tags li.vit-tag a, #video-info-tags li.vit-category a, .tag-list li a, .video-tags-list a.is-keyword, [itemprop=keywords]:not(meta), .video-taxonomy .tax-tags a, .video-taxonomy .tax-feature-tags a, .video-tags a, .video_tags a, #video-tags a, #tags a, .tagsbox a, #tab_video_info .item a[href*=/tag], #tab_video_info .item a[href*=/categor], .item_info a[href*=/tag/], .item_info a[href*=/category/], .video-info a[rel=tag], .video-info .tags a, .video-info .categories a, .video-details .tags a, .video-details .categories a, .video-links a[rel=tag], .video-taxonomy .tax-categories a, [itemprop=genre]"
+    fun sourceValue(raw:String?):Boolean = !raw.isNullOrBlank() && raw.trim().lowercase(Locale.ROOT) !in setOf("null","undefined")
     fun description(raw:String?,title:String):String {
         val value=clean(raw)
-        if(value.isBlank() || value.trimEnd('.','!','?').equals(title.trimEnd('.','!','?'),true))return ""
+        if(!sourceValue(value) || value.trimEnd('.','!','?').equals(title.trimEnd('.','!','?'),true))return ""
         if(!promo.containsMatchIn(value))return value
         return value.split(Regex("(?<=[.!?])\\s+|[\\r\\n]+"))
             .filter { it.isNotBlank() && !promo.containsMatchIn(it) && !it.trimEnd('.','!','?').equals(title.trimEnd('.','!','?'),true) }.joinToString(" ")
     }
-    fun tag(raw:String):String? = clean(raw).takeIf { (it.length>=3 || it.matches(Regex("[A-Za-z0-9]{2}"))) && it.length<=100 && !stopTag.matches(it) }
+    fun tag(raw:String):String? = clean(raw).takeIf { sourceValue(it) && (it.length>=3 || it.matches(Regex("[A-Za-z0-9]{2}"))) && it.length<=100 && !stopTag.matches(it) }
     fun alias(from: String,to: String) {
         val a=videoKey(from);val b=videoKey(to)
         titles[a]?.let{titles[b]=it};posters[a]?.let{posters[b]=it;posterTimes[a]?.let{stamp->posterTimes[b]=stamp}};durations[a]?.let{durations[b]=it}
@@ -49,9 +50,9 @@ object Metadata {
     private fun value(e: Element?): String = e?.let { listOf(it.attr("content"), it.attr("datetime"), it.text()).firstOrNull(String::isNotBlank) }.orEmpty()
     fun title(url: String, candidates: List<String>): String {
         val key = videoKey(url)
-        val old = titles[key]
+        val old = titles[key]?.takeIf(::sourceValue)
         if (!old.isNullOrBlank() && !truncated.containsMatchIn(old)) return old
-        val values = candidates.map(::clean).filter(String::isNotEmpty)
+        val values = candidates.map(::clean).filter(::sourceValue)
         val chosen = values.firstOrNull { !truncated.containsMatchIn(it) } ?: values.firstOrNull().orEmpty()
         if (chosen.isNotEmpty()) titles[key] = chosen
         return chosen
@@ -93,7 +94,7 @@ object Metadata {
             val clocks=card.select(".prop span,.video_length,.m_time").map { clean(it.text()) }.filter { it.matches(Regex("(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}")) }
             val duration = (card.select(".duration, .card__duration, .video-duration, .time, [data-duration]").asSequence().map { timing(it.attr("data-duration").ifBlank { it.text() }) }.toList()+clocks.map(::timing)).firstOrNull(String::isNotBlank).orEmpty()
             if (duration.isNotBlank()) durations[videoKey(url)] = duration
-            val picture=poster(card,page.baseUri());if(picture!=null)rememberPoster(url,picture)
+            val picture=poster(link,page.baseUri()) ?: poster(card,page.baseUri());if(picture!=null)rememberPoster(url,picture)
             if(!result.containsKey(videoKey(url)))result[videoKey(url)]=VideoCard(label,url,picture,duration,tags)
         }
         return result.values.toList()

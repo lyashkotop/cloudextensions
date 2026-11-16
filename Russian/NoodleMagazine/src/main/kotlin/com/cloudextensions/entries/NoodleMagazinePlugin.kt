@@ -7,5 +7,5 @@ import com.lagradost.NoodleMagazineProvider
 
 @CloudstreamPlugin
 class NoodleMagazinePlugin: Plugin() {
-    override fun load(context: Context) { registerMainAPI(com.cloudextensions.russian.ReliableProvider(NoodleMagazineProvider().apply { name = "1. Noodle Magazine" })) }
+    override fun load(context: Context) { com.cloudextensions.russian.Translation.configure(context);registerMainAPI(com.cloudextensions.russian.ReliableProvider(NoodleMagazineProvider().apply { name = "1. Noodle Magazine" })) }
 }

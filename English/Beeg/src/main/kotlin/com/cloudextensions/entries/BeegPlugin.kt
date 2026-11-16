@@ -5,5 +5,5 @@ import com.watchuu.beeg.BeegProvider
 import com.watchuu.beeg.registerBeegExtractors
 @CloudstreamPlugin
 class BeegPlugin: Plugin(){
- override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.ReliableProvider(com.cloudextensions.russian.AdaptedProvider(BeegProvider().apply{name="3. Beeg.porn"})));registerBeegExtractors(this)}
+ override fun load(context:Context){com.cloudextensions.russian.Translation.configure(context);registerMainAPI(com.cloudextensions.russian.ReliableProvider(com.cloudextensions.russian.AdaptedProvider(BeegProvider().apply{name="3. Beeg.porn"})));registerBeegExtractors(this)}
 }

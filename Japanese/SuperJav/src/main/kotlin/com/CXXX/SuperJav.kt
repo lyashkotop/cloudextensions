@@ -29,7 +29,7 @@ class SuperJav : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = if (page <= 1) "$mainUrl/${request.data}/" else "$mainUrl/${request.data}/page/$page/"
-        val document = app.get(url).document
+        val document = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
         val home = document.select("div.post").mapNotNull { it.toSearchResult() }.distinctBy { it.url }
 
         return newHomePageResponse(
@@ -74,7 +74,7 @@ class SuperJav : MainAPI() {
         run {
 
             val url = if (i == 1) "$mainUrl/?s=$encoded" else "$mainUrl/page/$i/?s=$encoded"
-            val document = app.get(url).document
+            val document = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
             val results = document.select("div.post").mapNotNull { it.toSearchResult() }
             val unique = results.filterNot { item -> searchResponse.any { it.url == item.url } }
             if (unique.isEmpty()) return@run
@@ -86,7 +86,7 @@ class SuperJav : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        val document = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
         val title = document.selectFirst("div.archive-title h1, meta[property='og:title']")?.text()?.trim()
             ?: document.title().substringBefore(" - SupJav").trim()
         val poster = fixUrlNull(

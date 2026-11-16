@@ -1,0 +1,65 @@
+[
+  {
+    "site": "HurtSex",
+    "streamChecks": [{
+      "mp4": true,
+      "http": 206,
+      "type": "video/mp4",
+      "hls": false
+    }],
+    "links": 1,
+    "returned": true
+  },
+  {
+    "site": "TubeSafari",
+    "streamChecks": [
+      {
+        "mp4": false,
+        "http": 206,
+        "type": "application/vnd.apple.mpegurl",
+        "hls": true
+      },
+      {
+        "mp4": true,
+        "http": 206,
+        "type": "video/mp4",
+        "hls": false
+      }
+    ],
+    "links": 2,
+    "returned": true
+  },
+  {
+    "site": "Epawg",
+    "error": "ErrorLoadingException",
+    "message": "Приватное видео: сайт требует входа"
+  },
+  {
+    "site": "ForcedCinema",
+    "streamChecks": [{
+      "mp4": true,
+      "http": 206,
+      "type": "video/mp4",
+      "hls": false
+    }],
+    "links": 1,
+    "returned": true
+  },
+  {
+    "site": "PornVideos",
+    "error": "ErrorLoadingException",
+    "message": "Сервер файла видео вернул HTTP 404"
+  },
+  {
+    "site": "BDSMX",
+    "streamChecks": [{
+      "mp4": true,
+      "http": 206,
+      "type": "video/mp4",
+      "hls": false
+    }],
+    "homeCards": 53,
+    "links": 1,
+    "returned": true
+  }
+]

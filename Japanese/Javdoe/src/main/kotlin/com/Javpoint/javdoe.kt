@@ -67,7 +67,8 @@ class Javdoe : MainAPI() {
         val i = page
         run {
 
-            val document = app.get("$mainUrl/search/video/?s=$encoded&page=$i").document
+            val payload=org.json.JSONObject(app.get("$mainUrl/search/video/?ajax=search_results&s=$encoded&o=recent&t=all&d=all&c=0&page=$i").text)
+            val document=org.jsoup.Jsoup.parse("<ul class=videos>"+payload.optString("html")+"</ul>",mainUrl)
             val results = document.select("ul.videos > li").mapNotNull { it.toSearchResult() }
             val unique = results.filterNot { item -> searchResponse.any { it.url == item.url } }
             if (unique.isEmpty()) return@run

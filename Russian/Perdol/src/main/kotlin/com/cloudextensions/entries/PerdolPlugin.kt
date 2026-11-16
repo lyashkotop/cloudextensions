@@ -7,5 +7,5 @@ import com.streambundleextra.PerdolProvider
 
 @CloudstreamPlugin
 class PerdolPlugin: Plugin() {
-    override fun load(context: Context) { registerMainAPI(com.cloudextensions.russian.ReliableProvider(PerdolProvider().apply { name = "1. Perdol.net" })) }
+    override fun load(context: Context) { com.cloudextensions.russian.Translation.configure(context);registerMainAPI(com.cloudextensions.russian.ReliableProvider(PerdolProvider().apply { name = "1. Perdol.net" })) }
 }

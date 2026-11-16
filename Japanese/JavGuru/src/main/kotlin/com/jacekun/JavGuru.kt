@@ -37,7 +37,7 @@ class JavGuru : MainAPI() {
             val name = img?.attr("alt")?.takeIf { it.isNotBlank() }
                 ?: it.selectFirst("h2, h3, a")?.text()
                 ?: return@mapNotNull null
-            val image = fixUrlNull(img?.attr("src") ?: img?.attr("data-src"))
+            val image = com.cloudextensions.russian.Metadata.poster(aa,mainUrl)
 
             newMovieSearchResponse(name, link, globaltvType) {
                 this.posterUrl = image
@@ -69,7 +69,7 @@ class JavGuru : MainAPI() {
                 val title = img?.attr("alt")?.takeIf { it.isNotBlank() }
                     ?: it.selectFirst("h2, h3")?.text()
                     ?: return@mapNotNull null
-                val image = fixUrlNull(img?.attr("src")?.trim('\'') ?: img?.attr("data-src"))
+                val image = com.cloudextensions.russian.Metadata.poster(aa,mainUrl)
 
                 newMovieSearchResponse(title, href, globaltvType) {
                     this.posterUrl = image
@@ -86,10 +86,9 @@ class JavGuru : MainAPI() {
 
     override suspend fun load(url: String): LoadResponse {
         val doc = app.get(url).document
-        val poster = fixUrlNull(
-            doc.selectFirst("div.large-screenimg img, meta[property='og:image']")?.attr("src")
-                ?: doc.selectFirst("meta[property='og:image']")?.attr("content")
-        )
+        val poster = com.cloudextensions.russian.Metadata.choosePoster(url,
+            doc.selectFirst("meta[property=og:image]")?.attr("content"),
+            doc.selectFirst("div.large-screenimg")?.let{com.cloudextensions.russian.Metadata.poster(it,mainUrl)})
         val title = doc.selectFirst("h1.titl, meta[property='og:title']")?.text()?.takeIf { it.isNotBlank() }
             ?: doc.selectFirst("meta[property='og:title']")?.attr("content")?.takeIf { it.isNotBlank() }
             ?: doc.title()

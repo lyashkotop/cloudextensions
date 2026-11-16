@@ -9,6 +9,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import org.json.JSONArray
+import okio.ByteString.Companion.decodeBase64
 
 /** The public site is JavaScript-only; use its declared catalogue and metadata endpoints. */
 class BdsMxProvider:MainAPI() {
@@ -19,9 +20,9 @@ class BdsMxProvider:MainAPI() {
     override val hasMainPage=true
     override val hasDownloadSupport=true
     override val hasQuickSearch=false
-    override val mainPage=mainPageOf("post_date" to "Videos","rating" to "Top rated")
+    override val mainPage=mainPageOf("latest-updates" to "Videos","top-rated" to "Top rated")
     private suspend fun json(url:String)=JSONObject(app.get(url,headers=Network.headers(mainUrl)).text)
-    private fun label(item:JSONObject,key:String):String=item.optString(key+"_en").ifBlank{item.optString(key)}
+    private fun label(item:JSONObject,key:String):String=listOf(item.optString(key+"_en"),item.optString(key)).firstOrNull(Metadata::sourceValue).orEmpty()
     private fun tags(item:JSONObject):List<String> {
         fun labels(raw:Any?):List<String> = when(raw) {
             is JSONObject->raw.keys().asSequence().mapNotNull{key->val v=raw.opt(key);when(v){is JSONObject->label(v,"title");is String->v;else->null}}.toList()
@@ -43,7 +44,9 @@ class BdsMxProvider:MainAPI() {
         return newMovieSearchResponse(Metadata.title(url,listOf(title)),url,TvType.NSFW){posterUrl=image(item);posterHeaders=Network.headers(mainUrl)}
     }
     private suspend fun catalogue(query:String,page:Int,sort:String="relevance"):SearchResponseList {
-        val q=URLEncoder.encode(query,"UTF-8");val payload=json("$mainUrl/api/videos2.php?params=86400/str/$sort/60/search..$page.all..&s=$q")
+        val q=URLEncoder.encode(query,"UTF-8")
+        val endpoint=if(query.isBlank())"$mainUrl/api/json/videos2/86400/str/$sort/60/..$page.all...json" else "$mainUrl/api/videos2.php?params=86400/str/relevance/60/search..$page.all..&s=$q"
+        val payload=json(endpoint)
         val videos=payload.optJSONArray("videos") ?: JSONArray()
         val cards=(0 until videos.length()).mapNotNull{videos.optJSONObject(it)?.let(::card)}.distinctBy{it.url}
         return newSearchResponseList(cards,page<payload.optInt("pages",page))
@@ -75,5 +78,20 @@ class BdsMxProvider:MainAPI() {
             if(seconds>0)duration=(seconds/60).toInt()
         }
     }
-    override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = Playback.links(name,mainUrl,data,subtitleCallback,callback)
+    override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean {
+        val id=Regex("/video/(\\d+)").find(data)?.groupValues?.get(1) ?: return false
+        val text=app.get("$mainUrl/api/videofile.php?video_id=$id&lifetime=8640000",headers=Network.headers(data)).text
+        val files=JSONArray(text);var count=0
+        val alphabet="АВСDЕFGHIJKLМNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,~"
+        for(i in 0 until files.length()) {
+            val item=files.optJSONObject(i)?:continue;val encoded=item.optString("video_url");if(encoded.isBlank())continue
+            val normalized=encoded.map{c->val n=alphabet.indexOf(c);if(n<0)"" else "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="[n].toString()}.joinToString("")
+            val path=try{normalized.decodeBase64()?.utf8() ?: continue}catch(_:Exception){continue}
+            val url=java.net.URI(mainUrl).resolve(path).toString()
+            if(!url.startsWith("http"))continue
+            callback(com.lagradost.cloudstream3.utils.newExtractorLink(name,name,url,com.lagradost.cloudstream3.utils.INFER_TYPE){referer=data;headers=Network.headers(data)})
+            count++
+        }
+        return count>0
+    }
 }

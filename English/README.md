@@ -1,12 +1,11 @@
 # English
 
-Все 28 модулей используют Kotlin. [Проверка последних 16](../imports/remaining-kotlin/README.md).
+Активные модули:
 
-- [BDSM Streak](BDSMStreak/)
+- [BDSMStreak](BDSMStreak/)
 - [BDSMX](BDSMX/)
 - [Beeg](Beeg/)
 - [BoundHub](BoundHub/)
-- [CosXPlay](CosXPlay/)
 - [DarknessPorn](DarknessPorn/)
 - [EPorner](EPorner/)
 - [Epawg](Epawg/)
@@ -20,13 +19,13 @@
 - [PunishWorld](PunishWorld/)
 - [SickJunk](SickJunk/)
 - [SickR](SickR/)
-- [SpankBang](SpankBang/)
 - [ThisVid](ThisVid/)
 - [TubeBDSM](TubeBDSM/)
 - [TubeSafari](TubeSafari/)
 - [UKDevilz](UKDevilz/)
-- [Whoreshub](Whoreshub/)
 - [XRares](XRares/)
 - [XVideos](XVideos/)
 - [Xnxx](Xnxx/)
 - [YouJizz](YouJizz/)
+
+Отключённые по просьбе владельца исходники сохранены в [Unused](../Unused/).

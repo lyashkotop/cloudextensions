@@ -1,6 +1,6 @@
 # CloudExtensions
 
-49 отдельных расширений CloudStream на Kotlin: **9 Russian, 12 Japanese, 28 English**.
+40 отдельных расширений CloudStream на Kotlin: **9 Russian, 6 Japanese, 25 English**.
 Один сайт — один устанавливаемый `.cs3`. Общая логика не копирует в пакет другие сайты
 или библиотеки приложения.
 
