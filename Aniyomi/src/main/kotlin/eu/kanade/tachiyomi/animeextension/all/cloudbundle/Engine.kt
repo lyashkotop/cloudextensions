@@ -45,13 +45,14 @@ class Engine(val profile:Profile) {
         val desired=if(popular)Regex("(?iu)popular|most.view|trending|популяр|top rated|топ|лучшее|просмотры") else Regex("(?iu)latest|recent|new video|новин|новые")
         val nav=p.catalog.optJSONArray("navigation")
         if(nav!=null)for(i in 0 until nav.length()){val item=nav.getJSONObject(i);if(desired.containsMatchIn(item.optString("label")))return item.getString("url")}
+        val sections=p.data.optJSONArray("sections")
+        if(sections!=null)for(i in 0 until sections.length()){val item=sections.getJSONObject(i);if(desired.containsMatchIn(item.optString("name")))return URI(p.base).resolve(item.getString("path")).toString()}
+        if(!popular)return p.base+"/"
         val doc=homepage()
         for(a in doc.select("nav a[href],header a[href],.sort a[href],.sorting a[href],a[href]")) {
             if(a.selectFirst("img")!=null || !desired.containsMatchIn(a.text()+" "+a.attr("title")) || a.text().length>60)continue
             val route=URI(doc.baseUri()).resolve(a.attr("href"));if(route.host==URI(doc.baseUri()).host && route.toString()!=doc.baseUri() && route.fragment==null)return route.toString()
         }
-        val sections=p.data.optJSONArray("sections")
-        if(sections!=null)for(i in 0 until sections.length()){val item=sections.getJSONObject(i);if(desired.containsMatchIn(item.optString("name")))return URI(p.base).resolve(item.getString("path")).toString()}
         return when(p.engine) {
             "eporner"->p.base+if(popular)"/most-viewed/" else "/"
             "beeg"->p.base+if(popular)"/trends/" else "/new/"
@@ -63,19 +64,22 @@ class Engine(val profile:Profile) {
     }
     private class Branch(val query:String,var cursor:PageRequest?,var ended:Boolean=false)
     private class State(val branches:MutableList<Branch>,val selection:Selection) {
-        val mutex=Mutex();val pages=mutableMapOf<Int,Results>();val seen=mutableSetOf<String>();var number=0
+        val created=System.nanoTime();val mutex=Mutex();val pages=mutableMapOf<Int,Results>();val seen=mutableSetOf<String>();var number=0
     }
     private val states=Collections.synchronizedMap(object:LinkedHashMap<String,State>(16,.75f,true){override fun removeEldestEntry(e:MutableMap.MutableEntry<String,State>?)=size>16})
     suspend fun browse(page:Int,popular:Boolean)=search("",page,Selection(),if(popular)"popular" else "latest")
     suspend fun search(query:String,page:Int,selection:Selection,mode:String="search"):Results {
         require(page>0)
+        if(selection.durationBands.isEmpty())return Results(emptyList(),false)
         if(query.isNotBlank() && !ContentPolicy.accepts(query))return Results(emptyList(),false)
+        val directTag=if(query.isBlank()&&selection.category==null&&selection.tags.size==1)selection.tags.single().let{tag->p.tags.firstOrNull{it.label.equals(tag,true)&&it.url.startsWith("http")}} else null
+        val effective=if(query.isBlank())selection.copy(category=null,tags=if(directTag!=null)emptyList() else selection.tags) else selection
         val key="$mode|$query|$selection"
-        val state=synchronized(states){if(page==1)states.remove(key);states.getOrPut(key){State(mutableListOf(),selection)}}
+        val state=synchronized(states){if(page==1&&states[key]?.let{System.nanoTime()-it.created>8_000_000_000L}==true)states.remove(key);states.getOrPut(key){State(mutableListOf(),selection)}}
         return Metadata.scoped(p.id){state.mutex.withLock {
             if(state.branches.isEmpty() && state.number==0) {
                 if(mode!="search" || query.isBlank()) {
-                    val route=selection.category?.url ?: selection.tags.singleOrNull()?.let{tag->p.tags.firstOrNull{it.label.equals(tag,true)}?.url?.takeIf{it.startsWith("http")}} ?: browseRoute(mode=="popular")
+                    val route=selection.category?.url ?: directTag?.url ?: browseRoute(mode=="popular")
                     state.branches+=Branch("",withOrder(PageRequest(route),selection.order))
                 }else {
                     state.branches+=Branch(query,withOrder(searchRoute(query),selection.order))
@@ -87,33 +91,29 @@ class Engine(val profile:Profile) {
                 var succeeded=false
                 var failed:Exception?=null
                 // Each branch retains its own native cursor; original-language items stay first.
-                for(branch in state.branches.filter{!it.ended}) {
-                    val result=try{fetch(branch.query,branch.cursor!!,state.number+1).also{succeeded=true}}catch(e:CancellationException){throw e}catch(e:Exception){branch.ended=true;branch.cursor=null;failed=e;continue}
+                val batches=coroutineScope{state.branches.filter{!it.ended}.map{branch->async(Dispatchers.IO){branch to try{Result.success(fetch(branch.query,branch.cursor!!,state.number+1))}catch(e:CancellationException){throw e}catch(e:Exception){Result.failure(e)}}}.awaitAll()}
+                for((branch,batch) in batches) {
+                    val result=batch.getOrElse{branch.ended=true;branch.cursor=null;failed=it as? Exception;null} ?: continue
+                    succeeded=true
                     branch.cursor=result.second?.let{withOrder(it,selection.order)};branch.ended=branch.cursor==null
                     var cards=result.first.filter{videoKey(it.url) !in state.seen}
                     if(result.first.isNotEmpty()&&cards.isEmpty()){branch.ended=true;branch.cursor=null}
-                    if(selection.needsDetail)cards=filter(cards,selection) else cards=approvedPrefix(cards)
+                    if(effective.needsDetail)cards=filter(cards,effective)
                     for(card in cards)if(state.seen.add(videoKey(card.url)))items+=card
                 }
-                if(!succeeded && failed!=null)throw failed
+                if(!succeeded)failed?.let{throw it}
                 state.number++;state.pages[state.number]=Results(items,state.branches.any{!it.ended})
             }
             state.pages[page] ?: Results(emptyList(),false)
         }}
     }
-    private suspend fun approvedPrefix(cards:List<VideoCard>):List<VideoCard> {
-        val approved=mutableListOf<VideoCard>();var checked=0
-        RequestLimits.optional(5000) {
-            while(checked<cards.size && approved.size<7) {
-                val batch=cards.drop(checked).take(7-approved.size);checked+=batch.size
-                coroutineScope{batch.map{card->async(Dispatchers.IO){RequestLimits.optional(3500){detail(card.url)}?.let{info->card.copy(title=info.title,poster=info.poster ?: card.poster,tags=info.tags,duration=info.duration)}}}.awaitAll().filterNotNull()}.forEach{approved+=it}
-            }
-        }
-        return if(approved.size>=7)approved+cards.drop(checked) else approved
-    }
     private suspend fun filter(cards:List<VideoCard>,selection:Selection):List<VideoCard> = coroutineScope {
-        val slots=Semaphore(5)
-        cards.map{card->async(Dispatchers.IO){slots.withPermit{val detail=RequestLimits.optional(7000){detail(card.url)};card.takeIf{detail!=null&&selection.accepts(card,detail)}}}}.awaitAll().filterNotNull()
+        val slots=Semaphore(8)
+        cards.map{card->async(Dispatchers.IO){slots.withPermit{
+            val needsLabels=selection.category!=null||selection.tags.isNotEmpty()||selection.excluded.isNotEmpty()
+            if(!needsLabels&&card.duration.isNotBlank())card.takeIf{selection.accepts(card,null)}
+            else {val detail=RequestLimits.optional(4000){detail(card.url)};card.takeIf{detail!=null&&selection.accepts(card,detail)}}
+        }}}.awaitAll().filterNotNull()
     }
     suspend fun detail(url:String):VideoDetail = Metadata.scoped(p.id){readDetail(url)}
     private suspend fun readDetail(url:String):VideoDetail {
@@ -134,6 +134,7 @@ class Engine(val profile:Profile) {
         if(p.engine=="bdsmx")return NativeApis.catalog(p,query,number,request)
         if(p.engine=="beeg" && query.isNotBlank())return NativeApis.beegSearch(p,query,number)
         val doc=page(request)
+        if(java.net.URI(request.url).path.orEmpty().trim('/').isEmpty())root.page=doc
         val list=if(query.isNotBlank())Metadata.searchCards(doc,p.spec,request) else Metadata.cards(doc,p.spec)
         if(query.isNotBlank() && Metadata.emptySearch(doc,request))return emptyList<VideoCard>() to null
         var next=Pagination.next(doc,request)

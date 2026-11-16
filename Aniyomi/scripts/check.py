@@ -5,6 +5,7 @@ ROOT=Path(__file__).resolve().parents[1]
 def main():
  p=argparse.ArgumentParser();p.add_argument('--tools',type=Path,default=ROOT/'.tools');p.add_argument('--compiler-tools',type=Path);p.add_argument('--live',action='store_true');a=p.parse_args();compiler=a.compiler_tools or a.tools
  subprocess.run([sys.executable,str(ROOT/'scripts/run_probe.py'),'Contracts','--tools',str(compiler)],check=True)
+ subprocess.run([sys.executable,str(ROOT/'scripts/run_probe.py'),'RequestBudget','--tools',str(compiler)],check=True)
  apk=ROOT/'build/CloudExtensions.apk'
  if not apk.exists():apk=ROOT/'build/cloudextensions-unsigned.apk'
  with zipfile.ZipFile(apk) as z:

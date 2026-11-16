@@ -106,6 +106,10 @@ object Metadata {
             if(spec.id=="ThisVid" && card.selectFirst(".private,.icon-private,.svg-icon-private,img[src*=bg_private_video]")!=null)continue
             val link = if (card.tagName() == "a" && card.hasAttr("href")) card else card.selectFirst(spec.link) ?: continue
             val url = absolute(page.baseUri(),link.attr("href")) ?: continue
+            if(spec.id=="DarknessPorn") {
+                val uri=java.net.URI(url);val host=java.net.URI(page.baseUri()).host.orEmpty().removePrefix("www.")
+                if(uri.host.orEmpty().removePrefix("www.")!=host || !Regex("""^/\d+-[^/]+/?$""").matches(uri.path.orEmpty()) || card.closest(".ad,.ads,.advertisement,[data-spot],[data-ad],[rel=sponsored]")!=null)continue
+            }
             val image = card.selectFirst("img")
             val label = title(url,listOf(localizedTitle(card,spec.titleLanguage).orEmpty(),link.attr("title"),link.attr("aria-label"),image?.attr("alt").orEmpty(),card.selectFirst(spec.titleSelector)?.attr("title").orEmpty(),card.selectFirst(spec.titleSelector)?.text().orEmpty(),image?.attr("aria-label").orEmpty()))
             if (label.isBlank()) continue
