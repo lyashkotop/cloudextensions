@@ -117,12 +117,19 @@ object Metadata {
     }
     fun emptySearch(page: Document, request: PageRequest): Boolean {
         val current=java.net.URI(page.baseUri())
+        // ThisVid renders trending blocks when no search matches. Those are never search results.
+        val requested=java.net.URI(request.url)
+        if(requested.host.orEmpty().removePrefix("www.")=="thisvid.com" && requested.path.orEmpty().startsWith("/search/") && page.selectFirst("#list_videos_common_videos_list_items")==null)return true
         val redirected=request.data==null && java.net.URI(request.url).path.orEmpty().contains("search") && current.path.orEmpty().trim('/').isEmpty() && current.query.isNullOrBlank()
         return page.attr("data-response-code")=="404" || redirected || page.select("h1,h2,.empty,.no-results,.no-result,.nothing-found,.list-videos .message,.message").any {
             Regex("(?iu)(?:ничего не найдено|ничего не нашлось|нет результатов|no (?:results|videos|matches|posts)(?: found)?|nothing found|0 результатов)").containsMatchIn(it.text())
         }
     }
-    fun searchCards(page: Document,spec: SiteSpec,request: PageRequest): List<VideoCard> = if(emptySearch(page,request))emptyList() else cards(page,spec)
+    fun searchCards(page: Document,spec: SiteSpec,request: PageRequest): List<VideoCard> {
+        if(emptySearch(page,request))return emptyList()
+        val searchSpec=if(spec.id=="ThisVid")spec.copy(cards="#list_videos_common_videos_list_items a.tumbpu:has(img)") else spec
+        return cards(page,searchSpec)
+    }
     internal fun ownVideo(page: Document): JSONObject? {
         val candidates = mutableListOf<JSONObject>()
         fun scan(node: Any?, depth: Int) {

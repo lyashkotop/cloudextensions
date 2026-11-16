@@ -22,7 +22,6 @@
 - [TubeSafari](TubeSafari/)
 - [UKDevilz](UKDevilz/)
 - [XRares](XRares/)
-- [XVideos](XVideos/)
 - [Xnxx](Xnxx/)
 
 Отключённые по просьбе владельца исходники сохранены в [Unused](../Unused/).

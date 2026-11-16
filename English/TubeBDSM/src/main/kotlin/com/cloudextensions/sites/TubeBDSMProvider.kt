@@ -11,6 +11,10 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
  sections=listOf(Section("New videos","/new"),Section("Popular videos","/popular"),Section("Top rated videos","/rating"))
 )){
  override var lang="en"
+ override suspend fun page(request:PageRequest):org.jsoup.nodes.Document {
+  val document=super.page(request)
+  return RequestLimits.optional(4500){EmbeddedPlayers.abPage(document)} ?: document
+ }
  private val interceptors=java.util.Collections.synchronizedMap(object:LinkedHashMap<String,Interceptor>(128,.75f,true){override fun removeEldestEntry(e:MutableMap.MutableEntry<String,Interceptor>?)=size>128})
  private fun native(url:String):MainAPI? = try {
   val host=URI(url).host.orEmpty().removePrefix("www.")

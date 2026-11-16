@@ -1,0 +1,16 @@
+[
+  {
+    "query": "guy",
+    "http": 200,
+    "final": "https://thisvid.com/search/?q=guy",
+    "resultCount": 12,
+    "trendingCount": 0
+  },
+  {
+    "query": "zzqvnoresult987654321",
+    "http": 200,
+    "final": "https://thisvid.com/search/?q=zzqvnoresult987654321",
+    "resultCount": 0,
+    "trendingCount": 12
+  }
+]

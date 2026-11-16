@@ -18,6 +18,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.FormBody
+import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.Jsoup
@@ -25,7 +26,24 @@ import org.jsoup.nodes.Document
 
 object Network {
     private val cloudflare by lazy { CloudflareKiller() }
-    private class HttpFailure(val code:Int,host:String): IOException("HTTP $code: $host")
+    private class HttpFailure(val code:Int,val url:String,val retryAfter:String?=null): IOException("HTTP $code: ${url.toHttpUrlOrNull()?.host}")
+    private val challengeHandler=Interceptor { chain ->
+        cloudflare.intercept(object:Interceptor.Chain by chain {
+            override fun proceed(request:Request):Response {
+                val response=chain.proceed(request)
+                // Reverse proxies can replace Server while preserving the explicit challenge marker.
+                return if(response.code in setOf(403,503) && response.header("cf-mitigated").equals("challenge",true))
+                    response.newBuilder().header("Server","cloudflare").build() else response
+            }
+        })
+    }
+    fun retryDelay(value:String?):Long? {
+        if(value.isNullOrBlank())return 750L
+        val seconds=value.trim().toLongOrNull()
+        if(seconds!=null)return if(seconds in 0..3)seconds*1000L else null
+        val wait=try{java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz",java.util.Locale.US).parse(value)!!.time-System.currentTimeMillis()}catch(_:Exception){return null}
+        return wait.coerceAtLeast(0).takeIf{it<=3000}
+    }
     private val cache = Collections.synchronizedMap(BoundedMap<PageRequest,Pair<Long,Document>>(24))
     private val locks = ConcurrentHashMap<PageRequest,Mutex>()
     private val permits = Semaphore(4)
@@ -57,16 +75,30 @@ object Network {
                 val builder=Request.Builder().url(fetchUrl)
                 for((k,v) in headers(referer)+request.headers)builder.header(k,v)
                 request.data?.let { values -> val form=FormBody.Builder();values.forEach { (k,v)->form.add(k,v) };builder.post(form.build()) }
-                val document=try { execute(builder.build(),request.allowNotFound) } catch(failure:HttpFailure) {
+                val initial=builder.build()
+                val document=try {
+                    try { execute(initial,request.allowNotFound) } catch(failure:HttpFailure) {
+                        if(failure.code!=429)throw failure
+                        val delay=retryDelay(failure.retryAfter) ?: throw failure
+                        kotlinx.coroutines.delay(delay)
+                        // A redirect can terminate on another host; retry the failing endpoint once.
+                        val retry=initial.newBuilder().url(failure.url).apply{
+                            if(failure.url!=fetchUrl)get()
+                            if(failure.url.toHttpUrlOrNull()?.host!=initial.url.host){removeHeader("Cookie");removeHeader("Authorization")}
+                        }.build()
+                        execute(retry,request.allowNotFound)
+                    }
+                } catch(failure:HttpFailure) {
                     if(failure.code !in setOf(403,503))throw failure
                     // Use the host's cookie-aware WebView challenge handler on Android.
-                    val extra=headers(referer)+request.headers
+                    val sameHost=failure.url.toHttpUrlOrNull()?.host==initial.url.host
+                    val extra=headers(referer)+request.headers.filterKeys{sameHost || it.lowercase() !in setOf("cookie","authorization")}
                     val response=kotlinx.coroutines.withTimeout(7000) {
-                        if(request.data==null)app.get(fetchUrl,headers=extra,interceptor=cloudflare)
-                        else app.post(fetchUrl,headers=extra,data=request.data,interceptor=cloudflare)
+                        if(request.data==null || failure.url!=fetchUrl)app.get(failure.url,headers=extra,interceptor=challengeHandler)
+                        else app.post(failure.url,headers=extra,data=request.data,interceptor=challengeHandler)
                     }
                     try {
-                        if(response.code !in 200..299 && !(request.allowNotFound && response.code==404))throw HttpFailure(response.code,builder.build().url.host)
+                        if(response.code !in 200..299 && !(request.allowNotFound && response.code==404))throw HttpFailure(response.code,response.url)
                         response.document.apply { attr("data-response-code",response.code.toString()) }
                     } finally { response.okhttpResponse.close() }
                 }
@@ -86,7 +118,7 @@ object Network {
             override fun onResponse(call: Call,response: Response) {
                 try {
                     response.use {
-                        if(!it.isSuccessful && !(allowNotFound && it.code==404))throw HttpFailure(it.code,request.url.host)
+                        if(!it.isSuccessful && !(allowNotFound && it.code==404))throw HttpFailure(it.code,it.request.url.toString(),it.header("Retry-After"))
                         val text=it.body?.string() ?: throw ErrorLoadingException("Пустой ответ: ${request.url.host}")
                         val envelope=if(text.trimStart().startsWith("{"))try { org.json.JSONObject(text) }catch(_:Exception){null} else null
                         val page=Jsoup.parse(envelope?.optString("html")?.takeIf(String::isNotBlank) ?: text,it.request.url.toString())

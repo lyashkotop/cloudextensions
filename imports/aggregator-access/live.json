@@ -1,0 +1,193 @@
+[
+  {
+    "mp4": true,
+    "rawLinks": 3,
+    "seconds": 3.541939702,
+    "pageHttp": "200",
+    "manifest": false,
+    "qualities": [
+      0,
+      480,
+      400
+    ],
+    "source": "Yesvids",
+    "streamHttp": 206,
+    "hls": true
+  },
+  {
+    "mp4": true,
+    "rawLinks": 2,
+    "seconds": 5.34881038,
+    "pageHttp": "200",
+    "manifest": false,
+    "qualities": [
+      400
+    ],
+    "source": "MyLust",
+    "streamHttp": 206,
+    "hls": false
+  },
+  {
+    "rawLinks": 1,
+    "pageHttp": "200",
+    "manifest": false,
+    "titlePresent": true,
+    "source": "AbXXX",
+    "streamHttp": 206,
+    "recommendations": 20,
+    "durationPresent": true,
+    "hls": false,
+    "tags": 14,
+    "mp4": true,
+    "seconds": 2.004752867,
+    "descriptionPresent": false,
+    "qualities": [
+      400
+    ]
+  },
+  {
+    "mp4": true,
+    "rawLinks": 2,
+    "seconds": 2.476562063,
+    "pageHttp": "200",
+    "manifest": false,
+    "qualities": [
+      240,
+      480
+    ],
+    "source": "TheyAreHuge",
+    "streamHttp": 206,
+    "hls": false
+  },
+  {
+    "mp4": true,
+    "rawLinks": 3,
+    "seconds": 2.936506312,
+    "pageHttp": "200",
+    "manifest": false,
+    "qualities": [
+      400,
+      0,
+      480,
+      720,
+      360,
+      250
+    ],
+    "source": "TubeSafari-0",
+    "streamHttp": 206,
+    "hls": true
+  },
+  {
+    "mp4": false,
+    "rawLinks": 1,
+    "seconds": 4.095640473,
+    "pageHttp": "200",
+    "manifest": true,
+    "qualities": [
+      144,
+      240,
+      480,
+      720,
+      1080
+    ],
+    "source": "TubeSafari-2",
+    "streamHttp": 206,
+    "hls": true
+  },
+  {
+    "mp4": true,
+    "rawLinks": 3,
+    "seconds": 2.785998182,
+    "pageHttp": "200",
+    "manifest": false,
+    "qualities": [
+      400,
+      0,
+      480,
+      720,
+      1080,
+      360,
+      250
+    ],
+    "source": "TubeSafari-3",
+    "streamHttp": 206,
+    "hls": true
+  },
+  {
+    "mp4": false,
+    "rawLinks": 1,
+    "seconds": 3.424537326,
+    "pageHttp": "200",
+    "manifest": true,
+    "qualities": [
+      0,
+      144,
+      240,
+      480,
+      720
+    ],
+    "source": "TubeSafari-4",
+    "streamHttp": 206,
+    "hls": true
+  },
+  {
+    "mp4": false,
+    "rawLinks": 1,
+    "seconds": 2.798337884,
+    "pageHttp": "200",
+    "manifest": true,
+    "qualities": [
+      0,
+      144,
+      240,
+      480
+    ],
+    "source": "TubeSafari-5",
+    "streamHttp": 206,
+    "hls": true
+  },
+  {
+    "mp4": true,
+    "rawLinks": 3,
+    "seconds": 2.273924019,
+    "pageHttp": "200",
+    "manifest": false,
+    "qualities": [
+      400,
+      0,
+      480,
+      720,
+      360,
+      250
+    ],
+    "source": "TubeSafari-6",
+    "streamHttp": 206,
+    "hls": true
+  },
+  {
+    "mp4": true,
+    "rawLinks": 2,
+    "seconds": 3.355167463,
+    "pageHttp": "200",
+    "manifest": false,
+    "qualities": [
+      480
+    ],
+    "source": "TubeSafari-7",
+    "streamHttp": 206,
+    "hls": true
+  },
+  {
+    "mp4": true,
+    "rawLinks": 2,
+    "seconds": 2.434743494,
+    "pageHttp": "200",
+    "manifest": false,
+    "qualities": [
+      480
+    ],
+    "source": "TubeSafari-original-log",
+    "streamHttp": 206,
+    "hls": true
+  }
+]

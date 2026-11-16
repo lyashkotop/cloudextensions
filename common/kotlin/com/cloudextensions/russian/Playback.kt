@@ -18,6 +18,15 @@ import org.jsoup.nodes.Document
 /** Extract only source-provided URLs and quality labels. Host libraries are not copied into the plugin. */
 object Playback {
     data class Source(val url: String,val label: String?=null)
+    fun streamType(url:String,contentType:String?=null):ExtractorLinkType {
+        val mime=contentType.orEmpty().substringBefore(';').trim().lowercase()
+        val uri=try{java.net.URI(url)}catch(_:Exception){null}
+        return when {
+            mime.contains("mpegurl") || uri?.path.orEmpty().endsWith(".m3u8",true) || uri?.query.orEmpty().split('&').any{it=="hls=1"}->ExtractorLinkType.M3U8
+            mime=="application/dash+xml" || uri?.path.orEmpty().endsWith(".mpd",true)->ExtractorLinkType.DASH
+            else->ExtractorLinkType.VIDEO
+        }
+    }
     private val media=Regex("(?i)(?:/get_file/|\\.(?:m3u8|mp4|webm|m4v|mov|mpd)(?:[/?#&]|$))")
     private val advertisement=Regex("(?i)(?:^|[/_.-])(?:ads?|vast|preroll|postroll|advert)(?:[/_.?-]|$)")
     private val variables=Regex("""\b(video_(?:alt_)?url\d*(?:_text)?|contentUrl)\s*[=:]\s*(['"])(.*?)\2""")
@@ -90,6 +99,7 @@ object Playback {
         }
         val structured=Metadata.ownVideo(page)?.optString("contentUrl")
         absolute(page.baseUri(),structured)?.takeIf(::playable)?.let { result+=Source(it) }
+        result+=EmbeddedPlayers.sources(page).filter{playable(it.url)}
         return result.distinctBy { it.url }
     }
     suspend fun links(name:String,origin:String,pageUrl:String,subtitles:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = resolveLinks(name,origin,pageUrl,subtitles,callback,false)
@@ -100,19 +110,22 @@ object Playback {
         fun accept(link: ExtractorLink) { if(playable(link.url)&&emitted.add(link.url))callback(link) }
         var rejected:Int?=null
         var unreachable=false
+        var playerUrl=page.baseUri()
         suspend fun emit(source: Source,referer: String,headers: Map<String,String>) {
             if(!playable(source.url))return
-            val status=RequestLimits.optional(3500){withContext(Dispatchers.IO){
+            val probe=RequestLimits.optional(3500){withContext(Dispatchers.IO){
                 val request=okhttp3.Request.Builder().url(source.url).header("Referer",referer).header("Range","bytes=0-31")
                 for((k,v)in headers)request.header(k,v)
                 app.baseClient.newBuilder().callTimeout(3,java.util.concurrent.TimeUnit.SECONDS).build().newCall(request.build()).execute().use { response ->
-                    if(response.isSuccessful && response.header("Content-Type").orEmpty().contains("text/html"))415 else response.code
+                    val mime=response.header("Content-Type")
+                    val status=if(response.isSuccessful && mime.orEmpty().contains("text/html"))415 else response.code
+                    Triple(status,response.request.url.toString(),mime)
                 }
             }}
+            val status=probe?.first
             if(status==null && requireConfirmed){unreachable=true;return}
             if(status!=null && status !in 200..299){rejected=status;return}
-            val path=try{java.net.URI(source.url).path.orEmpty().lowercase()}catch(_:Exception){""}
-            val type=when{path.endsWith(".m3u8")->ExtractorLinkType.M3U8;path.endsWith(".mpd")->ExtractorLinkType.DASH;else->ExtractorLinkType.VIDEO}
+            val type=streamType(probe?.second ?: source.url,probe?.third)
             accept(newExtractorLink(name,name,source.url,type) {
                 this.referer=referer
                 this.headers=headers
@@ -121,6 +134,7 @@ object Playback {
         }
         suspend fun resolve(document:Document,referer:String) {
             for(source in sources(document))emit(source,referer,Network.headers(referer))
+            for(source in EmbeddedPlayers.abSources(document))emit(source,referer,Network.headers(referer))
             // Pornhub declares an MP4 catalogue URL in mediaDefinitions, not a video file.
             for(script in document.select("script")) {
                 val match=Regex("""["']?mediaDefinitions["']?\s*:\s*""").find(script.data())?:continue
@@ -138,23 +152,29 @@ object Playback {
         resolve(page,page.baseUri())
         if(emitted.isNotEmpty())return true
         // Let CloudStream's maintained extractors handle embedded hosts first.
-        for(frame in page.select("iframe[src]").filter { it.closest(".ad,.ads,.advertisement") == null }) {
-            val url=absolute(page.baseUri(),frame.attr("src")) ?: continue
+        for(frame in page.select("iframe[src],iframe[data-src]").filter { it.closest(".ad,.ads,.advertisement") == null }) {
+            val url=absolute(page.baseUri(),frame.attr("data-src").ifBlank{frame.attr("src")}) ?: continue
             if(url==pageUrl||advertisement.containsMatchIn(url)||java.net.URI(url).host.orEmpty().contains("googletagmanager"))continue
             // An iframe may be an HTML player even when its path ends in .mp4.
             // Resolve that declared page before falling back to an Android WebView.
+            var finalUrl=url
             try {
                 val child=RequestLimits.optional(6500){Network.page(PageRequest(url),pageUrl)}
-                if(child!=null)resolve(child,child.baseUri())
+                if(child!=null){
+                    finalUrl=child.baseUri();resolve(child,finalUrl)
+                    if(emitted.isEmpty())EmbeddedPlayers.original(child)?.let{original ->
+                        val source=RequestLimits.optional(6500){Network.page(PageRequest(original),finalUrl)}
+                        if(source!=null){finalUrl=source.baseUri();resolve(source,finalUrl)}
+                    }
+                }
                 if(emitted.isNotEmpty())continue
             }catch(e:CancellationException){throw e}catch(_:Exception){}
-            try { loadExtractor(url,pageUrl,subtitles,::accept) }catch(e:CancellationException){throw e}catch(_:Exception){}
+            playerUrl=finalUrl
+            try { loadExtractor(finalUrl,pageUrl,subtitles,::accept) }catch(e:CancellationException){throw e}catch(_:Exception){}
         }
         if(emitted.isNotEmpty())return true
         if(page.baseUri()!=pageUrl)try{loadExtractor(page.baseUri(),origin,subtitles,::accept)}catch(e:CancellationException){throw e}catch(_:Exception){}
         if(emitted.isNotEmpty())return true
-        if(rejected!=null)throw ErrorLoadingException("Сервер файла видео вернул HTTP $rejected")
-        if(requireConfirmed && unreachable)throw ErrorLoadingException("Сервер видео не ответил: нет подтверждённых потоков")
         // Players whose URLs are computed in JavaScript are resolved by the host WebView.
         // The page's own player runs normally; no fabricated links or qualities are returned.
         val exposed=Collections.synchronizedList(mutableListOf<Source>())
@@ -171,13 +191,15 @@ object Playback {
                 }catch(_:Exception){}
             },timeout=18_000L
         )
-        val captured=withTimeoutOrNull(20_000){resolver.resolveUsingWebView(pageUrl,referer=origin,headers=Network.headers(pageUrl))}
+        val captured=withTimeoutOrNull(20_000){resolver.resolveUsingWebView(playerUrl,referer=pageUrl,headers=Network.headers(playerUrl))}
         val requests=captured?.second.orEmpty().filter { playable(it.url.toString()) }
-        for(source in exposed.toList().distinctBy { it.url })emit(source,pageUrl,Network.headers(pageUrl))
+        for(source in exposed.toList().distinctBy { it.url })emit(source,playerUrl,Network.headers(playerUrl))
         for(request in requests) {
             val headers=request.headers.toMap().filterKeys { it.lowercase() !in setOf("host","connection","content-length","accept-encoding","range") }
-            emit(Source(request.url.toString()),pageUrl,headers)
+            emit(Source(request.url.toString()),playerUrl,headers)
         }
+        if(emitted.isEmpty() && rejected!=null)throw ErrorLoadingException("Сервер файла видео вернул HTTP $rejected")
+        if(emitted.isEmpty() && requireConfirmed && unreachable)throw ErrorLoadingException("Сервер видео не ответил: нет подтверждённых потоков")
         return emitted.isNotEmpty()
     }
 }
