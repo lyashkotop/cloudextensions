@@ -33,6 +33,19 @@ object Translation {
     fun parse(raw: String,target: String): String? {
         val rows=try { JSONArray(raw).optJSONArray(0) }catch(_:Exception){null} ?: return null
         val result=(0 until rows.length()).mapNotNull { rows.optJSONArray(it)?.optString(0) }.joinToString("").trim()
+        return valid(result,target)
+    }
+    /** Chrome's translation endpoint uses a different response shape from /single. */
+    fun parseCompact(raw:String,target:String):String? {
+        val rows=try { JSONArray(raw) }catch(_:Exception){return null}
+        val result=when(val first=rows.opt(0)) {
+            is String->first
+            is JSONArray->first.optString(0)
+            else->return null
+        }
+        return valid(result.trim(),target)
+    }
+    private fun valid(result:String,target:String):String? {
         val valid=if(target=="ru")Regex("[А-Яа-яЁё]").containsMatchIn(result) else Regex("[A-Za-z]").containsMatchIn(result)&&!Regex("[А-Яа-яЁё]").containsMatchIn(result)
         return result.takeIf { it.isNotBlank()&&valid }
     }
@@ -52,17 +65,25 @@ object Translation {
                 val cached=prefs.getString(digest,null)
                 if(cached!=null && System.currentTimeMillis()-prefs.getLong(digest+".time",0)<86_400_000)return cached
                 val stamp=prefs.getLong(digest+".pending",0)
-                busy=System.currentTimeMillis()-stamp<8000
+                busy=System.currentTimeMillis()-stamp<11_000
                 if(!busy)prefs.edit().putLong(digest+".pending",System.currentTimeMillis()).apply()
             }
             if(!busy)break
-            if(System.currentTimeMillis()-started>8500)break
+            if(System.currentTimeMillis()-started>11_500)break
             delay(50)
         }
         try {
-            for(host in listOf("translate.googleapis.com","translate.google.com")) {
-                val url="https://$host/translate_a/single?client=gtx&sl=auto&tl=$target&dt=t&q="+URLEncoder.encode(query,"UTF-8")
-                val value=RequestLimits.optional(3000){parse(Network.page(PageRequest(url),"https://translate.google.com/").wholeText(),target)}?.takeUnless{it.equals(query,true)}
+            val encoded=URLEncoder.encode(query,"UTF-8")
+            val endpoints=listOf(
+                "https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=$target&q=$encoded",
+                "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=$target&dt=t&q=$encoded",
+                "https://translate.google.com/translate_a/single?client=gtx&sl=auto&tl=$target&dt=t&q=$encoded"
+            )
+            for((index,url) in endpoints.withIndex()) {
+                val value=RequestLimits.optional(3000){
+                    val raw=Network.page(PageRequest(url),"https://translate.google.com/").wholeText()
+                    if(index==0)parseCompact(raw,target) else parse(raw,target)
+                }?.takeUnless{it.equals(query,true)}
                 if(value!=null){cache[key]=value;prefs?.edit()?.putString(digest,value)?.putLong(digest+".time",System.currentTimeMillis())?.apply();return value}
             }
             return null
