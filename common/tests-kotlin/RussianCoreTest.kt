@@ -31,6 +31,8 @@ fun main(args:Array<String>) {
     verify(QualityLinks.variants("https://example.org/video/master.m3u8",master).first().url=="https://example.org/video/720/index.m3u8","HLS variant URL uses manifest location")
     verify(QualityLinks.variants("https://example.org/master.m3u8","#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1200000\nstream.m3u8").isEmpty(),"bitrate never becomes guessed resolution")
     verify(QualityLinks.variants("https://example.org/master.m3u8","#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,URI=\"audio.m3u8\"\n"+master).isEmpty(),"external audio groups are preserved via original master")
+    verify(QualityLinks.allowed(1080),"1080p is the maximum accepted quality")
+    verify(!QualityLinks.allowed(1440)&&!QualityLinks.allowed(2160),"1440p and 4K are excluded")
     val times=mapOf("123" to "02:03","PT2M3S" to "02:03","PT1H2M3.5S" to "1:02:03.5","01:02:03" to "1:02:03","12:34" to "12:34","0" to "","1:99" to "","unknown" to "","" to "")
     for((raw,expected)in times)verify(Metadata.timing(raw)==expected,"source duration $raw")
     for(word in listOf("guy","lesbian","lesbians","лесби","лесбиянки","gay lesbians","gay лесби"))verify(ContentPolicy.accepts(word),"allowed word $word")

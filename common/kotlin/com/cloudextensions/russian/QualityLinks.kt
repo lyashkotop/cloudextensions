@@ -8,6 +8,9 @@ import java.net.URI
 
 /** CloudStream appends the quality itself: numeric streams must have an empty name. */
 object QualityLinks {
+    const val MAX_HEIGHT=1080
+    fun allowed(quality:Int)=quality<=MAX_HEIGHT
+    data class Master(val streams:List<Variant>,val hasHigher:Boolean)
     data class Variant(val url:String,val height:Int)
     fun variants(base:String,text:String):List<Variant> {
         if(!text.trimStart().startsWith("#EXTM3U"))return emptyList()
@@ -38,26 +41,32 @@ object QualityLinks {
         Regex("(?i)(?:^|[ (])low(?:[ )]|$)").containsMatchIn(name)->"Низкое"
         else->"Оригинал"
     }
-    private suspend fun master(link:ExtractorLink):List<Variant> = RequestLimits.optional(2500) {
+    private suspend fun master(link:ExtractorLink):Master? = RequestLimits.optional(2500) {
         withContext(Dispatchers.IO) {
             val request=okhttp3.Request.Builder().url(link.url).header("Referer",link.referer)
             link.headers.forEach{(k,v)->request.header(k,v)}
             app.baseClient.newBuilder().callTimeout(2,java.util.concurrent.TimeUnit.SECONDS).build().newCall(request.build()).execute().use { response ->
-                if(!response.isSuccessful)return@use emptyList()
-                val source=response.body?.source() ?: return@use emptyList()
+                if(!response.isSuccessful)return@use null
+                val source=response.body?.source() ?: return@use null
                 source.request(262_145)
-                if(source.buffer.size>262_144)return@use emptyList()
-                variants(response.request.url.toString(),source.readUtf8())
+                if(source.buffer.size>262_144)return@use null
+                val text=source.readUtf8()
+                Master(variants(response.request.url.toString(),text),Regex("RESOLUTION=\\d+x(\\d+)",RegexOption.IGNORE_CASE).findAll(text).any{(it.groupValues[1].toIntOrNull() ?: 0)>MAX_HEIGHT})
             }
         }
-    }.orEmpty()
+    }
 
     suspend fun choices(link:ExtractorLink):List<ExtractorLink> {
-        val adaptive=link.isM3u8 && link !is DrmExtractorLink && link !is ExtractorLinkPlayList && link.quality in listOf(0,Qualities.Unknown.value)
-        val variants=if(adaptive)master(link) else emptyList()
+        if(!allowed(link.quality) && !link.isM3u8)return emptyList()
+        val readableHls=link.isM3u8 && link !is ExtractorLinkPlayList
+        val manifest=if(readableHls)master(link) else null
+        val streams=manifest?.streams.orEmpty().filter{allowed(it.height)}
         val quality=if(link.isM3u8 && link.quality==Qualities.Unknown.value)0 else link.quality
-        val result=mutableListOf(rename(link,link.url,quality))
-        for(variant in variants)result+=rename(link,variant.url,variant.height)
+        val result=mutableListOf<ExtractorLink>()
+        // An unrestricted master containing higher tracks must not remain as Auto.
+        if(allowed(link.quality) && manifest?.hasHigher!=true)result+=rename(link,link.url,quality)
+        if(link !is DrmExtractorLink)for(variant in streams)result+=rename(link,variant.url,variant.height)
+
         return result
     }
 
