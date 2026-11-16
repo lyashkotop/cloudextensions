@@ -1,8 +1,8 @@
 {
-  "version": 79,
-  "sourceCommit": "34ba6881372d3aab6f4bd4b17cbfabb02563eef6",
+  "version": 80,
+  "sourceCommit": "a5ae30015c86b2b8d53a85cc291ebc08f87ccf15",
   "plugins": 49,
-  "dexClasses": 3029,
+  "dexClasses": 3830,
   "entryRegistrationsValidated": 49,
   "kotlinProviders": 49
 }
