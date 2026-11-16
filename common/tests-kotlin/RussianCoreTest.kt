@@ -100,6 +100,12 @@ fun main(args:Array<String>) {
     }
     verify(Metadata.imageUrl("https://photos.example/","/thumbs/avatar-cosplay-frame.jpg")!=null,"a video slug is not mistaken for an avatar icon")
     verify(Metadata.imageUrl("https://photos.example/","null")==null,"literal null is not a poster URL")
+    kotlinx.coroutines.runBlocking {
+        var handled=false
+        try{RequestLimits.required("test"){throw NoClassDefFoundError("missing-host-api")}}catch(_:com.lagradost.cloudstream3.ErrorLoadingException){handled=true}
+        verify(handled,"host API linkage failure reaches the UI as a load error rather than a crashed loading coroutine")
+    }
+    verify(Metadata.imageUrl("old serialized bookmark payload","https://photos.example/frame.jpg")=="https://photos.example/frame.jpg","an absolute image URL does not depend on a legacy bookmark payload being a valid base URI")
     println("PASS $checks Kotlin core checks; no Android or live-playback claims")
     if(args.size==2&&args[0]=="--live-dir"){live(File(args[1]));searchLive(File(args[1]))}
 }

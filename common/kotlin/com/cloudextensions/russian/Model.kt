@@ -23,7 +23,7 @@ internal class BoundedMap<K,V>(private val capacity: Int): LinkedHashMap<K,V>(16
 internal fun absolute(base: String, value: String?): String? = try {
     val raw = value.orEmpty().trim()
     if (raw.isEmpty() || raw.startsWith("data:") || raw.startsWith("javascript:") || raw == "#") null
-    else URI(base).resolve(raw).normalize().toString().takeIf { it.startsWith("http://") || it.startsWith("https://") }
+    else (URI(raw).takeIf { it.isAbsolute } ?: URI(base).resolve(raw)).normalize().toString().takeIf { it.startsWith("http://") || it.startsWith("https://") }
 } catch (_: Exception) { null }
 internal fun videoKey(url: String): String = try {
     val u = URI(url)

@@ -65,8 +65,10 @@ object Network {
                         if(request.data==null)app.get(fetchUrl,headers=extra,interceptor=cloudflare)
                         else app.post(fetchUrl,headers=extra,data=request.data,interceptor=cloudflare)
                     }
-                    if(response.code !in 200..299 && !(request.allowNotFound && response.code==404))throw HttpFailure(response.code,builder.build().url.host)
-                    response.document.apply { attr("data-response-code",response.code.toString()) }
+                    try {
+                        if(response.code !in 200..299 && !(request.allowNotFound && response.code==404))throw HttpFailure(response.code,builder.build().url.host)
+                        response.document.apply { attr("data-response-code",response.code.toString()) }
+                    } finally { response.okhttpResponse.close() }
                 }
                 if(refresh)document.setBaseUri(request.url)
                 Metadata.alias(request.url,document.baseUri())
