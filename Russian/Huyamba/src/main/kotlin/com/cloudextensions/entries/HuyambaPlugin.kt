@@ -7,5 +7,5 @@ import com.streambundleextra.HuyambaProvider
 
 @CloudstreamPlugin
 class HuyambaPlugin: Plugin() {
-    override fun load(context: Context) { com.cloudextensions.russian.Translation.configure(context);registerMainAPI(com.cloudextensions.russian.ReliableProvider(HuyambaProvider().apply { name = "1. Huyamba" })) }
+    override fun load(context: Context) {com.cloudextensions.russian.ImagePrefetch.configure(context); com.cloudextensions.russian.Translation.configure(context);registerMainAPI(com.cloudextensions.russian.ReliableProvider(HuyambaProvider().apply { name = "1. Huyamba" })) }
 }

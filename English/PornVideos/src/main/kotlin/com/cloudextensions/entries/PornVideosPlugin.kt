@@ -3,4 +3,4 @@ import android.content.Context
 import com.lagradost.cloudstream3.plugins.*
 import com.lagradost.VideoHubProvider
 @CloudstreamPlugin
-class PornVideosPlugin:Plugin(){override fun load(context:Context){com.cloudextensions.russian.Translation.configure(context);registerMainAPI(com.cloudextensions.russian.ReliableProvider(VideoHubProvider().apply{name="3. PornVideos.rs"}))}}
+class PornVideosPlugin:Plugin(){override fun load(context:Context){com.cloudextensions.russian.ImagePrefetch.configure(context);com.cloudextensions.russian.Translation.configure(context);registerMainAPI(com.cloudextensions.russian.ReliableProvider(VideoHubProvider().apply{name="3. PornVideos.rs"}))}}

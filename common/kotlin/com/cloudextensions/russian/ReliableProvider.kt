@@ -40,9 +40,9 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     private val reviews=java.util.Collections.synchronizedMap(BoundedMap<String,Pair<Long,Review>>(128))
     private val reviewPermits=Semaphore(4)
     private fun savedReview(url:String)=reviews[videoKey(url)]?.takeIf{System.nanoTime()-it.first<300_000_000_000L}?.second
-    private suspend fun review(card:SearchResponse):Review? {
+    private suspend fun review(card:SearchResponse,budget:Long=3500):Review? {
         savedReview(card.url)?.let{return it}
-        val result=RequestLimits.optional(3500){reviewPermits.withPermit {
+        val result=RequestLimits.optional(budget){reviewPermits.withPermit {
             try {
                 if(source is RussianProvider){
                     val meta=source.searchMetadata(card.url)
@@ -58,17 +58,29 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         return result
     }
     private suspend fun previewSearch(items:List<SearchResponse>):List<SearchResponse> = coroutineScope {
-        items.mapIndexed { index,card -> async {
-            if(index>=10)return@async card
-            val checked=review(card) ?: return@async card
-            if(!checked.allowed)return@async null
-            val full=checked.title?.let{Metadata.title(card.url,listOf(it))} ?: card.name
-            if(card is MovieSearchResponse)card.copy(name=full) else card
-        }}.awaitAll().filterNotNull()
+        val accepted=mutableListOf<SearchResponse>()
+        val deadline=System.nanoTime()+5_000_000_000L
+        var cursor=0
+        while(accepted.size<10 && cursor<items.size) {
+            val budget=((deadline-System.nanoTime())/1_000_000).coerceAtMost(3500)
+            if(budget<=0)break
+            val batch=items.drop(cursor).take(10-accepted.size)
+            cursor+=batch.size
+            accepted+=batch.map { card -> async {
+                val checked=review(card,budget) ?: return@async null
+                if(!checked.allowed)return@async null
+                val full=checked.title?.let{Metadata.title(card.url,listOf(it))} ?: card.name
+                if(card is MovieSearchResponse)card.copy(name=full) else card
+            }}.awaitAll().filterNotNull()
+        }
+        // Keep unreviewed cards below a fully checked prefix. Never shift one into the first ten.
+        if(accepted.size>=10)accepted+items.drop(cursor) else accepted
     }
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная") {
         val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
-        newHomePageResponse(result.items.map{it.copy(list=cards(it.list))},result.hasNext)
+        val rows=result.items.map{it.copy(list=cards(it.list))}
+        ImagePrefetch.warm(rows.flatMap{it.list})
+        newHomePageResponse(rows,result.hasNext)
     }
     override suspend fun search(query:String):List<SearchResponse> = search(query,1).items
     override suspend fun quickSearch(query:String):List<SearchResponse> = search(query,1).items
@@ -77,7 +89,9 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         if(!ContentPolicy.accepts(query))return@required newSearchResponseList(emptyList(),false)
         if(lang !in listOf("ru","en") || (source as? SearchPolicy)?.translateQueries==false) {
             val result=Translation.originalOnly{source.search(query,page)}?:return@required newSearchResponseList(emptyList(),false)
-            return@required newSearchResponseList(previewSearch(cards(result.items)),result.hasNext)
+            val ready=previewSearch(cards(result.items))
+            ImagePrefetch.warm(ready)
+            return@required newSearchResponseList(ready,result.hasNext)
         }
         data class Batch(val response:SearchResponseList?,val error:Exception?=null)
         suspend fun branch(term:String):Batch=try{Batch(Translation.originalOnly{source.search(term,page)})}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){Batch(null,e)}
@@ -92,6 +106,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         val previous=synchronized(searchHistory){if(page==1)searchHistory[query]=mutableMapOf();searchHistory.getOrPut(query){mutableMapOf()}.filterKeys{it<page}.values.flatten().toSet()}
         val fresh=previewSearch(merged.filter{videoKey(it.url) !in previous})
         synchronized(searchHistory){searchHistory.getOrPut(query){mutableMapOf()}[page]=fresh.map{videoKey(it.url)}.toSet()}
+        ImagePrefetch.warm(fresh)
         newSearchResponseList(fresh,responses.any{it.hasNext})
     }
     override suspend fun load(url:String):LoadResponse = RequestLimits.required("Карточка") {
@@ -102,6 +117,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
         if(result is MovieLoadResponse)result.posterHeaders=result.posterHeaders.orEmpty()+Network.imageHeaders(result.posterUrl,url)
         result.recommendations=cards(result.recommendations.orEmpty())
+        ImagePrefetch.warm(result.recommendations.orEmpty(),0)
         result
     }
     override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = RequestLimits.required("Плеер",45_000) {

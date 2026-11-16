@@ -6,5 +6,5 @@ import com.byayzen.xVideos
 import com.byayzen.registerXVideosExtractors
 @CloudstreamPlugin
 class XVideosPlugin: Plugin(){
- override fun load(context:Context){com.cloudextensions.russian.Translation.configure(context);registerMainAPI(com.cloudextensions.russian.ReliableProvider(AdaptedProvider(xVideos().apply{name="3. xVideos"})));registerXVideosExtractors(this)}
+ override fun load(context:Context){com.cloudextensions.russian.ImagePrefetch.configure(context);com.cloudextensions.russian.Translation.configure(context);registerMainAPI(com.cloudextensions.russian.ReliableProvider(AdaptedProvider(xVideos().apply{name="3. xVideos"})));registerXVideosExtractors(this)}
 }
