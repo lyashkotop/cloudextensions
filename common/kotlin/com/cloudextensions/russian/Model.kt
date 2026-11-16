@@ -3,6 +3,11 @@ package com.cloudextensions.russian
 import java.net.URI
 import java.util.LinkedHashMap
 
+interface SearchPolicy {
+    val translateQueries:Boolean get()=true
+    suspend fun fullTitle(url:String):String? = null
+}
+
 /** Only application code is packaged; CloudStream, Kotlin and HTTP libraries come from the host. */
 data class Section(val name: String, val path: String)
 data class SiteSpec(
@@ -12,6 +17,7 @@ data class SiteSpec(
     val tagSelector: String = "", val descriptionSelector: String = "",
     val related: String = "#related-videos, #relateddiv, .related-videos, .related, .related-videos-holder, #list_videos_related_videos",
     val detailTitleSelector: String = "", val durationSelector: String = "",
+    val titleLanguage:String="",
 )
 data class VideoCard(val title: String, val url: String, val poster: String?, val duration: String = "", val tags: List<String> = emptyList())
 data class VideoDetail(val title: String, val poster: String?, val description: String, val tags: List<String>, val duration: String, val year: Int?)

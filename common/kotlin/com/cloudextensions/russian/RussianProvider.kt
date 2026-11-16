@@ -13,11 +13,10 @@ import kotlinx.coroutines.sync.withLock
 import org.jsoup.nodes.Document
 
 /** Native Kotlin implementation shared by source profiles across all language groups. No legacy provider delegation. */
-open class RussianProvider(val spec: SiteSpec): MainAPI() {
+open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy {
     override var name=spec.title
     override var mainUrl=spec.origin
     override var lang="ru"
-    open val englishSearchFirst=false
     override val supportedTypes=setOf(TvType.NSFW)
     override val hasMainPage=true
     override val hasDownloadSupport=true
@@ -83,7 +82,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI() {
                 val first=coroutineScope {
                     val first=async { branchPage(original,1) }
                     val second=async {
-                        val term=withTimeoutOrNull(2500){Translation.translated(normalized)}
+                        val term=if(translateQueries)withTimeoutOrNull(2500){Translation.translated(normalized)} else null
                         term?.takeUnless { it.equals(normalized,true) }?.let { translated -> Branch(translated).also { state.branches+=it } }?.let { branchPage(it,1) }
                     }
                     listOfNotNull(first.await(),second.await())
@@ -125,6 +124,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI() {
             BranchResult(branch,cards,if(emptyNotice)null else Pagination.next(document,route)?.takeUnless { it==route },cards.map { videoKey(it.url) }.toSet())
         }catch(e:CancellationException){throw e}catch(e:Exception){BranchResult(branch,emptyList(),null,emptySet(),e)}
     }
+    override suspend fun fullTitle(url:String):String? = searchMetadata(url).title
     suspend fun searchMetadata(url:String):VideoDetail = Metadata.detail(page(PageRequest(url)),spec)
     override suspend fun load(url: String): LoadResponse {
         val document=page(PageRequest(url))

@@ -7,25 +7,23 @@ import com.lagradost.cloudstream3.utils.*
 import java.net.URLEncoder
 import java.util.Collections
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Headers
 import okhttp3.Interceptor
 import org.json.JSONObject
 import org.json.JSONTokener
 import org.jsoup.nodes.Document
 
-class NoodleMagazineProvider: MainAPI() {
+class NoodleMagazineProvider: MainAPI(),SearchPolicy {
     override var mainUrl="https://tyler-brown.com"
     override var name="Noodle Magazine"
     override var lang="ru"
+    override val translateQueries=false
     override val supportedTypes=setOf(TvType.NSFW)
     override val hasMainPage=true
     override val hasQuickSearch=false
     override val hasDownloadSupport=true
     override val mainPage=mainPageOf("/popular/month" to "Popular","/popular/trending" to "Trending","blonde" to "Blonde","milf" to "MILF","jav" to "JAV","lesbian" to "Lesbian")
-    private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description")
+    private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage="ru")
     private val history=Collections.synchronizedMap(object:LinkedHashMap<String,MutableMap<Int,List<SearchResponse>>>(16,.75f,true){override fun removeEldestEntry(eldest:MutableMap.MutableEntry<String,MutableMap<Int,List<SearchResponse>>>?)=size>24})
     private fun route(query:String,page:Int)=PageRequest("$mainUrl/video/"+URLEncoder.encode(query,"UTF-8").replace("+","%20")+"?p="+(page-1),allowNotFound=true)
     private suspend fun document(request:PageRequest)=Network.page(request.copy(headers=mapOf("Cookie" to "ui_lang=ru","Accept-Language" to "ru-RU,ru;q=0.9")),"$mainUrl/")
@@ -45,20 +43,14 @@ class NoodleMagazineProvider: MainAPI() {
         val input=Metadata.clean(query)
         if(input.isBlank()||page<1)return newSearchResponseList(emptyList(),false)
         if(page==1)synchronized(history){history[input]=mutableMapOf()}
-        val merged=coroutineScope {
-            val original=async{results(input,page)}
-            val translated=async{
-                try{withTimeoutOrNull(2500){Translation.translated(input)}?.let{results(it,page)}.orEmpty()}
-                catch(e:CancellationException){throw e}catch(_:Exception){emptyList()}
-            }
-            (original.await()+translated.await()).distinctBy{it.url}
-        }
+        val merged=results(input,page).distinctBy{it.url}
         val pages=synchronized(history){history.getOrPut(input){mutableMapOf()}}
         val previous=synchronized(pages){pages.filterKeys{it<page}.values.flatten().map{it.url}.toSet()}
         val fresh=merged.filter{it.url !in previous}
         synchronized(pages){pages[page]=fresh}
         return newSearchResponseList(fresh,merged.isNotEmpty()&&(page==1||fresh.isNotEmpty()))
     }
+    override suspend fun fullTitle(url:String):String? = Metadata.detail(document(PageRequest(url)),spec).title
     override suspend fun load(url:String):LoadResponse {
         val page=document(PageRequest(url));val detail=Metadata.detail(page,spec)
         if(detail.title.isBlank())throw ErrorLoadingException("Video title is missing")

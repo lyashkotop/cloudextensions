@@ -28,8 +28,10 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         val image=Metadata.rememberPoster(card.url,card.posterUrl)
         val full=if(Regex("(?:…|\\.\\.\\.)$").containsMatchIn(card.name.trim())) {
             RequestLimits.optional(minOf(2500L,((deadline-System.nanoTime())/1_000_000).coerceAtLeast(1))){
-                val page=Network.page(PageRequest(card.url),mainUrl)
-                Metadata.detail(page,SiteSpec("title",name,mainUrl,".none","a","h1",emptyList())).title
+                if(source is SearchPolicy)source.fullTitle(card.url) else {
+                    val page=Network.page(PageRequest(card.url),mainUrl)
+                    Metadata.detail(page,SiteSpec("title",name,mainUrl,".none","a","h1",emptyList())).title
+                }
             }?.takeIf{it.isNotBlank()} ?: card.name
         }else Metadata.title(card.url,listOf(card.name))
         if(card is MovieSearchResponse)card.copy(name=full,posterUrl=image,posterHeaders=card.posterHeaders.orEmpty()+Network.imageHeaders(image,mainUrl.trimEnd('/')+"/")) else card
@@ -73,8 +75,8 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     private val searchHistory=java.util.Collections.synchronizedMap(BoundedMap<String,MutableMap<Int,Set<String>>>(32))
     override suspend fun search(query:String,page:Int):SearchResponseList = RequestLimits.required("Поиск") {
         if(!ContentPolicy.accepts(query))return@required newSearchResponseList(emptyList(),false)
-        if(lang !in listOf("ru","en")) {
-            val result=source.search(query,page)?:return@required newSearchResponseList(emptyList(),false)
+        if(lang !in listOf("ru","en") || (source as? SearchPolicy)?.translateQueries==false) {
+            val result=Translation.originalOnly{source.search(query,page)}?:return@required newSearchResponseList(emptyList(),false)
             return@required newSearchResponseList(previewSearch(cards(result.items)),result.hasNext)
         }
         data class Batch(val response:SearchResponseList?,val error:Exception?=null)
@@ -82,9 +84,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         val batches=coroutineScope {
             val original=async{branch(query)}
             val translated=async{Translation.translated(query)?.let{branch(it)}}
-            val first=original.await();val second=translated.await()
-            if(source is RussianProvider && source.englishSearchFirst && Translation.target(query)=="en")listOfNotNull(second,first)
-            else listOfNotNull(first,second)
+            listOfNotNull(original.await(),translated.await())
         }
         val responses=batches.mapNotNull{it.response}
         if(responses.isEmpty())batches.firstNotNullOfOrNull{it.error}?.let{throw it}

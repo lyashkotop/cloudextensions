@@ -88,6 +88,14 @@ object Metadata {
         }
         return null
     }
+    private fun localizedTitle(element:Element?,language:String):String? {
+        if(element==null || language.isBlank())return null
+        val node=if(element.hasAttr("data-video-title-translations"))element else element.selectFirst("[data-video-title-translations]") ?: return null
+        val raw=try{JSONObject(node.attr("data-video-title-translations")).optString(language)}catch(_:Exception){return null}
+        if(!sourceValue(raw))return null
+        // Some site dictionaries escape Unicode twice inside the HTML JSON attribute.
+        return Regex("""\\u([0-9a-fA-F]{4})""").replace(raw){it.groupValues[1].toInt(16).toChar().toString()}
+    }
     fun cards(page: Element, spec: SiteSpec): List<VideoCard> {
         val result = LinkedHashMap<String,VideoCard>()
         for (card in page.select(spec.cards)) {
@@ -95,7 +103,7 @@ object Metadata {
             val link = if (card.tagName() == "a" && card.hasAttr("href")) card else card.selectFirst(spec.link) ?: continue
             val url = absolute(page.baseUri(),link.attr("href")) ?: continue
             val image = card.selectFirst("img")
-            val label = title(url,listOf(link.attr("title"),link.attr("aria-label"),image?.attr("alt").orEmpty(),card.selectFirst(spec.titleSelector)?.attr("title").orEmpty(),card.selectFirst(spec.titleSelector)?.text().orEmpty(),image?.attr("aria-label").orEmpty()))
+            val label = title(url,listOf(localizedTitle(card,spec.titleLanguage).orEmpty(),link.attr("title"),link.attr("aria-label"),image?.attr("alt").orEmpty(),card.selectFirst(spec.titleSelector)?.attr("title").orEmpty(),card.selectFirst(spec.titleSelector)?.text().orEmpty(),image?.attr("aria-label").orEmpty()))
             if (label.isBlank()) continue
             val tags = card.select("[rel=tag], [data-tag]").map { clean(it.text()) }.filter(String::isNotBlank).distinct()
             if (!ContentPolicy.accepts(label,tags)) continue
@@ -138,7 +146,7 @@ object Metadata {
     fun detail(page: Document, spec: SiteSpec): VideoDetail {
         val data=ownVideo(page)
         val heading=(if(spec.detailTitleSelector.isNotBlank())page.selectFirst(spec.detailTitleSelector) else null)?.text() ?: page.selectFirst("h1[itemprop=name], h1.video-page-title, h1.single-entry-title, main h1, h1:not(.site-title)")?.text().orEmpty()
-        val titleFields=listOf(heading,data?.optString("name").orEmpty()).filter(String::isNotBlank)
+        val titleFields=listOf(localizedTitle(page.selectFirst("h1"),spec.titleLanguage).orEmpty(),heading,data?.optString("name").orEmpty()).filter(String::isNotBlank)
         val rawTitle=title(page.baseUri(),titleFields.ifEmpty{listOf(page.selectFirst("meta[property=og:title]")?.attr("content").orEmpty())})
         val tags=mutableListOf<String>()
         fun add(raw: String?) { val label=clean(raw); if((label.length>=3 || label.matches(Regex("[A-Za-z0-9]{2}"))) && label.length<=100 && !stopTag.matches(label) && tags.none { it.equals(label,true) })tags+=label }

@@ -8,22 +8,14 @@ class UKDevilzProvider: RussianProvider(SiteSpec(
  link="a.item_link[href]",
  titleSelector=".title",
  searchMode="path:/video/",
- tagSelector="#videoTagsBar a.vtag", descriptionSelector=".l_info .description",
+ tagSelector="#videoTagsBar a.vtag", descriptionSelector=".l_info .description", titleLanguage="en",
  sections=listOf(Section("Popular","/popular/month"))
 )){
  override var lang="en"
- override val englishSearchFirst=true
+ override val translateQueries=false
  override suspend fun page(request:PageRequest):org.jsoup.nodes.Document {
   val doc=super.page(request.copy(headers=request.headers+mapOf("Cookie" to "ui_lang=en","Accept-Language" to "en-US,en;q=0.9")))
-  for(element in doc.select("[data-video-title-translations],[data-tag-translations]")) {
-   val video=element.hasAttr("data-video-title-translations")
-   val key=if(video)"data-video-title-translations" else "data-tag-translations"
-   val english=try{org.json.JSONObject(element.attr(key)).optString("en")}catch(_:Exception){""}
-   if(english.isBlank())continue
-   val text=element.selectFirst(if(video)"[data-video-title-text]" else "[data-tag-text]") ?: element
-   text.text(english)
-   if(video)element.select("img[alt]").forEach{it.attr("alt",english)}
-  }
+
   return doc
  }
  override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(com.lagradost.cloudstream3.SubtitleFile)->Unit,callback:(com.lagradost.cloudstream3.utils.ExtractorLink)->Unit):Boolean = Playback.confirmedLinks(name,mainUrl,data,subtitleCallback,callback)
