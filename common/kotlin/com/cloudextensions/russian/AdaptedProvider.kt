@@ -65,14 +65,14 @@ class AdaptedProvider(private val source: MainAPI): MainAPI() {
         if(result is MovieLoadResponse)result.name=Metadata.title(url,listOf(result.name))
         result.plot=Metadata.description(result.plot,result.name)
         result.tags=result.tags.orEmpty().mapNotNull(Metadata::tag).distinctBy{it.lowercase()}
-        if(result.plot.isNullOrBlank() || result.tags.isNullOrEmpty() || result.duration==null) {
+        if(result.plot.isNullOrBlank() || result.tags.isNullOrEmpty() || result.duration==null || Metadata.imageUrl(url,result.posterUrl)==null) {
             try {
-                val page=Network.page(PageRequest(result.url),mainUrl)
-                val metadata=Metadata.detail(page,SiteSpec("upstream",name,mainUrl,".none","a[href]",".title",emptyList()))
-                if(result.plot.isNullOrBlank())result.plot=metadata.description
-                if(result.tags.isNullOrEmpty())result.tags=metadata.tags
-                if(result.duration==null && metadata.duration.isNotBlank())result.duration=(metadata.duration.split(':').fold(0.0){total,v->total*60+(v.toDoubleOrNull()?:0.0)}/60).toInt()
-                if(result.posterUrl.isNullOrBlank())result.posterUrl=metadata.poster
+                val page=RequestLimits.optional { Network.page(PageRequest(result.url),mainUrl) }
+                val metadata=page?.let{Metadata.detail(it,SiteSpec("upstream",name,mainUrl,".none","a[href]",".title",emptyList()))}
+                if(result.plot.isNullOrBlank())result.plot=metadata?.description
+                if(result.tags.isNullOrEmpty())result.tags=metadata?.tags
+                if(result.duration==null && metadata!=null && metadata.duration.isNotBlank())result.duration=(metadata.duration.split(':').fold(0.0){total,v->total*60+(v.toDoubleOrNull()?:0.0)}/60).toInt()
+                result.posterUrl=Metadata.choosePoster(url,result.posterUrl,metadata?.poster)
             }catch(e:CancellationException){throw e}catch(_:Exception){}
         }
         if(!ContentPolicy.accepts(result.name,result.tags.orEmpty()))throw ErrorLoadingException("Video hidden by category filter")
@@ -80,7 +80,7 @@ class AdaptedProvider(private val source: MainAPI): MainAPI() {
         result.plot=result.plot.orEmpty().replaceFirst(Regex("\\AДлительность:[^\\r\\n]*(?:\\r?\\n)*"),"")
         result.recommendations=normalize(result.recommendations.orEmpty()).filter{videoKey(it.url)!=videoKey(url)}
         if(result.recommendations.isNullOrEmpty())result.tags?.firstOrNull{ContentPolicy.accepts(it)}?.let{tag->
-            try{result.recommendations=normalize(source.search(tag,1)?.items.orEmpty()).filter{videoKey(it.url)!=videoKey(url)}}catch(e:CancellationException){throw e}catch(_:Exception){}
+            try{result.recommendations=normalize(RequestLimits.optional { source.search(tag,1) }?.items.orEmpty()).filter{videoKey(it.url)!=videoKey(url)}}catch(e:CancellationException){throw e}catch(_:Exception){}
         }
         return result
     }

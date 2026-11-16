@@ -23,15 +23,19 @@ class BdsMxProvider:MainAPI() {
     private suspend fun json(url:String)=JSONObject(app.get(url,headers=Network.headers(mainUrl)).text)
     private fun label(item:JSONObject,key:String):String=item.optString(key+"_en").ifBlank{item.optString(key)}
     private fun tags(item:JSONObject):List<String> {
-        val raw=item.opt("tags")
-        return when(raw){
-            is JSONObject->raw.keys().asSequence().mapNotNull{key->val value=raw.opt(key);when(value){is JSONObject->label(value,"title");is String->value;else->null}}.filter{it.isNotBlank()}.toList()
-            is String->raw.split(',').map{it.trim()}.filter{it.isNotBlank()}
-            is JSONArray->(0 until raw.length()).map{raw.optString(it)}.filter{it.isNotBlank()}
+        fun labels(raw:Any?):List<String> = when(raw) {
+            is JSONObject->raw.keys().asSequence().mapNotNull{key->val v=raw.opt(key);when(v){is JSONObject->label(v,"title");is String->v;else->null}}.toList()
+            is JSONArray->(0 until raw.length()).mapNotNull{i->val v=raw.opt(i);when(v){is JSONObject->label(v,"title");is String->v;else->null}}
             else->emptyList()
-        }.distinct()
+        }
+        val raw=item.opt("tags")
+        val tags=if(raw is String)raw.split(',') else labels(raw)
+        val categories=labels(item.opt("categories"))
+        val encoded=item.optString("categories_data").takeIf{it.startsWith("{")||it.startsWith("[")}
+        val extra=try{encoded?.let{labels(org.json.JSONTokener(it).nextValue())}.orEmpty()}catch(_:Exception){emptyList()}
+        return (tags+categories+extra).mapNotNull(Metadata::tag).filterNot{it.all(Char::isDigit)}.distinct()
     }
-    private fun image(item:JSONObject)=listOf("scr","thumbsrc","thumb","poster").map{item.optString(it)}.firstOrNull{it.startsWith("http://")||it.startsWith("https://")}
+    private fun image(item:JSONObject)=listOf("scr","thumbsrc","thumb","poster").mapNotNull{Metadata.imageUrl(mainUrl,item.optString(it))}.firstOrNull()
     private fun card(item:JSONObject):SearchResponse? {
         val id=item.optString("video_id");val title=label(item,"title")
         if(id.isBlank()||title.isBlank()||!ContentPolicy.accepts(title,tags(item)))return null
@@ -64,7 +68,7 @@ class BdsMxProvider:MainAPI() {
         val item=json("$mainUrl/api/json/video/86400/${id/1000000*1000000}/${id/1000*1000}/$id.json").optJSONObject("video") ?: throw ErrorLoadingException("Video metadata is missing")
         val title=label(item,"title");val labels=tags(item)
         if(!ContentPolicy.accepts(title,labels))throw ErrorLoadingException("Video hidden by category filter")
-        val related=labels.firstOrNull()?.let{catalogue(it,1).items.filter{r->r.url!=url}}.orEmpty()
+        val related=RequestLimits.optional { labels.firstOrNull()?.let{catalogue(it,1).items.filter{r->r.url!=url}} }.orEmpty()
         return newMovieLoadResponse(Metadata.title(url,listOf(title)),url,TvType.NSFW,url){
             posterUrl=image(item);posterHeaders=Network.headers(mainUrl);plot=label(item,"description");tags=labels;recommendations=related
             val seconds=Metadata.timing(item.optString("duration")).split(':').fold(0.0){a,b->a*60+(b.toDoubleOrNull()?:0.0)}

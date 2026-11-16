@@ -70,7 +70,7 @@ class XRares : MainAPI() {
     override suspend fun quickSearch(query: String): List<SearchResponse>? = search(query)
 
     override suspend fun load(url: String): LoadResponse? {
-        val document = app.get(url).document
+        val document = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
 
         val title = document.selectFirst("h1")?.text()?.trim() ?: return null
         val poster = fixUrlNull(document.selectFirst("meta[property=og:image]")?.attr("content"))
@@ -81,7 +81,7 @@ class XRares : MainAPI() {
         val vidId = document.selectFirst("a[href*=related_videos][id]")?.attr("id")?.substringAfterLast("_") ?: ""
 
         val recommendations = runCatching {
-            val response = recommendation(vidId).takeIf { it.isNotBlank() } ?: return@runCatching emptyList()
+            val response = com.cloudextensions.russian.RequestLimits.optional { recommendation(vidId) }.orEmpty().takeIf { it.isNotBlank() } ?: return@runCatching emptyList()
             val recPost = mapper.readValue<Recommend>(response)
             Jsoup.parse(recPost.videos ?: "").select("div.col-lg-3").mapNotNull { it.toRecommendationResult() }
         }.getOrElse { emptyList() }

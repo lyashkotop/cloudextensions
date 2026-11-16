@@ -6,5 +6,5 @@ import com.kraptor.XRares
 import com.kraptor.registerXRaresExtractors
 @CloudstreamPlugin
 class XRaresPlugin: Plugin(){
- override fun load(context:Context){registerMainAPI(AdaptedProvider(XRares().apply{name="3. XRares"}));registerXRaresExtractors(this)}
+ override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.ReliableProvider(AdaptedProvider(XRares().apply{name="3. XRares"})));registerXRaresExtractors(this)}
 }

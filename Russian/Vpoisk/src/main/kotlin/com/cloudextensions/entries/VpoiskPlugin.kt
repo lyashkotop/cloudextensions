@@ -7,5 +7,5 @@ import com.example.websites.VpoiskProvider
 
 @CloudstreamPlugin
 class VpoiskPlugin: Plugin() {
-    override fun load(context: Context) { registerMainAPI(VpoiskProvider().apply { name = "1. Vpoisk" }) }
+    override fun load(context: Context) { registerMainAPI(com.cloudextensions.russian.ReliableProvider(VpoiskProvider().apply { name = "1. Vpoisk" })) }
 }

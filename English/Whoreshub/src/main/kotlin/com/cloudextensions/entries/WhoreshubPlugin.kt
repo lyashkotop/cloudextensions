@@ -6,5 +6,5 @@ import com.byayzen.Whoreshub
 import com.byayzen.registerWhoreshubExtractors
 @CloudstreamPlugin
 class WhoreshubPlugin: Plugin(){
- override fun load(context:Context){registerMainAPI(AdaptedProvider(Whoreshub().apply{name="3. Whoreshub"}));registerWhoreshubExtractors(this)}
+ override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.ReliableProvider(AdaptedProvider(Whoreshub().apply{name="3. Whoreshub"})));registerWhoreshubExtractors(this)}
 }

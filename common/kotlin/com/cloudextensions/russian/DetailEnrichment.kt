@@ -26,7 +26,7 @@ object DetailEnrichment {
         if(spec.id!="TubeSafari")return detail
         val url=original(page) ?: return detail
         return try {
-            val source=Network.page(PageRequest(url),url)
+            val source=RequestLimits.optional(3000){Network.page(PageRequest(url),url)} ?: return detail
             merge(detail,Metadata.detail(source,spec.copy(tagSelector=".video-tags-list a.is-keyword",descriptionSelector=".video-description-text")))
         }catch(e:CancellationException){throw e}catch(_:Exception){detail}
     }

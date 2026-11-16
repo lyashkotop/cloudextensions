@@ -14,6 +14,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.FormBody
@@ -30,7 +31,21 @@ object Network {
     private val permits = Semaphore(4)
     const val USER_AGENT = "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
     fun headers(referer: String) = mapOf("User-Agent" to USER_AGENT,"Referer" to referer)
-    suspend fun page(request: PageRequest, referer: String): Document {
+    fun imageHeaders(image:String?,referer:String):Map<String,String> {
+        val result=headers(referer).toMutableMap()
+        try {
+            val url=(image ?: referer).toHttpUrlOrNull()
+            if(url!=null) {
+                val cookies=app.baseClient.cookieJar.loadForRequest(url)
+                if(cookies.isNotEmpty())result["Cookie"]=cookies.joinToString("; "){it.name+"="+it.value}
+            }
+        }catch(_:Exception){}
+        return result
+    }
+    suspend fun page(request: PageRequest, referer: String): Document = RequestLimits.required("Страница",18_000) {
+        pageUnbounded(request,referer)
+    }
+    private suspend fun pageUnbounded(request: PageRequest, referer: String): Document {
         fun cached() = cache[request]?.takeIf { System.nanoTime()-it.first < TimeUnit.SECONDS.toNanos(30) }?.second
         cached()?.let { return it }
         val lock=locks.getOrPut(request){Mutex()}
@@ -46,8 +61,10 @@ object Network {
                     if(failure.code !in setOf(403,503))throw failure
                     // Use the host's cookie-aware WebView challenge handler on Android.
                     val extra=headers(referer)+request.headers
-                    val response=if(request.data==null)app.get(fetchUrl,headers=extra,interceptor=cloudflare)
+                    val response=kotlinx.coroutines.withTimeout(7000) {
+                        if(request.data==null)app.get(fetchUrl,headers=extra,interceptor=cloudflare)
                         else app.post(fetchUrl,headers=extra,data=request.data,interceptor=cloudflare)
+                    }
                     if(response.code !in 200..299 && !(request.allowNotFound && response.code==404))throw HttpFailure(response.code,builder.build().url.host)
                     response.document.apply { attr("data-response-code",response.code.toString()) }
                 }

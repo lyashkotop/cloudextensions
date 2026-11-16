@@ -6,5 +6,5 @@ import com.byayzen.SpankBang
 import com.byayzen.registerSpankBangExtractors
 @CloudstreamPlugin
 class SpankBangPlugin: Plugin(){
- override fun load(context:Context){registerMainAPI(AdaptedProvider(SpankBang().apply{name="3. SpankBang"}));registerSpankBangExtractors(this)}
+ override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.ReliableProvider(AdaptedProvider(SpankBang().apply{name="3. SpankBang"})));registerSpankBangExtractors(this)}
 }

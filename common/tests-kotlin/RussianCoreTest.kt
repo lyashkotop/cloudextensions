@@ -81,6 +81,25 @@ fun main(args:Array<String>) {
     verify(ukNext?.url=="https://ukdevilz.com/video/guy?p=2"&&ukNext.data==null,"UKDevilz uses a real page permalink without CSRF-dependent POST")
     verify(Metadata.description("Watch online for free","Own title").isEmpty(),"upstream promotional plot is removed")
     verify(Metadata.tag("для")==null&&Metadata.tag("Real source tag")=="Real source tag","upstream tags preserve labels without fragment words")
+    val flagCard=Jsoup.parse("<a><img class='vid-tag-info-tag-ico' data-src='/girls/flags/russian.png'><img class=video-img src='/actual-frame.jpg'></a>","https://photos.example/")
+    verify(Metadata.poster(flagCard,"https://photos.example/")=="https://photos.example/actual-frame.jpg","country flag never replaces the actual video frame")
+    val logoCard=Jsoup.parse("<img src='/logo.png'><img data-src='/thumb.jpg'>","https://photos.example/")
+    verify(Metadata.poster(logoCard,"https://photos.example/")=="https://photos.example/thumb.jpg","skip branding and keep searching for real preview")
+    Metadata.rememberPoster("https://photos.example/watch/1","/preview.jpg")
+    verify(Metadata.choosePoster("https://photos.example/watch/1","/girls/flags/russian.png")=="https://photos.example/preview.jpg","opening retains the search preview instead of flag or empty poster")
+    Metadata.alias("https://photos.example/watch/1","https://photos.example/video/1")
+    verify(Metadata.choosePoster("https://photos.example/video/1",null)=="https://photos.example/preview.jpg","preview follows a canonical redirect")
+    verify(Metadata.description("An actual source description. Watch online for free!","Video") == "An actual source description.","strip advertising sentence without discarding the source description")
+    kotlinx.coroutines.runBlocking {
+        val elapsed=System.nanoTime()
+        val optional=RequestLimits.optional(30){kotlinx.coroutines.delay(3000);true}
+        verify(optional==null && (System.nanoTime()-elapsed)<2_000_000_000L,"optional recommendation timeout releases the card")
+        var timedOut=false
+        try{RequestLimits.required("test",30){kotlinx.coroutines.delay(3000)}}catch(_:com.lagradost.cloudstream3.ErrorLoadingException){timedOut=true}
+        verify(timedOut,"required request ends with an error rather than permanent loading")
+    }
+    verify(Metadata.imageUrl("https://photos.example/","/thumbs/avatar-cosplay-frame.jpg")!=null,"a video slug is not mistaken for an avatar icon")
+    verify(Metadata.imageUrl("https://photos.example/","null")==null,"literal null is not a poster URL")
     println("PASS $checks Kotlin core checks; no Android or live-playback claims")
     if(args.size==2&&args[0]=="--live-dir"){live(File(args[1]));searchLive(File(args[1]))}
 }

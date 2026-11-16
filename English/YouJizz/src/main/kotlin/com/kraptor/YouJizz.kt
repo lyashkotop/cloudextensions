@@ -63,7 +63,7 @@ class YouJizz : MainAPI() {
 
     override suspend fun load(url: String): LoadResponse? {
         Log.d(name, "Load aşaması: $url")
-        val document = app.get(url).document
+        val document = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
 
         val title           = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim() ?: return null
         Log.d(name, "title: $title")

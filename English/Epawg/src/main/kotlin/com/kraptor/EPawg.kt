@@ -127,15 +127,14 @@ class EPawg : MainAPI() {
     override suspend fun quickSearch(query: String): List<SearchResponse>? = search(query)
 
     override suspend fun load(url: String): LoadResponse? {
-        val getDoc = app.get(url)
-        val document = getDoc.document
-        val textDoc = getDoc.text
+        val document = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
+        val textDoc = document.html()
 
         val title = document.selectFirst("div.headline h1")?.text()?.trim() ?: return null
         val posterUrl = Regex(
             pattern = "preview_url: '([^']*)',",
             options = setOf(RegexOption.IGNORE_CASE)
-        ).find(textDoc)?.groupValues?.getOrNull(1).toString()
+        ).find(textDoc)?.groupValues?.getOrNull(1)
         val poster = fixUrlNull(posterUrl)
         val description = document.selectFirst("div.info > div:nth-child(2) > em:nth-child(1)")?.text()?.trim()
         val tags = document.select("div.info > div:nth-child(3) a").map { it.text() }

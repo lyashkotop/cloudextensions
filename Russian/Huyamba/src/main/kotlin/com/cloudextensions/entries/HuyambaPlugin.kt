@@ -7,5 +7,5 @@ import com.streambundleextra.HuyambaProvider
 
 @CloudstreamPlugin
 class HuyambaPlugin: Plugin() {
-    override fun load(context: Context) { registerMainAPI(HuyambaProvider().apply { name = "1. Huyamba" }) }
+    override fun load(context: Context) { registerMainAPI(com.cloudextensions.russian.ReliableProvider(HuyambaProvider().apply { name = "1. Huyamba" })) }
 }

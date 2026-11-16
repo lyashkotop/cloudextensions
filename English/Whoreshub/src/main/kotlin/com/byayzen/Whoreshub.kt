@@ -123,7 +123,7 @@ class Whoreshub : MainAPI() {
         val currentUrl = split[0].trim()
         val posterUrl  = split.getOrNull(1)?.trim()?.ifEmpty { null }
 
-        val document = app.get(currentUrl).document
+        val document = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(currentUrl),mainUrl)
 
         val title           = document.selectFirst("h1.title")?.text()?.trim() ?: return null
         val description     = document.selectFirst("div.description")?.text()?.trim()

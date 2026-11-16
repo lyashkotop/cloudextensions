@@ -1,0 +1,72 @@
+[
+  {
+    "site": "BDSMX",
+    "http": 200,
+    "cards": 60,
+    "details": [
+      {
+        "http": 200,
+        "title": 32,
+        "description": 0,
+        "tags": 0,
+        "duration": true,
+        "poster": true
+      },
+      {
+        "http": 200,
+        "title": 66,
+        "description": 0,
+        "tags": 1,
+        "duration": true,
+        "poster": true
+      }
+    ],
+    "images": [
+      {
+        "http": 206,
+        "seconds": 0.61,
+        "image": true
+      },
+      {
+        "http": 206,
+        "seconds": 0.5,
+        "image": true
+      }
+    ]
+  },
+  {
+    "site": "Beeg",
+    "http": 200,
+    "cards": 36,
+    "details": [
+      {
+        "http": 200,
+        "title": 32,
+        "description": 0,
+        "tags": 7,
+        "duration": true,
+        "poster": true
+      },
+      {
+        "http": 200,
+        "title": 48,
+        "description": 0,
+        "tags": 21,
+        "duration": true,
+        "poster": true
+      }
+    ],
+    "images": [
+      {
+        "http": 206,
+        "seconds": 0.4,
+        "image": true
+      },
+      {
+        "http": 206,
+        "seconds": 0.37,
+        "image": true
+      }
+    ]
+  }
+]

@@ -5,5 +5,5 @@ import com.byayzen.Heavy
 import com.byayzen.registerHeavyRExtractors
 @CloudstreamPlugin
 class HeavyRPlugin: Plugin(){
- override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.AdaptedProvider(Heavy().apply { name = "3. Heavy-R" }));registerHeavyRExtractors(this)}
+ override fun load(context:Context){registerMainAPI(com.cloudextensions.russian.ReliableProvider(com.cloudextensions.russian.AdaptedProvider(Heavy().apply { name = "3. Heavy-R" })));registerHeavyRExtractors(this)}
 }

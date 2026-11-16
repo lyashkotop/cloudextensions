@@ -129,7 +129,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI() {
         val detail=DetailEnrichment.complete(document,spec,Metadata.detail(document,spec))
         if(detail.title.isBlank())throw ErrorLoadingException("На странице нет названия видео")
         if(!ContentPolicy.accepts(detail.title,detail.tags))throw ErrorLoadingException("Видео скрыто фильтром категорий")
-        val recommendations=related(document,detail,url)
+        val recommendations=RequestLimits.optional { related(document,detail,url) }.orEmpty()
         return newMovieLoadResponse(detail.title,url,TvType.NSFW,url) {
             posterUrl=detail.poster
             posterHeaders=Network.headers("${mainUrl.trimEnd('/')}/")

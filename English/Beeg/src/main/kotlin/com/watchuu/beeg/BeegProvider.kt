@@ -4,6 +4,10 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.network.CloudflareKiller
 import java.net.URLEncoder
+import com.cloudextensions.russian.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import org.json.JSONObject
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 
@@ -150,28 +154,29 @@ class BeegProvider : MainAPI() {
 
     // ── Detail ───────────────────────────────────────────────────────────────
 
-    override suspend fun load(url: String): LoadResponse {
-        val doc = Jsoup.parse(fetchPage(url))
-
-        val title = doc.selectFirst("h1")?.text()?.trim()
-            ?: doc.selectFirst("meta[property=og:title]")?.attr("content")?.trim()
-            ?: titleFromUrl(url)
-
-        val poster = doc.selectFirst("meta[property=og:image]")?.attr("content")
-            ?: doc.selectFirst("meta[name=og:image]")?.attr("content")
-
-        val plot = doc.selectFirst("meta[property=og:description]")?.attr("content")
-            ?: doc.selectFirst("meta[name=description]")?.attr("content")
-
-        val tags = doc.select("[class*=categor] a, a[href*=/category/]")
-            .map { it.text().trim() }
-            .filter { it.isNotBlank() && it.length < 40 }
-            .distinct()
-
-        return newMovieLoadResponse(title, url, TvType.NSFW, url) {
-            this.posterUrl = poster
-            this.plot = plot
-            this.tags = tags
+    override suspend fun load(url: String): LoadResponse = coroutineScope {
+        val id=Regex("/(?:xid/|play/\\d+-)(\\d+)").find(url)?.groupValues?.get(1)
+        val encode=Regex("[?&]e=([A-Za-z0-9]+)").find(url)?.groupValues?.get(1).orEmpty()
+        val html=async { RequestLimits.optional(7000){fetchPage(url)}.orEmpty() }
+        val api=async { if(id==null)null else RequestLimits.optional(3500){JSONObject(app.get("$searchApiBase/id/$id/?format=ajax&e=$encode",headers=Network.headers(mainUrl)).text)} }
+        val doc=Jsoup.parse(html.await(),url)
+        val meta=api.await()
+        val title=Metadata.title(url,listOf(meta?.optString("title").orEmpty(),doc.selectFirst("h1")?.text().orEmpty(),doc.selectFirst("meta[property=og:title]")?.attr("content").orEmpty()))
+        if(title.isBlank())throw ErrorLoadingException("Video metadata is missing")
+        val detail=Metadata.detail(doc,SiteSpec("Beeg",name,mainUrl,"span.item","a[href]",".title",emptyList()))
+        val tags=meta?.optString("cats")?.split(',')?.map{it.trim().trim('*')}?.mapNotNull(Metadata::tag).orEmpty().ifEmpty{detail.tags}
+        val related=meta?.optJSONArray("related")
+        val recommendations=if(related==null)emptyList() else (0 until related.length()).mapNotNull { i ->
+            val item=related.optJSONObject(i) ?: return@mapNotNull null
+            val rid=item.optString("video_id");val label=item.optString("title");val e=item.optString("video_id_encode")
+            if(rid.isBlank()||label.isBlank())return@mapNotNull null
+            newMovieSearchResponse(label,"$mainUrl/xid/$rid/?e=$e",TvType.NSFW){posterUrl=Metadata.imageUrl(mainUrl,item.optString("thumb"))}
+        }
+        newMovieLoadResponse(title,url,TvType.NSFW,url) {
+            posterUrl=Metadata.choosePoster(url,meta?.optString("thumb"),detail.poster)
+            plot=detail.description;this.tags=tags;this.recommendations=recommendations
+            val seconds=meta?.optInt("dur",0)?:0
+            if(seconds>0)duration=seconds/60
         }
     }
 

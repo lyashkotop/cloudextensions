@@ -14,18 +14,37 @@ import org.jsoup.nodes.Element
 object Metadata {
     private val titles = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val posters = Collections.synchronizedMap(BoundedMap<String,String>(1024))
+    private val posterTimes = Collections.synchronizedMap(BoundedMap<String,Long>(1024))
     private val durations = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val stopTag = Regex("(?iu)^(?:ра|для|и|а|но|что|это|как|при|the|and|for|with|from|of|to|in|on|an?|home|главная|tags|теги|categories|категории|all videos|все видео|(?:free |hd )?porn(?: videos?)?|порно(?: видео)?|xxx|hd|sd|[48]k|[0-9]{3,4}p)$")
     private val promo = Regex("(?iu)(?:смотрите (?:у нас|онлайн|бесплатно)|смотреть (?:онлайн|бесплатно)|бесплатные порно видео|watch (?:online|for free)|free porn videos|best porn site)")
     private val whitespace = Regex("\\s+")
     private val truncated = Regex("(?:…|\\.\\.\\.)$")
-    private val tagSelector = ".video-tags-list a.is-keyword, [itemprop=keywords]:not(meta), .video-taxonomy .tax-tags a, .video-taxonomy .tax-feature-tags a, .video-tags a, .video_tags a, #video-tags a, #tags a, .tagsbox a, #tab_video_info .item a[href*=/tag], #tab_video_info .item a[href*=/categor], .item_info a[href*=/tag/], .item_info a[href*=/category/], .video-info a[rel=tag], .video-info .tags a, .video-info .categories a, .video-details .tags a, .video-details .categories a, .video-links a[rel=tag], .video-taxonomy .tax-categories a, [itemprop=genre]"
+    private val tagSelector = ".tags .tags-list a, .tags-list.single-vide a, .video-info #tab1 .tags-outer a, #video-info-tags li.vit-tag a, #video-info-tags li.vit-category a, .tag-list li a, .video-tags-list a.is-keyword, [itemprop=keywords]:not(meta), .video-taxonomy .tax-tags a, .video-taxonomy .tax-feature-tags a, .video-tags a, .video_tags a, #video-tags a, #tags a, .tagsbox a, #tab_video_info .item a[href*=/tag], #tab_video_info .item a[href*=/categor], .item_info a[href*=/tag/], .item_info a[href*=/category/], .video-info a[rel=tag], .video-info .tags a, .video-info .categories a, .video-details .tags a, .video-details .categories a, .video-links a[rel=tag], .video-taxonomy .tax-categories a, [itemprop=genre]"
     fun description(raw:String?,title:String):String {
         val value=clean(raw)
-        return value.takeUnless { it.isBlank() || it.trimEnd('.','!','?').equals(title.trimEnd('.','!','?'),true) || promo.containsMatchIn(it) }.orEmpty()
+        if(value.isBlank() || value.trimEnd('.','!','?').equals(title.trimEnd('.','!','?'),true))return ""
+        if(!promo.containsMatchIn(value))return value
+        return value.split(Regex("(?<=[.!?])\\s+|[\\r\\n]+"))
+            .filter { it.isNotBlank() && !promo.containsMatchIn(it) && !it.trimEnd('.','!','?').equals(title.trimEnd('.','!','?'),true) }.joinToString(" ")
     }
     fun tag(raw:String):String? = clean(raw).takeIf { (it.length>=3 || it.matches(Regex("[A-Za-z0-9]{2}"))) && it.length<=100 && !stopTag.matches(it) }
-    fun alias(from: String,to: String) { titles[videoKey(from)]?.let { titles[videoKey(to)]=it } }
+    fun alias(from: String,to: String) {
+        val a=videoKey(from);val b=videoKey(to)
+        titles[a]?.let{titles[b]=it};posters[a]?.let{posters[b]=it;posterTimes[a]?.let{stamp->posterTimes[b]=stamp}};durations[a]?.let{durations[b]=it}
+    }
+    fun imageUrl(base:String,raw:String?):String? = raw?.trim()?.takeUnless { it.isBlank() || it.lowercase(Locale.ROOT) in setOf("null","undefined","false") }?.let { absolute(base,it.replace("\\/","/").replace("&amp;","&")) }?.takeUnless {
+        val path=java.net.URI(it).path.orEmpty().lowercase(Locale.ROOT)
+        path.endsWith(".svg") || path.endsWith("/null") || path.endsWith("/undefined") || Regex("(?i)/(?:flags?|logos?|avatars?|icons?)/|/(?:logo|favicon|spacer|blank|transparent|placeholder|loading)(?:[_.][^/]*)?$").containsMatchIn(path)
+    }
+    fun rememberPoster(url:String,raw:String?):String? {
+        val valid=imageUrl(url,raw)
+        if(valid!=null){posters[videoKey(url)]=valid;posterTimes[videoKey(url)]=System.nanoTime()}
+        return valid ?: posters[videoKey(url)]
+    }
+    fun savedPoster(url:String):String? = posters[videoKey(url)]?.takeIf { System.nanoTime()-(posterTimes[videoKey(url)]?:0L)<180_000_000_000L }
+    fun choosePoster(url:String,vararg candidates:String?):String? = savedPoster(url) ?: candidates.firstNotNullOfOrNull { imageUrl(url,it) }?.also { rememberPoster(url,it) } ?: posters[videoKey(url)]
+
     fun clean(value: String?) = value.orEmpty().replace('\u00a0',' ').replace(whitespace," ").trim()
     private fun value(e: Element?): String = e?.let { listOf(it.attr("content"), it.attr("datetime"), it.text()).firstOrNull(String::isNotBlank) }.orEmpty()
     fun title(url: String, candidates: List<String>): String {
@@ -38,19 +57,28 @@ object Metadata {
         return chosen
     }
     fun poster(element: Element, base: String): String? {
-        val image = if(element.tagName()=="img")element else element.selectFirst("img,video[poster]") ?: return null
-        fun candidate(value:String?):String? = absolute(base,value)?.takeUnless {
-            val path=it.substringBefore('?').lowercase(Locale.ROOT)
-            path.endsWith(".svg") || Regex("/(?:blank|transparent|placeholder)\\.(?:gif|png|jpg)$").containsMatchIn(path)
+        val images=if(element.tagName() in listOf("img","video"))listOf(element) else element.select("img,video[poster]").toList()
+        // A flag/badge may precede the thumbnail inside the same video card.
+        val ranked=images.filter { image ->
+            val badge=Regex("(?i)(?:flag|logo|avatar|icon|badge)").containsMatchIn(image.className()+" "+image.id())
+            val width=image.attr("width").toIntOrNull();val height=image.attr("height").toIntOrNull()
+            !badge && !(width!=null && height!=null && width<96 && height<54)
+        }.sortedByDescending { image ->
+            val names=image.className()
+            (if(Regex("(?i)(thumb|poster|video-img|card__image|widescreen)").containsMatchIn(names))10 else 0) + (if(image.tagName()=="img")1 else 0)
         }
-        for(name in listOf("data-src","data-original","data-s","data-lazy-src","data-image","data-cfsrc","poster"))candidate(image.attr(name))?.let{return it}
-        val source=image.parent()?.takeIf{it.tagName()=="picture"}?.selectFirst("source[data-srcset],source[srcset]")
-        val set=image.attr("data-srcset").ifBlank{image.attr("srcset")}.ifBlank{source?.attr("data-srcset").orEmpty().ifBlank{source?.attr("srcset").orEmpty()}}
-        if(!set.startsWith("data:")) {
-            val entries=set.split(',').mapNotNull{entry->val parts=entry.trim().split(whitespace);val url=candidate(parts.firstOrNull()) ?: return@mapNotNull null;url to (parts.getOrNull(1)?.removeSuffix("w")?.toIntOrNull()?:0)}
-            (entries.filter{it.second>=480}.minByOrNull{it.second}?:entries.maxByOrNull{it.second})?.first?.let{return it}
+        for(image in ranked) {
+            fun candidate(value:String?)=imageUrl(base,value)
+            for(name in listOf("data-src","data-original","data-s","data-lazy-src","data-image","data-cfsrc","data-thumb","data-thumbnail","data-poster","poster"))candidate(image.attr(name))?.let{return it}
+            val source=image.parent()?.takeIf{it.tagName()=="picture"}?.selectFirst("source[data-srcset],source[srcset]")
+            val set=image.attr("data-srcset").ifBlank{image.attr("srcset")}.ifBlank{source?.attr("data-srcset").orEmpty().ifBlank{source?.attr("srcset").orEmpty()}}
+            if(!set.startsWith("data:")) {
+                val entries=set.split(',').mapNotNull{entry->val parts=entry.trim().split(whitespace);val url=candidate(parts.firstOrNull()) ?: return@mapNotNull null;url to (parts.getOrNull(1)?.removeSuffix("w")?.toIntOrNull()?:0)}
+                (entries.filter{it.second>=480}.minByOrNull{it.second}?:entries.maxByOrNull{it.second})?.first?.let{return it}
+            }
+            candidate(image.attr("src"))?.let{return it}
         }
-        return candidate(image.attr("src"))
+        return null
     }
     fun cards(page: Element, spec: SiteSpec): List<VideoCard> {
         val result = LinkedHashMap<String,VideoCard>()
@@ -65,7 +93,7 @@ object Metadata {
             val clocks=card.select(".prop span,.video_length,.m_time").map { clean(it.text()) }.filter { it.matches(Regex("(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}")) }
             val duration = (card.select(".duration, .card__duration, .video-duration, .time, [data-duration]").asSequence().map { timing(it.attr("data-duration").ifBlank { it.text() }) }.toList()+clocks.map(::timing)).firstOrNull(String::isNotBlank).orEmpty()
             if (duration.isNotBlank()) durations[videoKey(url)] = duration
-            val picture=poster(card,page.baseUri());if(picture!=null)posters[videoKey(url)]=picture
+            val picture=poster(card,page.baseUri());if(picture!=null)rememberPoster(url,picture)
             if(!result.containsKey(videoKey(url)))result[videoKey(url)]=VideoCard(label,url,picture,duration,tags)
         }
         return result.values.toList()
@@ -92,8 +120,11 @@ object Metadata {
             }
         }
         for(script in page.select("script[type=application/ld+json]"))try { scan(JSONTokener(script.data()).nextValue(),0) }catch(_:Exception){}
-        return candidates.firstOrNull { v -> listOf(v.optString("url"),v.optString("@id"),v.optString("mainEntityOfPage")).any { absolute(page.baseUri(),it)?.let(::videoKey)==videoKey(page.baseUri()) } }
+        val identities=(listOf(page.baseUri())+page.select("link[rel=canonical],meta[property=og:url]").map { it.attr("href").ifBlank{it.attr("content")} }).mapNotNull{absolute(page.baseUri(),it)?.let(::videoKey)}.toSet()
+        fun identity(raw:Any?):String = when(raw){is JSONObject->raw.optString("@id").ifBlank{raw.optString("url")};is String->raw;else->""}
+        return candidates.firstOrNull { v -> listOf(v.opt("url"),v.opt("@id"),v.opt("mainEntityOfPage")).map(::identity).filter(String::isNotBlank).any { absolute(page.baseUri(),it)?.let(::videoKey) in identities } }
             ?: candidates.singleOrNull()?.takeIf { it.optString("url").isBlank() && it.optString("@id").substringBefore('#').isBlank() }
+
     }
     fun detail(page: Document, spec: SiteSpec): VideoDetail {
         val data=ownVideo(page)
@@ -110,12 +141,18 @@ object Metadata {
         val declared=semanticDescription.isNotEmpty() || data?.has("description")==true
         val descriptionFields=listOf(".video-description, .video_description, #video-description, #video_description, #tab_video_info .description, .item_info .description, .description-container",spec.descriptionSelector).filter(String::isNotBlank).joinToString(",")
         val summaryCandidates=page.select(descriptionFields).filter { it.closest(".related,.related-videos,#related-videos,#relateddiv") == null }.map(::value) + listOf(data?.optString("description").orEmpty()) + semanticDescription.map(::value) + if(declared)emptyList() else listOf(page.selectFirst("meta[property=og:description]")?.attr("content").orEmpty(),page.selectFirst("meta[name=description]")?.attr("content").orEmpty())
-        val summary=summaryCandidates.map(::clean).firstOrNull { it.isNotBlank() && !it.trimEnd('.','!','?').equals(rawTitle.trimEnd('.','!','?'),true) && !promo.containsMatchIn(it) }.orEmpty()
+        val summary=summaryCandidates.map { description(it,rawTitle) }.firstOrNull(String::isNotBlank).orEmpty()
         val durationCandidates=listOf(data?.optString("duration").orEmpty()) + page.select(listOf("[itemprop=duration],meta[property=video:duration],meta[property=og:video:duration],meta[property=og:duration],.video-info .duration,.item_info .duration,.video-details .duration,.video-duration",spec.durationSelector).filter(String::isNotBlank).joinToString(",")).filter { it.closest(".related,.related-videos,#related-videos,#relateddiv,nav,aside") == null }.map(::value)
         val duration=durationCandidates.asSequence().map(::timing).firstOrNull(String::isNotBlank) ?: durations[videoKey(page.baseUri())].orEmpty()
         if(duration.isNotBlank())durations[videoKey(page.baseUri())]=duration
-        val thumbnail=data?.opt("thumbnailUrl"); val structuredPoster=if(thumbnail is JSONArray)thumbnail.optString(0) else thumbnail?.toString()
-        val poster=absolute(page.baseUri(),page.selectFirst("meta[property=og:image]")?.attr("content")) ?: absolute(page.baseUri(),structuredPoster) ?: page.selectFirst("video[poster]")?.let { absolute(page.baseUri(),it.attr("poster")) } ?: posters[videoKey(page.baseUri())]
+        val thumbnail=data?.opt("thumbnailUrl")
+        fun picture(value:Any?):String? = when(value){is JSONObject->value.optString("url").ifBlank{value.optString("contentUrl").ifBlank{value.optString("@id")}};is String->value;else->null}
+        val structuredPoster=if(thumbnail is JSONArray)(0 until thumbnail.length()).firstNotNullOfOrNull{picture(thumbnail.opt(it))} else picture(thumbnail)
+        val poster=choosePoster(page.baseUri(),structuredPoster,
+            page.selectFirst("meta[property=og:image]")?.attr("content"),
+            page.selectFirst("meta[name=og:image]")?.attr("content"),
+            page.selectFirst("video[poster]")?.attr("poster"),
+            page.selectFirst("link[rel=image_src]")?.attr("href"))
         val year=data?.optString("uploadDate")?.take(4)?.toIntOrNull()?.takeIf { it in 1900..2100 }
         return VideoDetail(rawTitle,poster,summary,tags,duration,year)
     }

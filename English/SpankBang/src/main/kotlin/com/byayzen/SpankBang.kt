@@ -107,7 +107,7 @@ class SpankBang : MainAPI() {
 
 
     override suspend fun load(url: String): LoadResponse? {
-        val document        = app.get(url, interceptor = cloudflareKiller).document
+        val document        = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
 
         val title           = document.selectFirst("h1")?.text()?.trim()?.ifEmpty { null } ?: return null
         val posterUrl       = fixUrlNull(document.selectFirst("#player_cover_img")?.attr("src")?.ifEmpty { null })

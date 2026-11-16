@@ -62,7 +62,7 @@ class NoodleMagazineProvider: MainAPI() {
         if(!ContentPolicy.accepts(detail.title,detail.tags))throw ErrorLoadingException("Video hidden by category filter")
         var related=Metadata.cards(page,spec.copy(cards="div.item")).filter{it.url!=url}.map(::response)
         if(related.isEmpty())detail.tags.firstOrNull{ContentPolicy.accepts(it)}?.let{tag->
-            try{related=results(tag,1).filter{it.url!=url}}catch(e:CancellationException){throw e}catch(_:Exception){}
+            try{related=RequestLimits.optional { results(tag,1) }.orEmpty().filter{it.url!=url}}catch(e:CancellationException){throw e}catch(_:Exception){}
         }
         return newMovieLoadResponse(detail.title,url,TvType.NSFW,url){
             posterUrl=detail.poster;posterHeaders=Network.headers("$mainUrl/");plot=Metadata.plot(detail);tags=detail.tags;recommendations=related

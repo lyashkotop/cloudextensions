@@ -63,13 +63,13 @@ class EPorner : MainAPI() {
     override suspend fun quickSearch(query: String): List<SearchResponse>? = search(query)
 
     override suspend fun load(url: String): LoadResponse? {
-        val document = app.get(url).document
+        val document = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
         val title = document.selectFirst("h1")?.text()?.trim() ?: return null
         val poster = fixUrlNull(
             document.selectFirst("meta[property=og:image]")?.attr("content")
                 ?: document.selectFirst("video#EPvideo")?.attr("poster")
         )
-        val tags = document.select("div#video-info-tags ul li.vit-category a").map { it.text() }
+        val tags = document.select("div#video-info-tags ul li.vit-category a, div#video-info-tags ul li.vit-tag a").map { it.text() }
         val year = document.selectFirst("span.C a")?.text()?.trim()?.toIntOrNull()
         val duration = document.selectFirst("span.vid-length")?.text()?.replace("min", "")?.trim()
             ?.toIntOrNull()

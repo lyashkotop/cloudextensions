@@ -70,3 +70,5 @@ PunishBang, SpankBang, MissAV и SuperJav отвечали 403; часть ис�
 [остальные Kotlin-модули](imports/remaining-kotlin/README.md), [Japanese](Japanese/README.md).
 Требования и текущие ограничения: [REQUIREMENTS.md](REQUIREMENTS.md).
 Aniyomi APK — отдельный будущий проект.
+
+Исправления RU/EN превью, полей и зависаний: [проверки и ограничения](imports/ru-en-reliability/README.md).

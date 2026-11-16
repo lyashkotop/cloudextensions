@@ -116,7 +116,7 @@ class CosXPlay : MainAPI() {
     override suspend fun quickSearch(query: String): List<SearchResponse>? = search(query)
 
     override suspend fun load(url: String): LoadResponse? {
-        val document = app.get(url).document
+        val document = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
 
         val title           = document.selectFirst("h1")?.text()?.trim() ?: return null
         val poster          = document.selectFirst("script:containsData(\"thumbnail\")")?.data()?.substringAfter("\"thumbnail\":\"")?.substringBefore("\"")
@@ -124,7 +124,7 @@ class CosXPlay : MainAPI() {
         val duration        = document.selectFirst("script:containsData(\"thumbnail\")")?.data()?.substringAfter("\"length\":\"")?.substringBefore("\"")?.split(" ")?.first()?.trim()?.toIntOrNull()
         val description     = document.selectFirst("meta[property=og:description]")?.attr("content")?.trim()
         val year            = document.selectFirst("div.extra span.C a")?.text()?.trim()?.toIntOrNull()
-        val tags            = document.select("div.tags-list a").map { it.text() }
+        val tags            = document.select("div.tags-list.single-vide a").map { it.text() }
         val recommendations = document.select("div.col-xl-2").mapNotNull { it.toMainPageResult() }
         val actors          = document.select("span.valor a").map { Actor(it.text()) }
 

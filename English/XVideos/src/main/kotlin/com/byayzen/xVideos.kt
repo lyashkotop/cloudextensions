@@ -70,7 +70,7 @@ class xVideos : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        val d = app.get(url).document
+        val d = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
         val title = d.selectFirst("h2.page-title")?.ownText()?.trim()
             ?: d.selectFirst("meta[property=og:title]")?.attr("content") ?: return null
 
