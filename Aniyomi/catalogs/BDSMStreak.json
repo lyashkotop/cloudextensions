@@ -1,0 +1,75 @@
+{
+  "id": "BDSMStreak",
+  "tags": [],
+  "categories": [],
+  "sorts": [],
+  "pages": [
+    {
+      "url": "https://bdsmstreak.com/",
+      "http": 200
+    },
+    {
+      "url": "https://bdsmstreak.com/categories",
+      "http": 200
+    }
+  ],
+  "directories": [
+    "https://bdsmstreak.com/categories"
+  ],
+  "navigation": [
+    {
+      "label": "Trending",
+      "url": "https://bdsmstreak.com/trending"
+    },
+    {
+      "label": "New Videos",
+      "url": "https://bdsmstreak.com/newest"
+    },
+    {
+      "label": "Popular",
+      "url": "https://bdsmstreak.com/popular"
+    },
+    {
+      "label": "Recently Watched",
+      "url": "https://bdsmstreak.com/viewed"
+    },
+    {
+      "label": "Trending",
+      "url": "https://bdsmstreak.com/trending"
+    },
+    {
+      "label": "New videos",
+      "url": "https://bdsmstreak.com/newest"
+    },
+    {
+      "label": "Popular",
+      "url": "https://bdsmstreak.com/popular"
+    },
+    {
+      "label": "Recently watched",
+      "url": "https://bdsmstreak.com/viewed"
+    },
+    {
+      "label": "See all popular →",
+      "url": "https://bdsmstreak.com/popular"
+    },
+    {
+      "label": "New Videos",
+      "url": "https://bdsmstreak.com/newest"
+    },
+    {
+      "label": "Popular",
+      "url": "https://bdsmstreak.com/popular"
+    },
+    {
+      "label": "Recently Watched",
+      "url": "https://bdsmstreak.com/viewed"
+    }
+  ],
+  "errors": [],
+  "seconds": 2.03,
+  "controlsSource": {
+    "url": "https://bdsmstreak.com/search?q=guy",
+    "http": 200
+  }
+}

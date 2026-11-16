@@ -1,0 +1,59 @@
+{
+  "id": "NoodleMagazine",
+  "tags": [],
+  "categories": [],
+  "sorts": [
+    {
+      "label": "Views ↓",
+      "key": "sort",
+      "value": "views_desc"
+    },
+    {
+      "label": "Views ↑",
+      "key": "sort",
+      "value": "views_asc"
+    },
+    {
+      "key": "sort",
+      "value": "2",
+      "label": "Relevance"
+    },
+    {
+      "key": "sort",
+      "value": "1",
+      "label": "Duration"
+    },
+    {
+      "key": "sort",
+      "value": "0",
+      "label": "Date added"
+    }
+  ],
+  "pages": [
+    {
+      "url": "https://hot.tyler-brown.com/recent",
+      "http": 200
+    }
+  ],
+  "directories": [],
+  "navigation": [
+    {
+      "label": "Popular",
+      "url": "https://hot.tyler-brown.com/recent"
+    },
+    {
+      "label": "Trending NEW",
+      "url": "https://hot.tyler-brown.com/popular/trending"
+    },
+    {
+      "label": "recent",
+      "url": "https://hot.tyler-brown.com/recent?range=recent"
+    }
+  ],
+  "errors": [],
+  "seconds": 1.73,
+  "controlsSource": {
+    "url": "https://tyler-brown.com/video/guy",
+    "http": 200
+  }
+}

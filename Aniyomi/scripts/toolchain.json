@@ -1,0 +1,42 @@
+[
+  {
+    "file": "lib14.aar",
+    "url": "https://jitpack.io/com/github/aniyomiorg/extensions-lib/14/extensions-lib-14.aar",
+    "sha256": "157bffa0ed07aaff6672307aeb1649d4600ddfdc1d70eee70a8dce0911190f28"
+  },
+  {
+    "file": "rxjava.jar",
+    "url": "https://repo.maven.apache.org/maven2/io/reactivex/rxjava/1.3.8/rxjava-1.3.8.jar",
+    "sha256": "387df880f226b01cea4b1026d96d34e1da27d5801562742cfce0413c21ef7690"
+  },
+  {
+    "file": "aapt2.jar",
+    "url": "https://dl.google.com/android/maven2/com/android/tools/build/aapt2/8.7.3-12006047/aapt2-8.7.3-12006047-linux.jar",
+    "sha256": "028916a040b58f34c9c89984e1bc48f8da6581662014f2b66391860def8b9c36"
+  },
+  {
+    "file": "android.jar",
+    "url": "https://raw.githubusercontent.com/Reginer/aosp-android-jar/main/android-35/android.jar",
+    "sha256": "60be6880d7b2b526d654460d4ce6fa81bf23efaa28b02d901d0b63a01ccf4671"
+  },
+  {
+    "file": "build-tools.zip",
+    "url": "https://dl.google.com/android/repository/build-tools_r35_linux.zip",
+    "sha256": "bd3a4966912eb8b30ed0d00b0cda6b6543b949d5ffe00bea54c04c81e1561d88"
+  },
+  {
+    "file": "r8.jar",
+    "url": "https://dl.google.com/dl/android/maven2/com/android/tools/r8/8.9.35/r8-8.9.35.jar",
+    "sha256": "204b2fc2b0f4e888dc0ef748b58090def1bf4185068d36abbb94841dbc7107a8"
+  },
+  {
+    "file": "injekt.jar",
+    "url": "https://jitpack.io/com/github/null2264/injekt/injekt-core/4135455a2a/injekt-core-4135455a2a.jar",
+    "sha256": "b21f5df2e1f9b4c99747e4eae6e1488892fa90e429f800ae039a515208f85dfe"
+  },
+  {
+    "file": "injekt-api.jar",
+    "url": "https://jitpack.io/com/github/null2264/injekt/injekt-api/4135455a2a/injekt-api-4135455a2a.jar",
+    "sha256": "62eae13a5bc2ce4c859ff1796bac68741b96870fa88fa5e5f1d9852429d51f96"
+  }
+]

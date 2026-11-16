@@ -1,0 +1,28 @@
+[
+  {
+    "repository": "https://github.com/aniyomiorg/aniyomi-extensions",
+    "commit": "0ccdcfb44aaa2064e51406e5f168fe73e79a3cc9",
+    "reviewed": "SourceFactory, APK metadata, native filters, per-source routes and player adapters"
+  },
+  {
+    "repository": "https://github.com/TheFantasticLoki/adult-aniyomi-extensions",
+    "commit": "fd4a61e703c7805ca6e20ce94079c673a32772c6",
+    "reviewed": "SourceFactory, APK metadata, native filters, per-source routes and player adapters"
+  },
+  {
+    "repository": "https://github.com/yuzono/anime-extensions",
+    "commit": "cc462c8b4893b8ec509b149cb6438b2a6233c206",
+    "reviewed": "SourceFactory, APK metadata, native filters, per-source routes and player adapters"
+  },
+  {
+    "repository": "https://github.com/aniyomiorg/extensions-lib",
+    "compileApi": 14,
+    "commit": "f33cc241dee8f7561b97f0aa0921c58f0f8a3b8c",
+    "hostLoaderCommit": "97414446b8a95994c72dd33c41c971a89d4d25b8",
+    "hostSupportedApis": [
+      14,
+      16,
+      17
+    ]
+  }
+]

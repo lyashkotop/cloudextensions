@@ -1,0 +1,35 @@
+{
+  "id": "Vpoisk",
+  "tags": [],
+  "categories": [],
+  "sorts": [],
+  "pages": [
+    {
+      "url": "https://m.vpoisk.xyz/",
+      "http": 200
+    },
+    {
+      "url": "https://m.vpoisk.xyz/categories/",
+      "http": 200
+    }
+  ],
+  "directories": [
+    "https://m.vpoisk.xyz/categories/"
+  ],
+  "navigation": [
+    {
+      "label": "Новые",
+      "url": "https://m.vpoisk.xyz/new/"
+    },
+    {
+      "label": "Популярное",
+      "url": "https://m.vpoisk.xyz/best/"
+    }
+  ],
+  "errors": [],
+  "seconds": 0.87,
+  "controlsSource": {
+    "url": "https://m.vpoisk.xyz/search/?q=guy",
+    "http": 200
+  }
+}

@@ -77,3 +77,7 @@ PunishBang, SpankBang, MissAV и SuperJav отвечали 403; часть ис�
 Aniyomi APK — отдельный будущий проект.
 
 Исправления RU/EN превью, полей и зависаний: [проверки и ограничения](imports/ru-en-reliability/README.md).
+
+## Aniyomi
+
+Отдельный APK на все активные источники, с исходниками и воспроизводимой сборкой: [Aniyomi/](Aniyomi/). Он устанавливается в Aniyomi; CloudStream-пакеты остаются отдельными.

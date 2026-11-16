@@ -1,0 +1,35 @@
+{
+  "id": "Semyana",
+  "tags": [],
+  "categories": [],
+  "sorts": [],
+  "pages": [
+    {
+      "url": "https://w.semyana.com/",
+      "http": 200
+    },
+    {
+      "url": "https://w.semyana.com/categories/",
+      "http": 200
+    }
+  ],
+  "directories": [
+    "https://w.semyana.com/categories/"
+  ],
+  "navigation": [
+    {
+      "label": "Popular",
+      "url": "https://w.semyana.com/best/"
+    },
+    {
+      "label": "Recent videos",
+      "url": "https://w.semyana.com/new/"
+    }
+  ],
+  "errors": [],
+  "seconds": 2.33,
+  "controlsSource": {
+    "url": "https://w.semyana.com/search/?q=guy",
+    "http": 200
+  }
+}

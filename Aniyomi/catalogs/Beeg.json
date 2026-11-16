@@ -1,0 +1,152 @@
+{
+  "id": "Beeg",
+  "tags": [],
+  "categories": [
+    {
+      "label": "",
+      "url": "https://beeg.porn/categories/page/10/"
+    },
+    {
+      "label": "Show more »",
+      "url": "https://beeg.porn/categories/page/2/#list_categories_bottom_sources"
+    },
+    {
+      "label": "Show more »",
+      "url": "https://beeg.porn/categories/page/3/#list_categories_bottom_sources"
+    },
+    {
+      "label": "Show more »",
+      "url": "https://beeg.porn/categories/page/4/#list_categories_bottom_sources"
+    },
+    {
+      "label": "Show more »",
+      "url": "https://beeg.porn/categories/page/5/#list_categories_bottom_sources"
+    },
+    {
+      "label": "Show more »",
+      "url": "https://beeg.porn/categories/page/6/#list_categories_bottom_sources"
+    },
+    {
+      "label": "Show more »",
+      "url": "https://beeg.porn/categories/page/7/#list_categories_bottom_sources"
+    },
+    {
+      "label": "Show more »",
+      "url": "https://beeg.porn/categories/page/8/#list_categories_bottom_sources"
+    },
+    {
+      "label": "Show more »",
+      "url": "https://beeg.porn/categories/page/11/#list_categories_bottom_sources"
+    },
+    {
+      "label": "Show more »",
+      "url": "https://beeg.porn/categories/page/9/#list_categories_bottom_sources"
+    }
+  ],
+  "sorts": [
+    {
+      "key": "sort",
+      "value": "1",
+      "label": "Views"
+    },
+    {
+      "key": "sort_by",
+      "value": "uploaddate",
+      "label": "Upload date"
+    },
+    {
+      "key": "sort_by",
+      "value": "relevance",
+      "label": "Relevance"
+    },
+    {
+      "key": "sort_by",
+      "value": "views",
+      "label": "Views"
+    }
+  ],
+  "pages": [
+    {
+      "url": "https://beeg.porn/",
+      "http": 200
+    },
+    {
+      "url": "https://beeg.porn/categories/",
+      "http": 200
+    },
+    {
+      "url": "https://beeg.porn/categories/page/2/",
+      "http": 200
+    },
+    {
+      "url": "https://beeg.porn/categories/#list_categories_bottom_sources",
+      "http": 200
+    },
+    {
+      "url": "https://beeg.porn/categories/page/3/",
+      "http": 200
+    },
+    {
+      "url": "https://beeg.porn/categories/page/4/",
+      "http": 200
+    },
+    {
+      "url": "https://beeg.porn/categories/page/5/",
+      "http": 200
+    },
+    {
+      "url": "https://beeg.porn/categories/page/6/",
+      "http": 200
+    },
+    {
+      "url": "https://beeg.porn/categories/page/7/",
+      "http": 200
+    },
+    {
+      "url": "https://beeg.porn/categories/page/8/",
+      "http": 200
+    },
+    {
+      "url": "https://beeg.porn/categories/page/9/",
+      "http": 200
+    },
+    {
+      "url": "https://beeg.porn/categories/page/10/",
+      "http": 200
+    },
+    {
+      "url": "https://beeg.porn/categories/page/11/",
+      "http": 200
+    }
+  ],
+  "directories": [
+    "https://beeg.porn/categories/",
+    "https://beeg.porn/categories/#list_categories_bottom_sources",
+    "https://beeg.porn/categories/page/10/",
+    "https://beeg.porn/categories/page/11/",
+    "https://beeg.porn/categories/page/2/",
+    "https://beeg.porn/categories/page/3/",
+    "https://beeg.porn/categories/page/4/",
+    "https://beeg.porn/categories/page/5/",
+    "https://beeg.porn/categories/page/6/",
+    "https://beeg.porn/categories/page/7/",
+    "https://beeg.porn/categories/page/8/",
+    "https://beeg.porn/categories/page/9/"
+  ],
+  "navigation": [
+    {
+      "label": "New Videos",
+      "url": "https://beeg.porn/new/"
+    },
+    {
+      "label": "New Videos",
+      "url": "https://beeg.porn/new/"
+    }
+  ],
+  "errors": [],
+  "seconds": 10.58,
+  "controlsSource": {
+    "url": "https://beeg.porn/?s=guy",
+    "http": 200
+  }
+}

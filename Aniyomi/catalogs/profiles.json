@@ -1,0 +1,2027 @@
+[
+  {
+    "id": "Ebalka",
+    "name": "Ebalka",
+    "lang": "ru",
+    "origin": "https://1ebalka.ru.actor",
+    "cards": ".card_video",
+    "link": "a[href]",
+    "titleSelector": ".card__title",
+    "sections": [
+      {
+        "name": "Новинки",
+        "path": "/latest-videos/"
+      },
+      {
+        "name": "Блюет",
+        "path": "/tags/blyuet/"
+      },
+      {
+        "name": "Инцест",
+        "path": "/tags/incest/"
+      },
+      {
+        "name": "Лишение девственности",
+        "path": "/tags/lishenie-devstvennosti/"
+      },
+      {
+        "name": "Целки",
+        "path": "/tags/devstvennica/"
+      },
+      {
+        "name": "Кастинги Пьера Вудмана",
+        "path": "/tags/kastingi-pera-vudmana/"
+      },
+      {
+        "name": "В школе",
+        "path": "/tags/v-shkole/"
+      },
+      {
+        "name": "Секс со спящими",
+        "path": "/tags/seks-so-spyashchimi/"
+      },
+      {
+        "name": "Училки",
+        "path": "/tags/uchilki/"
+      },
+      {
+        "name": "Вечеринки курских студентов",
+        "path": "/tags/vecherinki-kurskih-studentov/"
+      },
+      {
+        "name": "Женская измена",
+        "path": "/tags/jenskaya-izmena/"
+      },
+      {
+        "name": "Двойное проникновение",
+        "path": "/tags/dvoynoe-proniknovenie/"
+      },
+      {
+        "name": "Секс путешествие в Египте",
+        "path": "/tags/seks-puteshestvie-v-egipte/"
+      },
+      {
+        "name": "Свингеры",
+        "path": "/tags/svingery/"
+      },
+      {
+        "name": "Зрелые лесби с молодыми",
+        "path": "/tags/zrelye-lesbi-s-molodymi/"
+      },
+      {
+        "name": "Кап Даг",
+        "path": "/tags/kap-dag/"
+      },
+      {
+        "name": "В бане и сауне",
+        "path": "/tags/v-bane-i-saune/"
+      },
+      {
+        "name": "Зрелая с молодым",
+        "path": "/tags/zrelaya-s-molodym/"
+      },
+      {
+        "name": "Ганг - банг",
+        "path": "/tags/gang-bang/"
+      },
+      {
+        "name": "Секс за деньги",
+        "path": "/tags/seks-za-dengi/"
+      },
+      {
+        "name": "Гинекологическое зеркало",
+        "path": "/tags/vaginalnyy-rasshiritel/"
+      },
+      {
+        "name": "Секс под наркозом",
+        "path": "/tags/seks-pod-narkozom/"
+      },
+      {
+        "name": "В свадебном платье",
+        "path": "/tags/v-svadebnom-plate/"
+      },
+      {
+        "name": "Порно с китаянками",
+        "path": "/tags/porno-s-kitayankami/"
+      },
+      {
+        "name": "Босс и секретарша",
+        "path": "/tags/sekretarsha/"
+      },
+      {
+        "name": "Двойной фистинг",
+        "path": "/tags/dvoynoy-fisting/"
+      },
+      {
+        "name": "Скрытая камера в сауне",
+        "path": "/tags/skrytaya-kamera-v-saune/"
+      },
+      {
+        "name": "Подборка нарезок видео",
+        "path": "/tags/podborka-narezka-video/"
+      },
+      {
+        "name": "Ректальный градусник",
+        "path": "/tags/rektalnyy-gradusnik/"
+      },
+      {
+        "name": "МЖМ",
+        "path": "/tags/dvoe-na-odnu/"
+      },
+      {
+        "name": "Жена и муж",
+        "path": "/tags/jena-i-muj/"
+      }
+    ],
+    "tagSelector": ".video__tags-container a",
+    "descriptionSelector": "",
+    "searchMode": "get",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "Huyamba",
+    "name": "Huyamba",
+    "lang": "ru",
+    "origin": "https://ru.huyamba.name",
+    "cards": "a.card",
+    "link": "a[href]",
+    "titleSelector": ".title",
+    "sections": [
+      {
+        "name": "Новинки",
+        "path": "/"
+      },
+      {
+        "name": "Показать Еще",
+        "path": "/categories/porn-movies/"
+      },
+      {
+        "name": "Ретро порно фильмы",
+        "path": "/categories/retro-porno-filmy/"
+      },
+      {
+        "name": "Эротические фильмы",
+        "path": "/categories/erotic-movies-full/"
+      },
+      {
+        "name": "Скрытая камера",
+        "path": "/categories/hidden-cameras-porn-videos/"
+      },
+      {
+        "name": "Русские порно фильмы",
+        "path": "/categories/russian-porn-movies/"
+      },
+      {
+        "name": "Полнометражные порно фильмы",
+        "path": "/categories/full-porn-movies/"
+      },
+      {
+        "name": "Порно пародии",
+        "path": "/categories/xxx-porn-parody/"
+      },
+      {
+        "name": "Классика, любовь, поцелуи, эротика",
+        "path": "/categories/classic-love-kisses-erotic/"
+      },
+      {
+        "name": "Старушки, порно со зрелыми",
+        "path": "/categories/granny-porn-videos/"
+      },
+      {
+        "name": "Порно с переводом",
+        "path": "/categories/porno-s-perevodom/"
+      },
+      {
+        "name": "Куколд порно, измена, рогоносцы",
+        "path": "/categories/cuckold-porn/"
+      },
+      {
+        "name": "Толстушки, порно с толстыми",
+        "path": "/categories/tolstushki-porn/"
+      },
+      {
+        "name": "Публичное порно",
+        "path": "/categories/public-porn-videos/"
+      },
+      {
+        "name": "Групповое порно, свингеры",
+        "path": "/categories/group-porn-videos/"
+      },
+      {
+        "name": "Орал, анилингус, куннилингус",
+        "path": "/categories/oral-porn-videos/"
+      },
+      {
+        "name": "Сексуальные девушки",
+        "path": "/categories/lesbians-porn-videos/"
+      },
+      {
+        "name": "Порно Ужасы",
+        "path": "/categories/horror/"
+      },
+      {
+        "name": "БДСМ, доминирование, Садо Мазо",
+        "path": "/categories/bdsm-porn-videos/"
+      },
+      {
+        "name": "Русское порно",
+        "path": "/categories/russian-porn/"
+      },
+      {
+        "name": "Порно знаменитостей",
+        "path": "/categories/celebrities-porn-videos/"
+      },
+      {
+        "name": "Минет, ручная работа",
+        "path": "/categories/blowjob-porn/"
+      },
+      {
+        "name": "Порно молодых",
+        "path": "/categories/teen-porn/"
+      },
+      {
+        "name": "Азиатки",
+        "path": "/categories/asian-porn-videos/"
+      },
+      {
+        "name": "Секс машины",
+        "path": "/categories/sex-mashines-porn-videos/"
+      },
+      {
+        "name": "Анал и Анальный секс",
+        "path": "/categories/anal-porn/"
+      },
+      {
+        "name": "Межрассовое Порно",
+        "path": "/categories/interracial-porn-videos/"
+      },
+      {
+        "name": "Сперма, сквиртинг",
+        "path": "/categories/sperm-squirt-porn/"
+      },
+      {
+        "name": "Большие толстые члены",
+        "path": "/categories/big-dick-porn/"
+      },
+      {
+        "name": "Секс игрушки",
+        "path": "/categories/sex-toys-porn-videos/"
+      },
+      {
+        "name": "Фистинг, инсершн, страпон",
+        "path": "/categories/fisting-porn-videos/"
+      },
+      {
+        "name": "Худые, порно с худыми",
+        "path": "/categories/skinny-porn/"
+      },
+      {
+        "name": "Соло, стриптиз, мастурбация",
+        "path": "/categories/solo-striptease/"
+      },
+      {
+        "name": "Домашнее порно видео",
+        "path": "/categories/homemade-porn-videos/"
+      },
+      {
+        "name": "Виртуальное порно VR 360",
+        "path": "/categories/vr-porn-videos/"
+      }
+    ],
+    "tagSelector": ".video-controls .video-list a[href*=/categor], .video-controls .video-list a[href*=/tag]",
+    "descriptionSelector": "",
+    "searchMode": "get",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "NoodleMagazine",
+    "name": "Noodle Magazine",
+    "lang": "ru",
+    "origin": "https://tyler-brown.com",
+    "cards": "#list_videos div.item",
+    "link": "a[href]",
+    "titleSelector": ".i_info .title",
+    "sections": [
+      {
+        "name": "Popular",
+        "path": "/popular/month"
+      },
+      {
+        "name": "Trending",
+        "path": "/popular/trending"
+      }
+    ],
+    "tagSelector": "#videoTagsBar a.vtag",
+    "descriptionSelector": ".l_info .description",
+    "titleLanguage": "ru",
+    "engine": "noodle",
+    "translate": false
+  },
+  {
+    "id": "Perdol",
+    "name": "Perdol.net",
+    "lang": "ru",
+    "origin": "https://b.perdol.net",
+    "cards": "a.card",
+    "link": "a[href]",
+    "titleSelector": ".card__title",
+    "sections": [
+      {
+        "name": "Новинки",
+        "path": "/"
+      },
+      {
+        "name": "Анал 892",
+        "path": "/categories/anal/"
+      },
+      {
+        "name": "БДСМ 381",
+        "path": "/categories/bdsm/"
+      },
+      {
+        "name": "Брат и сестра 39",
+        "path": "/categories/brat-i-sestra/"
+      },
+      {
+        "name": "Групповуха 933",
+        "path": "/categories/gruppovuha/"
+      },
+      {
+        "name": "Домашнее 623",
+        "path": "/categories/domashnee/"
+      },
+      {
+        "name": "Женская мастурбация 673",
+        "path": "/categories/jenskaya-masturbaciya/"
+      },
+      {
+        "name": "Зрелые женщины 1049",
+        "path": "/categories/zrelye-jenshchiny/"
+      },
+      {
+        "name": "Зрелые мужчины 308",
+        "path": "/categories/zrelye-mujchiny/"
+      },
+      {
+        "name": "Кастинг 319",
+        "path": "/categories/kasting/"
+      },
+      {
+        "name": "Куколд и сексвайф 163",
+        "path": "/categories/kukold-i-seksvayf/"
+      },
+      {
+        "name": "Лесби 665",
+        "path": "/categories/les/"
+      },
+      {
+        "name": "Массаж 163",
+        "path": "/categories/massaj/"
+      },
+      {
+        "name": "Мать и сын 146",
+        "path": "/categories/mat-i-syn/"
+      },
+      {
+        "name": "Молодые 1376",
+        "path": "/categories/molodye/"
+      },
+      {
+        "name": "Папа и дочь 85",
+        "path": "/categories/papa-i-doch/"
+      },
+      {
+        "name": "Пикап 258",
+        "path": "/categories/pikap/"
+      },
+      {
+        "name": "Писающие 264",
+        "path": "/categories/pisayushchie/"
+      },
+      {
+        "name": "По принуждению 394",
+        "path": "/categories/po-prinujdeniyu/"
+      },
+      {
+        "name": "Полнометражные 126",
+        "path": "/categories/polnometrajnye/"
+      },
+      {
+        "name": "Пьяные 313",
+        "path": "/categories/pyanye/"
+      },
+      {
+        "name": "с WEB камер 441",
+        "path": "/categories/s-web-kamer/"
+      },
+      {
+        "name": "Семейные оргии 59",
+        "path": "/categories/semeynye-orgii/"
+      },
+      {
+        "name": "Скрытая камера 254",
+        "path": "/categories/skrytaya-kamera/"
+      },
+      {
+        "name": "У гинеколога 225",
+        "path": "/categories/u-ginekologa/"
+      },
+      {
+        "name": "Фистинг 190",
+        "path": "/categories/fisting/"
+      },
+      {
+        "name": "Фут фетиш 186",
+        "path": "/categories/fut-fetish/"
+      },
+      {
+        "name": "Эротика 476",
+        "path": "/categories/erotika/"
+      }
+    ],
+    "tagSelector": ".trailer__col .btn-group a[href*=/categor], .trailer__col .btn-group a[href*=/tag]",
+    "descriptionSelector": "",
+    "searchMode": "path",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "Poebon",
+    "name": "Poebon",
+    "lang": "ru",
+    "origin": "https://v.poebon.pro",
+    "cards": ".list-videos .item",
+    "link": "a[href]",
+    "titleSelector": ".title",
+    "sections": [
+      {
+        "name": "Новинки",
+        "path": "/"
+      }
+    ],
+    "searchMode": "get",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "ProstoPorno",
+    "name": "ProstoPorno",
+    "lang": "ru",
+    "origin": "https://prostoporno.dev",
+    "cards": ".thumb:has(a.img[href*=/videos/])",
+    "link": "a.img[href]",
+    "titleSelector": ".title",
+    "sections": [
+      {
+        "name": "Новинки",
+        "path": "/"
+      }
+    ],
+    "tagSelector": "#video-info a[href*=/categor], #video-info a[href*=/tag]",
+    "descriptionSelector": "",
+    "searchMode": "path",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "Semyana",
+    "name": "Semyana",
+    "lang": "ru",
+    "origin": "https://w.semyana.com",
+    "cards": ".video-card",
+    "link": "a.video-card-link[href]",
+    "titleSelector": ".video-title",
+    "sections": [
+      {
+        "name": "Новинки",
+        "path": "/new/"
+      },
+      {
+        "name": "Популярное",
+        "path": "/best/"
+      },
+      {
+        "name": "Random",
+        "path": "/cat/random/"
+      },
+      {
+        "name": "Homemade",
+        "path": "/cat/homemade/"
+      },
+      {
+        "name": "HD",
+        "path": "/cat/hd/"
+      },
+      {
+        "name": "HD porn",
+        "path": "/cat/hd-porn/"
+      },
+      {
+        "name": "Amateurs",
+        "path": "/cat/amateurs/"
+      },
+      {
+        "name": "Blowjob",
+        "path": "/cat/blowjob/"
+      },
+      {
+        "name": "18 years old",
+        "path": "/cat/18-years-old/"
+      },
+      {
+        "name": "Ass",
+        "path": "/cat/ass/"
+      },
+      {
+        "name": "Beautiful girls",
+        "path": "/cat/beautiful-girls/"
+      },
+      {
+        "name": "Huge boobs",
+        "path": "/cat/huge-boobs/"
+      },
+      {
+        "name": "Anal sex",
+        "path": "/cat/anal-sex/"
+      },
+      {
+        "name": "Brunettes",
+        "path": "/cat/brunettes/"
+      },
+      {
+        "name": "Masturbation",
+        "path": "/cat/masturbation/"
+      },
+      {
+        "name": "Real sex",
+        "path": "/cat/real-sex/"
+      },
+      {
+        "name": "Russian porn",
+        "path": "/cat/russian-porn/"
+      },
+      {
+        "name": "Blondes",
+        "path": "/cat/blondes/"
+      },
+      {
+        "name": "Ograsm",
+        "path": "/cat/ograsm/"
+      },
+      {
+        "name": "Huge cock",
+        "path": "/cat/huge-cock/"
+      },
+      {
+        "name": "Hardcore Sex",
+        "path": "/cat/hardcore-sex-56/"
+      },
+      {
+        "name": "Big asses",
+        "path": "/cat/big-asses/"
+      }
+    ],
+    "tagSelector": ".video-taxonomy .tax-cats a",
+    "descriptionSelector": "",
+    "searchMode": "get",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "Strip2",
+    "name": "Strip2",
+    "lang": "ru",
+    "origin": "https://vps402.strip2.co",
+    "cards": ".tiled_item",
+    "link": "a[href*=/video/]",
+    "titleSelector": ".tile_descr_2l",
+    "sections": [
+      {
+        "name": "Новинки",
+        "path": "/"
+      },
+      {
+        "name": "Новинки",
+        "path": "/videocat/new/"
+      },
+      {
+        "name": "Неделя",
+        "path": "/videocat/most-popular/"
+      },
+      {
+        "name": "Месяц",
+        "path": "/videocat/mobile/"
+      },
+      {
+        "name": "ТОП",
+        "path": "/videocat/top-rated/"
+      },
+      {
+        "name": "Вперёд",
+        "path": "/videocat/p2/"
+      },
+      {
+        "name": "3",
+        "path": "/videocat/p3/"
+      },
+      {
+        "name": "4",
+        "path": "/videocat/p4/"
+      },
+      {
+        "name": "5",
+        "path": "/videocat/p5/"
+      },
+      {
+        "name": "6",
+        "path": "/videocat/p6/"
+      },
+      {
+        "name": "7",
+        "path": "/videocat/p7/"
+      },
+      {
+        "name": "417",
+        "path": "/videocat/p417/"
+      },
+      {
+        "name": "Все теги",
+        "path": "/videocat/tags/"
+      },
+      {
+        "name": "Альтушки",
+        "path": "/videocat/tag/altuwki/"
+      },
+      {
+        "name": "Секс на вписке",
+        "path": "/videocat/tag/seks-na-vpiske/"
+      },
+      {
+        "name": "Русское частное",
+        "path": "/videocat/tag/russkoe-chastnoe/"
+      },
+      {
+        "name": "Мама и сын",
+        "path": "/videocat/tag/mama-i-syn/"
+      },
+      {
+        "name": "Казашки",
+        "path": "/videocat/tag/kazawki/"
+      },
+      {
+        "name": "Чеченки",
+        "path": "/videocat/tag/chechenki/"
+      },
+      {
+        "name": "Теща",
+        "path": "/videocat/tag/tescha/"
+      },
+      {
+        "name": "Ебут жену",
+        "path": "/videocat/tag/ebut-zhenu/"
+      },
+      {
+        "name": "Сексвайф",
+        "path": "/videocat/tag/seksvajf/"
+      },
+      {
+        "name": "Русские мамки",
+        "path": "/videocat/tag/russkie-mamki/"
+      },
+      {
+        "name": "Юные девушки 18+",
+        "path": "/videocat/tag/junye-devuwki-18/"
+      },
+      {
+        "name": "Подростки 18+",
+        "path": "/videocat/tag/podrostki-18/"
+      },
+      {
+        "name": "Все модели",
+        "path": "/videocat/tags/pornstars-list/"
+      },
+      {
+        "name": "Alina Rai",
+        "path": "/videocat/tag/alina-rai/"
+      },
+      {
+        "name": "Александр Пистолетов",
+        "path": "/videocat/tag/aleksandr-pistoletov/"
+      },
+      {
+        "name": "Desert Angel",
+        "path": "/videocat/tag/desert-angel/"
+      },
+      {
+        "name": "Ava Addams",
+        "path": "/videocat/tag/ava-addams/"
+      },
+      {
+        "name": "Danny D",
+        "path": "/videocat/tag/danny-d/"
+      },
+      {
+        "name": "Елена Беркова",
+        "path": "/videocat/tag/elena-berkova/"
+      },
+      {
+        "name": "Jeny Smith",
+        "path": "/videocat/tag/jeny-smith/"
+      },
+      {
+        "name": "Brianna Beach",
+        "path": "/videocat/tag/brianna-beach/"
+      },
+      {
+        "name": "Mia Khalifa",
+        "path": "/videocat/tag/mia-khalifa/"
+      },
+      {
+        "name": "Kendra Lust",
+        "path": "/videocat/tag/kendra-lust/"
+      },
+      {
+        "name": "Gina Gerson",
+        "path": "/videocat/tag/gina-gerson/"
+      },
+      {
+        "name": "Rocco Siffredi",
+        "path": "/videocat/tag/rocco-siffredi/"
+      }
+    ],
+    "tagSelector": "[itemprop=tag], .info-table [itemprop=genre]",
+    "descriptionSelector": ".file-card__description",
+    "searchMode": "post",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "Vpoisk",
+    "name": "Vpoisk",
+    "lang": "ru",
+    "origin": "https://m.vpoisk.xyz",
+    "cards": ".tuba",
+    "link": "a.title[href]",
+    "titleSelector": ".title",
+    "sections": [
+      {
+        "name": "Новинки",
+        "path": "/new/"
+      },
+      {
+        "name": "Популярное",
+        "path": "/best/"
+      },
+      {
+        "name": "HD Порно",
+        "path": "/cat/HD%20%D0%9F%D0%BE%D1%80%D0%BD%D0%BE/"
+      },
+      {
+        "name": "Азиатки",
+        "path": "/cat/%D0%90%D0%B7%D0%B8%D0%B0%D1%82%D0%BA%D0%B8/"
+      },
+      {
+        "name": "Анальный секс",
+        "path": "/cat/%D0%90%D0%BD%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B9%20%D1%81%D0%B5%D0%BA%D1%81/"
+      },
+      {
+        "name": "Арабское",
+        "path": "/cat/%D0%90%D1%80%D0%B0%D0%B1%D1%81%D0%BA%D0%BE%D0%B5/"
+      },
+      {
+        "name": "БДСМ",
+        "path": "/cat/%D0%91%D0%94%D0%A1%D0%9C/"
+      },
+      {
+        "name": "Бисексуалы",
+        "path": "/cat/%D0%91%D0%B8%D1%81%D0%B5%D0%BA%D1%81%D1%83%D0%B0%D0%BB%D1%8B/"
+      },
+      {
+        "name": "Блондинки",
+        "path": "/cat/%D0%91%D0%BB%D0%BE%D0%BD%D0%B4%D0%B8%D0%BD%D0%BA%D0%B8/"
+      },
+      {
+        "name": "Большая грудь",
+        "path": "/cat/%D0%91%D0%BE%D0%BB%D1%8C%D1%88%D0%B0%D1%8F%20%D0%B3%D1%80%D1%83%D0%B4%D1%8C/"
+      },
+      {
+        "name": "Большие члены",
+        "path": "/cat/%D0%91%D0%BE%D0%BB%D1%8C%D1%88%D0%B8%D0%B5%20%D1%87%D0%BB%D0%B5%D0%BD%D1%8B/"
+      },
+      {
+        "name": "Бразильское",
+        "path": "/cat/%D0%91%D1%80%D0%B0%D0%B7%D0%B8%D0%BB%D1%8C%D1%81%D0%BA%D0%BE%D0%B5/"
+      },
+      {
+        "name": "Британское",
+        "path": "/cat/%D0%91%D1%80%D0%B8%D1%82%D0%B0%D0%BD%D1%81%D0%BA%D0%BE%D0%B5/"
+      },
+      {
+        "name": "Брызги",
+        "path": "/cat/%D0%91%D1%80%D1%8B%D0%B7%D0%B3%D0%B8/"
+      },
+      {
+        "name": "Брюнетки",
+        "path": "/cat/%D0%91%D1%80%D1%8E%D0%BD%D0%B5%D1%82%D0%BA%D0%B8/"
+      },
+      {
+        "name": "Буккаке",
+        "path": "/cat/%D0%91%D1%83%D0%BA%D0%BA%D0%B0%D0%BA%D0%B5/"
+      },
+      {
+        "name": "В общаге",
+        "path": "/cat/%D0%92%20%D0%BE%D0%B1%D1%89%D0%B0%D0%B3%D0%B5/"
+      },
+      {
+        "name": "Веб-камера",
+        "path": "/cat/%D0%92%D0%B5%D0%B1-%D0%BA%D0%B0%D0%BC%D0%B5%D1%80%D0%B0/"
+      },
+      {
+        "name": "Вечеринки",
+        "path": "/cat/%D0%92%D0%B5%D1%87%D0%B5%D1%80%D0%B8%D0%BD%D0%BA%D0%B8/"
+      },
+      {
+        "name": "Групповуха",
+        "path": "/cat/%D0%93%D1%80%D1%83%D0%BF%D0%BF%D0%BE%D0%B2%D1%83%D1%85%D0%B0/"
+      },
+      {
+        "name": "Двойное проникновение",
+        "path": "/cat/%D0%94%D0%B2%D0%BE%D0%B9%D0%BD%D0%BE%D0%B5%20%D0%BF%D1%80%D0%BE%D0%BD%D0%B8%D0%BA%D0%BD%D0%BE%D0%B2%D0%B5%D0%BD%D0%B8%D0%B5/"
+      },
+      {
+        "name": "Девушки (соло)",
+        "path": "/cat/%D0%94%D0%B5%D0%B2%D1%83%D1%88%D0%BA%D0%B8%20(%D1%81%D0%BE%D0%BB%D0%BE)/"
+      },
+      {
+        "name": "Домашнее",
+        "path": "/cat/%D0%94%D0%BE%D0%BC%D0%B0%D1%88%D0%BD%D0%B5%D0%B5/"
+      },
+      {
+        "name": "Европейцы",
+        "path": "/cat/%D0%95%D0%B2%D1%80%D0%BE%D0%BF%D0%B5%D0%B9%D1%86%D1%8B/"
+      },
+      {
+        "name": "Женский оргазм",
+        "path": "/cat/%D0%96%D0%B5%D0%BD%D1%81%D0%BA%D0%B8%D0%B9%20%D0%BE%D1%80%D0%B3%D0%B0%D0%B7%D0%BC/"
+      },
+      {
+        "name": "Жесткий секс",
+        "path": "/cat/%D0%96%D0%B5%D1%81%D1%82%D0%BA%D0%B8%D0%B9%20%D1%81%D0%B5%D0%BA%D1%81/"
+      },
+      {
+        "name": "Звезды",
+        "path": "/cat/%D0%97%D0%B2%D0%B5%D0%B7%D0%B4%D1%8B/"
+      },
+      {
+        "name": "Золотой дождь",
+        "path": "/cat/%D0%97%D0%BE%D0%BB%D0%BE%D1%82%D0%BE%D0%B9%20%D0%B4%D0%BE%D0%B6%D0%B4%D1%8C/"
+      },
+      {
+        "name": "Зрелые",
+        "path": "/cat/%D0%97%D1%80%D0%B5%D0%BB%D1%8B%D0%B5/"
+      },
+      {
+        "name": "Игрушки",
+        "path": "/cat/%D0%98%D0%B3%D1%80%D1%83%D1%88%D0%BA%D0%B8/"
+      },
+      {
+        "name": "Измена мужу",
+        "path": "/cat/%D0%98%D0%B7%D0%BC%D0%B5%D0%BD%D0%B0%20%D0%BC%D1%83%D0%B6%D1%83/"
+      },
+      {
+        "name": "Индийское",
+        "path": "/cat/%D0%98%D0%BD%D0%B4%D0%B8%D0%B9%D1%81%D0%BA%D0%BE%D0%B5/"
+      },
+      {
+        "name": "Итальянское",
+        "path": "/cat/%D0%98%D1%82%D0%B0%D0%BB%D1%8C%D1%8F%D0%BD%D1%81%D0%BA%D0%BE%D0%B5/"
+      },
+      {
+        "name": "Кастинги",
+        "path": "/cat/%D0%9A%D0%B0%D1%81%D1%82%D0%B8%D0%BD%D0%B3%D0%B8/"
+      },
+      {
+        "name": "Кончают",
+        "path": "/cat/%D0%9A%D0%BE%D0%BD%D1%87%D0%B0%D1%8E%D1%82/"
+      },
+      {
+        "name": "Корейское",
+        "path": "/cat/%D0%9A%D0%BE%D1%80%D0%B5%D0%B9%D1%81%D0%BA%D0%BE%D0%B5/"
+      },
+      {
+        "name": "Косплей",
+        "path": "/cat/%D0%9A%D0%BE%D1%81%D0%BF%D0%BB%D0%B5%D0%B9/"
+      },
+      {
+        "name": "Красотки",
+        "path": "/cat/%D0%9A%D1%80%D0%B0%D1%81%D0%BE%D1%82%D0%BA%D0%B8/"
+      },
+      {
+        "name": "Кремпай",
+        "path": "/cat/%D0%9A%D1%80%D0%B5%D0%BC%D0%BF%D0%B0%D0%B9/"
+      },
+      {
+        "name": "Лесбиянки",
+        "path": "/cat/%D0%9B%D0%B5%D1%81%D0%B1%D0%B8%D1%8F%D0%BD%D0%BA%D0%B8/"
+      },
+      {
+        "name": "Маленькая грудь",
+        "path": "/cat/%D0%9C%D0%B0%D0%BB%D0%B5%D0%BD%D1%8C%D0%BA%D0%B0%D1%8F%20%D0%B3%D1%80%D1%83%D0%B4%D1%8C/"
+      },
+      {
+        "name": "Мамочки",
+        "path": "/cat/%D0%9C%D0%B0%D0%BC%D0%BE%D1%87%D0%BA%D0%B8/"
+      },
+      {
+        "name": "Массаж",
+        "path": "/cat/%D0%9C%D0%B0%D1%81%D1%81%D0%B0%D0%B6/"
+      },
+      {
+        "name": "Мастурбация",
+        "path": "/cat/%D0%9C%D0%B0%D1%81%D1%82%D1%83%D1%80%D0%B1%D0%B0%D1%86%D0%B8%D1%8F/"
+      },
+      {
+        "name": "Межрассовый Секс",
+        "path": "/cat/%D0%9C%D0%B5%D0%B6%D1%80%D0%B0%D1%81%D1%81%D0%BE%D0%B2%D1%8B%D0%B9%20%D0%A1%D0%B5%D0%BA%D1%81/"
+      },
+      {
+        "name": "Минет",
+        "path": "/cat/%D0%9C%D0%B8%D0%BD%D0%B5%D1%82/"
+      },
+      {
+        "name": "Молодые",
+        "path": "/cat/%D0%9C%D0%BE%D0%BB%D0%BE%D0%B4%D1%8B%D0%B5/"
+      },
+      {
+        "name": "Мулаты",
+        "path": "/cat/%D0%9C%D1%83%D0%BB%D0%B0%D1%82%D1%8B/"
+      },
+      {
+        "name": "Мультики",
+        "path": "/cat/%D0%9C%D1%83%D0%BB%D1%8C%D1%82%D0%B8%D0%BA%D0%B8/"
+      },
+      {
+        "name": "На улице",
+        "path": "/cat/%D0%9D%D0%B0%20%D1%83%D0%BB%D0%B8%D1%86%D0%B5/"
+      },
+      {
+        "name": "Ноги",
+        "path": "/cat/%D0%9D%D0%BE%D0%B3%D0%B8/"
+      },
+      {
+        "name": "Няни",
+        "path": "/cat/%D0%9D%D1%8F%D0%BD%D0%B8/"
+      },
+      {
+        "name": "Оргии",
+        "path": "/cat/%D0%9E%D1%80%D0%B3%D0%B8%D0%B8/"
+      },
+      {
+        "name": "Пальцами",
+        "path": "/cat/%D0%9F%D0%B0%D0%BB%D1%8C%D1%86%D0%B0%D0%BC%D0%B8/"
+      },
+      {
+        "name": "Пародия",
+        "path": "/cat/%D0%9F%D0%B0%D1%80%D0%BE%D0%B4%D0%B8%D1%8F/"
+      },
+      {
+        "name": "Пенсионеры",
+        "path": "/cat/%D0%9F%D0%B5%D0%BD%D1%81%D0%B8%D0%BE%D0%BD%D0%B5%D1%80%D1%8B/"
+      },
+      {
+        "name": "Попки",
+        "path": "/cat/%D0%9F%D0%BE%D0%BF%D0%BA%D0%B8/"
+      },
+      {
+        "name": "Порно",
+        "path": "/cat/%D0%9F%D0%BE%D1%80%D0%BD%D0%BE/"
+      },
+      {
+        "name": "Порнозвезды",
+        "path": "/cat/%D0%9F%D0%BE%D1%80%D0%BD%D0%BE%D0%B7%D0%B2%D0%B5%D0%B7%D0%B4%D1%8B/"
+      },
+      {
+        "name": "Приколы",
+        "path": "/cat/%D0%9F%D1%80%D0%B8%D0%BA%D0%BE%D0%BB%D1%8B/"
+      },
+      {
+        "name": "Ретро",
+        "path": "/cat/%D0%A0%D0%B5%D1%82%D1%80%D0%BE/"
+      },
+      {
+        "name": "Ролевые Игры",
+        "path": "/cat/%D0%A0%D0%BE%D0%BB%D0%B5%D0%B2%D1%8B%D0%B5%20%D0%98%D0%B3%D1%80%D1%8B/"
+      },
+      {
+        "name": "Русское",
+        "path": "/cat/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%BE%D0%B5/"
+      },
+      {
+        "name": "Рыжие",
+        "path": "/cat/%D0%A0%D1%8B%D0%B6%D0%B8%D0%B5/"
+      },
+      {
+        "name": "Секс втроем",
+        "path": "/cat/%D0%A1%D0%B5%D0%BA%D1%81%20%D0%B2%D1%82%D1%80%D0%BE%D0%B5%D0%BC/"
+      },
+      {
+        "name": "Сквирт",
+        "path": "/cat/%D0%A1%D0%BA%D0%B2%D0%B8%D1%80%D1%82/"
+      },
+      {
+        "name": "Страпон",
+        "path": "/cat/%D0%A1%D1%82%D1%80%D0%B0%D0%BF%D0%BE%D0%BD/"
+      },
+      {
+        "name": "Стриптиз",
+        "path": "/cat/%D0%A1%D1%82%D1%80%D0%B8%D0%BF%D1%82%D0%B8%D0%B7/"
+      },
+      {
+        "name": "Татуированные Женщины",
+        "path": "/cat/%D0%A2%D0%B0%D1%82%D1%83%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%BD%D1%8B%D0%B5%20%D0%96%D0%B5%D0%BD%D1%89%D0%B8%D0%BD%D1%8B/"
+      },
+      {
+        "name": "Толстушки",
+        "path": "/cat/%D0%A2%D0%BE%D0%BB%D1%81%D1%82%D1%83%D1%88%D0%BA%D0%B8/"
+      },
+      {
+        "name": "Трансвеститы",
+        "path": "/cat/%D0%A2%D1%80%D0%B0%D0%BD%D1%81%D0%B2%D0%B5%D1%81%D1%82%D0%B8%D1%82%D1%8B/"
+      },
+      {
+        "name": "Фетиш",
+        "path": "/cat/%D0%A4%D0%B5%D1%82%D0%B8%D1%88/"
+      },
+      {
+        "name": "Фистинг",
+        "path": "/cat/%D0%A4%D0%B8%D1%81%D1%82%D0%B8%D0%BD%D0%B3/"
+      },
+      {
+        "name": "Японцы",
+        "path": "/cat/%D0%AF%D0%BF%D0%BE%D0%BD%D1%86%D1%8B/"
+      }
+    ],
+    "tagSelector": ".video_tags a",
+    "descriptionSelector": "",
+    "searchMode": "get",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "JavGuru",
+    "name": "JAVGuru",
+    "lang": "ja",
+    "origin": "https://jav.guru",
+    "cards": "div.inside-article",
+    "link": ".imgg a[href]",
+    "titleSelector": "h2 a,h3 a",
+    "sections": [
+      {
+        "name": "Latest",
+        "path": "/"
+      }
+    ],
+    "tagSelector": "div.infometa a[href*=/genre/],div.infometa a[href*=/tag/]",
+    "engine": "wordpress",
+    "translate": false
+  },
+  {
+    "id": "MissAV",
+    "name": "MissAV",
+    "lang": "ja",
+    "origin": "https://missav.live",
+    "cards": "div.thumbnail.group,div.grid.grid-cols-2 > div",
+    "link": "a[href*=/en/],a[href*=/dm]",
+    "titleSelector": "div.my-2 a,div.title a,a.text-secondary",
+    "sections": [
+      {
+        "name": "Weekly Hot",
+        "path": "https://missav.live/en/weekly-hot?sort=weekly_views"
+      },
+      {
+        "name": "Monthly Hot",
+        "path": "https://missav.live/en/monthly-hot?sort=views"
+      },
+      {
+        "name": "Newly Added",
+        "path": "https://missav.live/en/new?sort=published_at"
+      },
+      {
+        "name": "English Subtitles",
+        "path": "https://missav.live/en/english-subtitle"
+      },
+      {
+        "name": "Uncensored Leak",
+        "path": "https://missav.live/en/uncensored-leak"
+      },
+      {
+        "name": "FC2",
+        "path": "https://missav.live/en/fc2"
+      },
+      {
+        "name": "Madou",
+        "path": "https://missav.live/en/madou"
+      },
+      {
+        "name": "K-Live",
+        "path": "https://missav.live/en/klive"
+      },
+      {
+        "name": "C-Live",
+        "path": "https://missav.live/en/clive"
+      },
+      {
+        "name": "Tokyo Hot",
+        "path": "https://missav.live/en/tokyohot"
+      },
+      {
+        "name": "HEYZO",
+        "path": "https://missav.live/en/heyzo"
+      },
+      {
+        "name": "1pondo",
+        "path": "https://missav.live/en/1pondo"
+      },
+      {
+        "name": "Caribbeancom",
+        "path": "https://missav.live/en/caribbeancom"
+      },
+      {
+        "name": "Caribbeancom Premium",
+        "path": "https://missav.live/en/caribbeancompr"
+      },
+      {
+        "name": "10musume",
+        "path": "https://missav.live/en/10musume"
+      },
+      {
+        "name": "Pacopacomama",
+        "path": "https://missav.live/en/pacopacomama"
+      },
+      {
+        "name": "Gachinco",
+        "path": "https://missav.live/en/gachinco"
+      },
+      {
+        "name": "XXX-AV",
+        "path": "https://missav.live/en/xxxav"
+      },
+      {
+        "name": "Married Slash",
+        "path": "https://missav.live/en/marriedslash"
+      },
+      {
+        "name": "Naughty 4610",
+        "path": "https://missav.live/en/naughty4610"
+      },
+      {
+        "name": "Naughty 0930",
+        "path": "https://missav.live/en/naughty0930"
+      }
+    ],
+    "tagSelector": "div.text-secondary:contains(genre) a",
+    "engine": "missav",
+    "translate": false
+  },
+  {
+    "id": "BDSMStreak",
+    "name": "BDSM Streak",
+    "lang": "en",
+    "origin": "https://bdsmstreak.com",
+    "cards": "a[href*=/video/]:has(img)",
+    "link": "a[href]",
+    "titleSelector": "h2,h3",
+    "sections": [
+      {
+        "name": "Videos",
+        "path": "/"
+      }
+    ],
+    "tagSelector": "main .p-4 a[href*=/search]",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "BDSMX",
+    "name": "BDSMX",
+    "lang": "en",
+    "origin": "https://bdsmx.tube",
+    "cards": ".none",
+    "link": "a[href]",
+    "titleSelector": ".title,h2,h3",
+    "sections": [],
+    "engine": "bdsmx",
+    "translate": true
+  },
+  {
+    "id": "Beeg",
+    "name": "Beeg.porn",
+    "lang": "en",
+    "origin": "https://beeg.porn",
+    "cards": "span.item",
+    "link": "a[href]",
+    "titleSelector": ".title",
+    "sections": [],
+    "engine": "beeg",
+    "translate": true
+  },
+  {
+    "id": "BoundHub",
+    "name": "BoundHub",
+    "lang": "en",
+    "origin": "https://www.boundhub.com",
+    "cards": ".list-videos .item",
+    "link": "a[href]",
+    "titleSelector": ".title",
+    "sections": [
+      {
+        "name": "Videos",
+        "path": "/"
+      }
+    ],
+    "searchMode": "get",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "DarknessPorn",
+    "name": "DarknessPorn",
+    "lang": "en",
+    "origin": "https://darknessporn.com",
+    "cards": ".thumb",
+    "link": "a[href]",
+    "titleSelector": ".title,h2,h3",
+    "sections": [
+      {
+        "name": "Videos",
+        "path": "/"
+      }
+    ],
+    "searchMode": "get",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "EPorner",
+    "name": "EPorner",
+    "lang": "en",
+    "origin": "https://www.eporner.com",
+    "cards": "div#vidresults div.mb",
+    "link": "p.mbtit a[href]",
+    "titleSelector": "p.mbtit a",
+    "sections": [
+      {
+        "name": "Most recent",
+        "path": "https://www.eporner.com/"
+      },
+      {
+        "name": "Most viewed",
+        "path": "https://www.eporner.com/most-viewed/"
+      },
+      {
+        "name": "Top rated",
+        "path": "https://www.eporner.com/top-rated/"
+      },
+      {
+        "name": "Longest",
+        "path": "https://www.eporner.com/longest/"
+      },
+      {
+        "name": "Cowgirl",
+        "path": "https://www.eporner.com/tag/cowgirl/"
+      },
+      {
+        "name": "Riding",
+        "path": "https://www.eporner.com/tag/riding/"
+      },
+      {
+        "name": "Turkish",
+        "path": "https://www.eporner.com/tag/turkish/"
+      },
+      {
+        "name": "Housewives",
+        "path": "https://www.eporner.com/cat/housewives/"
+      }
+    ],
+    "tagSelector": "#video-info-tags li.vit-category a,#video-info-tags li.vit-tag a",
+    "engine": "eporner",
+    "translate": true
+  },
+  {
+    "id": "ForcedCinema",
+    "name": "ForcedCinema",
+    "lang": "en",
+    "origin": "https://forcedcinema.net",
+    "cards": "article:has(img)",
+    "link": "a[href]",
+    "titleSelector": ".entry-title,h2,h3",
+    "sections": [
+      {
+        "name": "Videos",
+        "path": "/"
+      }
+    ],
+    "searchMode": "get",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "HcBDSMX",
+    "name": "hcBDSM",
+    "lang": "en",
+    "origin": "https://hcbdsm.com",
+    "cards": "a[href*=/video/]:has(img)",
+    "link": "a[href]",
+    "titleSelector": "h3,h2",
+    "sections": [
+      {
+        "name": "Latest",
+        "path": "/latest-updates/"
+      },
+      {
+        "name": "Popular",
+        "path": "/trending/"
+      }
+    ],
+    "searchMode": "get",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "HeavyR",
+    "name": "Heavy-R",
+    "lang": "en",
+    "origin": "https://heavy-r.com",
+    "cards": "div.video-item",
+    "link": "h4.title a[href]",
+    "titleSelector": "h4.title a",
+    "sections": [
+      {
+        "name": "Amateur",
+        "path": "https://heavy-r.com/free_porn/amateur.html"
+      },
+      {
+        "name": "Anal",
+        "path": "https://heavy-r.com/free_porn/anal.html"
+      },
+      {
+        "name": "Asian",
+        "path": "https://heavy-r.com/free_porn/asian.html"
+      },
+      {
+        "name": "Ass",
+        "path": "https://heavy-r.com/free_porn/ass.html"
+      },
+      {
+        "name": "BDSM",
+        "path": "https://heavy-r.com/free_porn/bdsm.html"
+      },
+      {
+        "name": "Big Dick",
+        "path": "https://heavy-r.com/free_porn/big-dick.html"
+      },
+      {
+        "name": "Big Tits",
+        "path": "https://heavy-r.com/free_porn/big-tits.html"
+      },
+      {
+        "name": "Creampie",
+        "path": "https://heavy-r.com/free_porn/creampie.html"
+      },
+      {
+        "name": "DP",
+        "path": "https://heavy-r.com/free_porn/dp.html"
+      },
+      {
+        "name": "Fisting",
+        "path": "https://heavy-r.com/free_porn/fisting.html"
+      },
+      {
+        "name": "Hardcore",
+        "path": "https://heavy-r.com/free_porn/hardcore.html"
+      },
+      {
+        "name": "Lesbian",
+        "path": "https://heavy-r.com/free_porn/lesbian.html"
+      },
+      {
+        "name": "MILF",
+        "path": "https://heavy-r.com/free_porn/milf.html"
+      }
+    ],
+    "tagSelector": "div.tags a[title]",
+    "descriptionSelector": "div.video-data p",
+    "engine": "heavy",
+    "translate": true
+  },
+  {
+    "id": "HurtSex",
+    "name": "HurtSex",
+    "lang": "en",
+    "origin": "https://www.hurtsex.com",
+    "cards": "a[href*=/video/]:has(.plugthumb)",
+    "link": "a[href]",
+    "titleSelector": ".titlebox",
+    "sections": [
+      {
+        "name": "Latest",
+        "path": "/"
+      }
+    ],
+    "tagSelector": ".videoinfo a[href*=/category/], .tags a",
+    "descriptionSelector": ".videoinfo .description",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "Pervertium",
+    "name": "Pervertium",
+    "lang": "en",
+    "origin": "https://www.pervertium.com",
+    "cards": ".pop-thumb:has(img)",
+    "link": "a[href]",
+    "titleSelector": ".title",
+    "sections": [
+      {
+        "name": "Latest",
+        "path": "/"
+      },
+      {
+        "name": "Popular",
+        "path": "/most-popular/"
+      }
+    ],
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "PornVideos",
+    "name": "PornVideos.rs",
+    "lang": "en",
+    "origin": "https://www.pornvideos.rs",
+    "cards": "a[href*=/video/]:has(.plugthumb)",
+    "link": "a[href]",
+    "titleSelector": ".titlebox",
+    "sections": [
+      {
+        "name": "Latest",
+        "path": "/"
+      }
+    ],
+    "tagSelector": ".videoinfo a[href*=/category/], .video-info a[href*=/tag/], .tags a",
+    "descriptionSelector": ".videoinfo .description, .video-description",
+    "detailTitleSelector": ".videopage h2",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "PunishWorld",
+    "name": "Punishworld",
+    "lang": "en",
+    "origin": "https://punishworld.com",
+    "cards": ".video-block:has(img)",
+    "link": "a.thumb[href]",
+    "titleSelector": ".title",
+    "sections": [
+      {
+        "name": "Latest",
+        "path": "/"
+      }
+    ],
+    "tagSelector": ".video-tags a, .video-info a[href*=/tag/]",
+    "descriptionSelector": ".video-description, .video-info .description",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "SickJunk",
+    "name": "SickJunk",
+    "lang": "en",
+    "origin": "https://sickjunk.com",
+    "cards": "article.genaral-post-item:has(img)",
+    "link": ".genpost-featured-image a[href],h2 a[href]",
+    "titleSelector": ".entry-title",
+    "sections": [
+      {
+        "name": "Latest",
+        "path": "/"
+      }
+    ],
+    "tagSelector": "article .single-entry-footer .awaken-category-list a",
+    "descriptionSelector": ".entry-content > p, .genpost-entry-content > p",
+    "detailTitleSelector": "h1.single-entry-title",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "SickR",
+    "name": "SICK-R",
+    "lang": "en",
+    "origin": "https://sick-r.com",
+    "cards": ".listing__item.item-video",
+    "link": "a[href]",
+    "titleSelector": ".title, .listing__item-title",
+    "sections": [
+      {
+        "name": "Latest",
+        "path": "/"
+      },
+      {
+        "name": "Popular",
+        "path": "/most-popular/"
+      }
+    ],
+    "tagSelector": ".info-wrapper .info-tag",
+    "descriptionSelector": ".info-row:has(.info-title:matchesOwn(Description)) .info-value",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "ThisVid",
+    "name": "ThisVid",
+    "lang": "en",
+    "origin": "https://thisvid.com",
+    "cards": "a.tumbpu:has(img)",
+    "link": "a[href]",
+    "titleSelector": ".title",
+    "sections": [
+      {
+        "name": "Latest",
+        "path": "/"
+      },
+      {
+        "name": "Popular",
+        "path": "/popular/"
+      }
+    ],
+    "tagSelector": ".box ul.description a[href*=/tags/], .box ul.description a[href*=/categories/]",
+    "descriptionSelector": ".box ul.description > li:first-child p",
+    "durationSelector": ".box .title-description:matchesOwn([0-9]+:[0-9]{2})",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "TubeBDSM",
+    "name": "TubeBDSM",
+    "lang": "en",
+    "origin": "https://www.tubebdsm.com",
+    "cards": ".card.sub:has(img)",
+    "link": "a.item-link[href]",
+    "titleSelector": ".title,h2,h3",
+    "sections": [
+      {
+        "name": "New videos",
+        "path": "/new"
+      },
+      {
+        "name": "Popular videos",
+        "path": "/popular"
+      },
+      {
+        "name": "Top rated videos",
+        "path": "/rating"
+      }
+    ],
+    "searchMode": "get",
+    "engine": "html",
+    "translate": true
+  },
+  {
+    "id": "TubeSafari",
+    "name": "TubeSafari",
+    "lang": "en",
+    "origin": "https://tubesafari.com",
+    "cards": ".vid_li:has(a[href*=/video]), .vid_li:has(a[href*=/watch/])",
+    "link": "a[href*=/video],a[href*=/watch/]",
+    "titleSelector": ".vid_title,.video_title",
+    "sections": [
+      {
+        "name": "Swallow",
+        "path": "/search/swallow"
+      },
+      {
+        "name": "Fetish",
+        "path": "/search/fetish"
+      },
+      {
+        "name": "Shower",
+        "path": "/search/shower"
+      },
+      {
+        "name": "Pov",
+        "path": "/search/pov"
+      },
+      {
+        "name": "Party",
+        "path": "/search/party"
+      },
+      {
+        "name": "Lesbian",
+        "path": "/search/lesbian"
+      },
+      {
+        "name": "Amateur Anal",
+        "path": "/search/amateur-anal"
+      },
+      {
+        "name": "Asian Anal",
+        "path": "/search/asian-anal"
+      },
+      {
+        "name": "Latex",
+        "path": "/search/latex"
+      },
+      {
+        "name": "Ass Licking",
+        "path": "/search/ass-licking"
+      },
+      {
+        "name": "Japanese",
+        "path": "/search/japanese"
+      },
+      {
+        "name": "Best Blowjob",
+        "path": "/search/best-blowjob"
+      },
+      {
+        "name": "Squirting",
+        "path": "/search/squirting"
+      },
+      {
+        "name": "Bts",
+        "path": "/search/bts"
+      },
+      {
+        "name": "Bdsm",
+        "path": "/search/bdsm"
+      },
+      {
+        "name": "Throat Fuck",
+        "path": "/search/throat-fuck"
+      },
+      {
+        "name": "Amateur Couple",
+        "path": "/search/amateur-couple"
+      },
+      {
+        "name": "Casting",
+        "path": "/search/casting"
+      },
+      {
+        "name": "Natural",
+        "path": "/search/natural"
+      },
+      {
+        "name": "Milf",
+        "path": "/search/milf"
+      },
+      {
+        "name": "Cumshot",
+        "path": "/search/cumshot"
+      },
+      {
+        "name": "Edging",
+        "path": "/search/edging"
+      },
+      {
+        "name": "Cfnm",
+        "path": "/search/cfnm"
+      },
+      {
+        "name": "Fisting",
+        "path": "/search/fisting"
+      },
+      {
+        "name": "Missionary",
+        "path": "/search/missionary"
+      },
+      {
+        "name": "Solo Girl",
+        "path": "/search/solo-girl"
+      },
+      {
+        "name": "Curvy",
+        "path": "/search/curvy"
+      },
+      {
+        "name": "Femdom Pegging",
+        "path": "/search/femdom-pegging"
+      },
+      {
+        "name": "Dirty Talk",
+        "path": "/search/dirty-talk"
+      },
+      {
+        "name": "Interracial",
+        "path": "/search/interracial"
+      },
+      {
+        "name": "Amateur Milf",
+        "path": "/search/amateur-milf"
+      },
+      {
+        "name": "Massage",
+        "path": "/search/massage"
+      },
+      {
+        "name": "4K",
+        "path": "/search/4k"
+      },
+      {
+        "name": "Real Homemade",
+        "path": "/search/real-homemade"
+      },
+      {
+        "name": "British",
+        "path": "/search/british"
+      },
+      {
+        "name": "Face Fuck",
+        "path": "/search/face-fuck"
+      },
+      {
+        "name": "Facesitting",
+        "path": "/search/facesitting"
+      },
+      {
+        "name": "Big Cock",
+        "path": "/search/big-cock"
+      },
+      {
+        "name": "Sex",
+        "path": "/search/sex"
+      },
+      {
+        "name": "Panties",
+        "path": "/search/panties"
+      },
+      {
+        "name": "Pinay",
+        "path": "/search/pinay"
+      },
+      {
+        "name": "Czech",
+        "path": "/search/czech"
+      },
+      {
+        "name": "Pornstar",
+        "path": "/search/pornstar"
+      },
+      {
+        "name": "Parody",
+        "path": "/search/parody"
+      },
+      {
+        "name": "Blonde",
+        "path": "/search/blonde"
+      },
+      {
+        "name": "Real Orgasm",
+        "path": "/search/real-orgasm"
+      },
+      {
+        "name": "Latina",
+        "path": "/search/latina"
+      },
+      {
+        "name": "Mexicana",
+        "path": "/search/mexicana"
+      },
+      {
+        "name": "German",
+        "path": "/search/german"
+      },
+      {
+        "name": "Ass Eating",
+        "path": "/search/ass-eating"
+      },
+      {
+        "name": "Kink",
+        "path": "/search/kink"
+      },
+      {
+        "name": "Cuckold",
+        "path": "/search/cuckold"
+      },
+      {
+        "name": "Anal Creampie",
+        "path": "/search/anal-creampie"
+      },
+      {
+        "name": "Orgasm",
+        "path": "/search/orgasm"
+      },
+      {
+        "name": "Pov Blowjob",
+        "path": "/search/pov-blowjob"
+      },
+      {
+        "name": "Bukkake",
+        "path": "/search/bukkake"
+      },
+      {
+        "name": "Big Tits",
+        "path": "/search/big-tits"
+      },
+      {
+        "name": "Creampie",
+        "path": "/search/creampie"
+      },
+      {
+        "name": "Big Booty",
+        "path": "/search/big-booty"
+      },
+      {
+        "name": "Gangbang",
+        "path": "/search/gangbang"
+      },
+      {
+        "name": "Cum In Mouth",
+        "path": "/search/cum-in-mouth"
+      },
+      {
+        "name": "Sloppy Blowjob",
+        "path": "/search/sloppy-blowjob"
+      },
+      {
+        "name": "Huge Tits",
+        "path": "/search/huge-tits"
+      },
+      {
+        "name": "Reaction",
+        "path": "/search/reaction"
+      },
+      {
+        "name": "Riding Dick",
+        "path": "/search/riding-dick"
+      },
+      {
+        "name": "Pussy Eating",
+        "path": "/search/pussy-eating"
+      },
+      {
+        "name": "Dildo",
+        "path": "/search/dildo"
+      },
+      {
+        "name": "Cum Swallowing",
+        "path": "/search/cum-swallowing"
+      },
+      {
+        "name": "Mature",
+        "path": "/search/mature"
+      },
+      {
+        "name": "Facial",
+        "path": "/search/facial"
+      },
+      {
+        "name": "Femdom Handjob",
+        "path": "/search/femdom-handjob"
+      },
+      {
+        "name": "Orgy",
+        "path": "/search/orgy"
+      },
+      {
+        "name": "Solo Squirt",
+        "path": "/search/solo-squirt"
+      },
+      {
+        "name": "Threesome",
+        "path": "/search/threesome"
+      },
+      {
+        "name": "Squirt",
+        "path": "/search/squirt"
+      },
+      {
+        "name": "Big Ass",
+        "path": "/search/big-ass"
+      },
+      {
+        "name": "Chubby",
+        "path": "/search/chubby"
+      },
+      {
+        "name": "Amador",
+        "path": "/search/amador"
+      },
+      {
+        "name": "Arab",
+        "path": "/search/arab"
+      },
+      {
+        "name": "Riding",
+        "path": "/search/riding"
+      },
+      {
+        "name": "Cum On Face",
+        "path": "/search/cum-on-face"
+      },
+      {
+        "name": "Deepthroat",
+        "path": "/search/deepthroat"
+      },
+      {
+        "name": "Russian",
+        "path": "/search/russian"
+      },
+      {
+        "name": "Italian",
+        "path": "/search/italian"
+      }
+    ],
+    "tagSelector": ".video_tags a, .video_info a[href*=/search/], .tags a",
+    "descriptionSelector": ".video_description, .video_description p",
+    "searchMode": "get",
+    "engine": "safari",
+    "translate": true
+  },
+  {
+    "id": "UKDevilz",
+    "name": "UKDevilz",
+    "lang": "en",
+    "origin": "https://tyler-brown.com",
+    "cards": "div.item",
+    "link": "a[href]",
+    "titleSelector": ".i_info .title",
+    "sections": [],
+    "tagSelector": "#videoTagsBar a.vtag",
+    "detailTitleSelector": "div.l_info h1",
+    "titleLanguage": "en",
+    "engine": "noodle",
+    "translate": false
+  },
+  {
+    "id": "XRares",
+    "name": "XRares",
+    "lang": "en",
+    "origin": "https://www.xrares.com",
+    "cards": "div.col-sm-6:has(.video-title)",
+    "link": "a[href]",
+    "titleSelector": "span.video-title",
+    "sections": [
+      {
+        "name": "Videos",
+        "path": "https://www.xrares.com/videos?type=public"
+      },
+      {
+        "name": "Being Watched",
+        "path": "https://www.xrares.com/videos?type=public&o=bw"
+      },
+      {
+        "name": "Top Rated",
+        "path": "https://www.xrares.com/videos?type=public&o=tr"
+      },
+      {
+        "name": "Most Recent",
+        "path": "https://www.xrares.com/videos?type=public&o=mr"
+      },
+      {
+        "name": "Most Viewed",
+        "path": "https://www.xrares.com/videos?type=public&o=mv"
+      },
+      {
+        "name": "Most Commented",
+        "path": "https://www.xrares.com/videos?type=public&o=md"
+      },
+      {
+        "name": "Top Favorites",
+        "path": "https://www.xrares.com/videos?type=public&o=tf"
+      },
+      {
+        "name": "Longest",
+        "path": "https://www.xrares.com/videos?type=public&o=lg"
+      }
+    ],
+    "engine": "avideo",
+    "translate": true
+  },
+  {
+    "id": "Xnxx",
+    "name": "XNXX",
+    "lang": "en",
+    "origin": "https://www.xnxx.com",
+    "cards": ".mozaique .thumb-block:not(.thumb-cat)",
+    "link": "p a[href],.thumb a[href]",
+    "titleSelector": "p a",
+    "sections": [
+      {
+        "name": "Popular",
+        "path": "/best"
+      },
+      {
+        "name": "Most viewed",
+        "path": "/hits"
+      }
+    ],
+    "tagSelector": ".metadata-row.video-tags a.is-keyword, .metadata-row.video-tags a[href*=/search/]",
+    "descriptionSelector": ".metadata-row.video-description",
+    "searchMode": "path",
+    "engine": "html",
+    "translate": true
+  }
+]

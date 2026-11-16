@@ -1,0 +1,25 @@
+{
+  "id": "SickJunk",
+  "tags": [],
+  "categories": [
+    {
+      "label": "View All Posts",
+      "url": "https://sickjunk.com/category/cum/"
+    }
+  ],
+  "sorts": [],
+  "pages": [
+    {
+      "url": "https://sickjunk.com/",
+      "http": 200
+    }
+  ],
+  "directories": [],
+  "navigation": [],
+  "errors": [],
+  "seconds": 1.23,
+  "controlsSource": {
+    "url": "https://sickjunk.com/?s=guy",
+    "http": 200
+  }
+}

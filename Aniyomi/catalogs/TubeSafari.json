@@ -1,0 +1,37 @@
+{
+  "id": "TubeSafari",
+  "tags": [],
+  "categories": [],
+  "sorts": [
+    {
+      "label": "Best",
+      "key": "sort",
+      "value": "best"
+    },
+    {
+      "key": "sort",
+      "value": "new",
+      "label": "New"
+    }
+  ],
+  "pages": [
+    {
+      "url": "https://tubesafari.com/",
+      "http": 200
+    },
+    {
+      "url": "https://tubesafari.com/categories",
+      "http": 200
+    }
+  ],
+  "directories": [
+    "https://tubesafari.com/categories"
+  ],
+  "navigation": [],
+  "errors": [],
+  "seconds": 2.41,
+  "controlsSource": {
+    "url": "https://tubesafari.com/search/guy",
+    "http": 200
+  }
+}

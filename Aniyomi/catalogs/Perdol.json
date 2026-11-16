@@ -1,0 +1,168 @@
+{
+  "id": "Perdol",
+  "tags": [],
+  "categories": [
+    {
+      "label": "Анал",
+      "url": "https://b.perdol.net/categories/anal/"
+    },
+    {
+      "label": "БДСМ",
+      "url": "https://b.perdol.net/categories/bdsm/"
+    },
+    {
+      "label": "Брат и сестра",
+      "url": "https://b.perdol.net/categories/brat-i-sestra/"
+    },
+    {
+      "label": "Групповуха",
+      "url": "https://b.perdol.net/categories/gruppovuha/"
+    },
+    {
+      "label": "Домашнее",
+      "url": "https://b.perdol.net/categories/domashnee/"
+    },
+    {
+      "label": "Женская мастурбация",
+      "url": "https://b.perdol.net/categories/jenskaya-masturbaciya/"
+    },
+    {
+      "label": "Зрелые женщины",
+      "url": "https://b.perdol.net/categories/zrelye-jenshchiny/"
+    },
+    {
+      "label": "Зрелые мужчины",
+      "url": "https://b.perdol.net/categories/zrelye-mujchiny/"
+    },
+    {
+      "label": "Кастинг",
+      "url": "https://b.perdol.net/categories/kasting/"
+    },
+    {
+      "label": "Куколд и сексвайф",
+      "url": "https://b.perdol.net/categories/kukold-i-seksvayf/"
+    },
+    {
+      "label": "Лесби",
+      "url": "https://b.perdol.net/categories/les/"
+    },
+    {
+      "label": "Массаж",
+      "url": "https://b.perdol.net/categories/massaj/"
+    },
+    {
+      "label": "Мать и сын",
+      "url": "https://b.perdol.net/categories/mat-i-syn/"
+    },
+    {
+      "label": "Молодые",
+      "url": "https://b.perdol.net/categories/molodye/"
+    },
+    {
+      "label": "Папа и дочь",
+      "url": "https://b.perdol.net/categories/papa-i-doch/"
+    },
+    {
+      "label": "Пикап",
+      "url": "https://b.perdol.net/categories/pikap/"
+    },
+    {
+      "label": "Писающие",
+      "url": "https://b.perdol.net/categories/pisayushchie/"
+    },
+    {
+      "label": "По принуждению",
+      "url": "https://b.perdol.net/categories/po-prinujdeniyu/"
+    },
+    {
+      "label": "Полнометражные",
+      "url": "https://b.perdol.net/categories/polnometrajnye/"
+    },
+    {
+      "label": "Пьяные",
+      "url": "https://b.perdol.net/categories/pyanye/"
+    },
+    {
+      "label": "с WEB камер",
+      "url": "https://b.perdol.net/categories/s-web-kamer/"
+    },
+    {
+      "label": "Семейные оргии",
+      "url": "https://b.perdol.net/categories/semeynye-orgii/"
+    },
+    {
+      "label": "Скрытая камера",
+      "url": "https://b.perdol.net/categories/skrytaya-kamera/"
+    },
+    {
+      "label": "У гинеколога",
+      "url": "https://b.perdol.net/categories/u-ginekologa/"
+    },
+    {
+      "label": "Фистинг",
+      "url": "https://b.perdol.net/categories/fisting/"
+    },
+    {
+      "label": "Фут фетиш",
+      "url": "https://b.perdol.net/categories/fut-fetish/"
+    },
+    {
+      "label": "Эротика",
+      "url": "https://b.perdol.net/categories/erotika/"
+    }
+  ],
+  "sorts": [
+    {
+      "key": "sort_by",
+      "value": "post_date",
+      "label": "Новые"
+    },
+    {
+      "key": "sort_by",
+      "value": "video_viewed",
+      "label": "Популярные"
+    },
+    {
+      "key": "sort_by",
+      "value": "rating",
+      "label": "Рейтинговые"
+    },
+    {
+      "key": "sort_by",
+      "value": "duration",
+      "label": "Самые продолжительные"
+    },
+    {
+      "key": "sort_by",
+      "value": "most_commented",
+      "label": "Комментируемые"
+    }
+  ],
+  "pages": [
+    {
+      "url": "https://b.perdol.net/",
+      "http": 200
+    }
+  ],
+  "directories": [],
+  "navigation": [
+    {
+      "label": "Новые",
+      "url": "https://b.perdol.net/"
+    },
+    {
+      "label": "Популярные",
+      "url": "https://b.perdol.net/most-popular/"
+    },
+    {
+      "label": "Рейтинговые",
+      "url": "https://b.perdol.net/top-rated/"
+    }
+  ],
+  "errors": [],
+  "seconds": 0.89,
+  "controlsSource": {
+    "url": "https://b.perdol.net/?q=guy",
+    "http": 200
+  }
+}

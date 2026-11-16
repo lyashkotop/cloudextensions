@@ -1,0 +1,59 @@
+{
+  "id": "UKDevilz",
+  "tags": [],
+  "categories": [],
+  "sorts": [
+    {
+      "label": "Views ↓",
+      "key": "sort",
+      "value": "views_desc"
+    },
+    {
+      "label": "Views ↑",
+      "key": "sort",
+      "value": "views_asc"
+    },
+    {
+      "key": "sort",
+      "value": "2",
+      "label": "Relevance"
+    },
+    {
+      "key": "sort",
+      "value": "1",
+      "label": "Duration"
+    },
+    {
+      "key": "sort",
+      "value": "0",
+      "label": "Date added"
+    }
+  ],
+  "pages": [
+    {
+      "url": "https://tyler-brown.com/recent",
+      "http": 200
+    }
+  ],
+  "directories": [],
+  "navigation": [
+    {
+      "label": "Popular",
+      "url": "https://tyler-brown.com/recent"
+    },
+    {
+      "label": "Trending NEW",
+      "url": "https://tyler-brown.com/popular/trending"
+    },
+    {
+      "label": "recent",
+      "url": "https://tyler-brown.com/recent?range=recent"
+    }
+  ],
+  "errors": [],
+  "seconds": 0.71,
+  "controlsSource": {
+    "url": "https://tyler-brown.com/video/guy",
+    "http": 200
+  }
+}

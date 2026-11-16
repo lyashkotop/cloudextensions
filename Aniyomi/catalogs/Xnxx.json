@@ -1,0 +1,27 @@
+{
+  "id": "Xnxx",
+  "tags": [],
+  "categories": [],
+  "sorts": [],
+  "pages": [
+    {
+      "url": "https://www.xnxx.com/",
+      "http": 200
+    },
+    {
+      "url": "https://www.xnxx.com/tags",
+      "http": 200
+    },
+    {
+      "url": "https://www.xnxx.com/tags#cookie-preferences",
+      "http": 200
+    }
+  ],
+  "directories": [
+    "https://www.xnxx.com/tags",
+    "https://www.xnxx.com/tags#cookie-preferences"
+  ],
+  "navigation": [],
+  "errors": [],
+  "seconds": 4.82
+}

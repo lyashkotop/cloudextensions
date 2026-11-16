@@ -1,0 +1,61 @@
+{
+  "id": "XRares",
+  "tags": [],
+  "categories": [],
+  "sorts": [
+    {
+      "key": "o",
+      "value": "bw",
+      "label": "Being Watched"
+    },
+    {
+      "key": "o",
+      "value": "mr",
+      "label": "Most Recent"
+    },
+    {
+      "key": "o",
+      "value": "mv",
+      "label": "Most Viewed"
+    },
+    {
+      "key": "o",
+      "value": "md",
+      "label": "Most Commented"
+    },
+    {
+      "key": "o",
+      "value": "tr",
+      "label": "Top Rated"
+    },
+    {
+      "key": "o",
+      "value": "tf",
+      "label": "Top Favorites"
+    },
+    {
+      "key": "o",
+      "value": "lg",
+      "label": "Longest"
+    }
+  ],
+  "pages": [
+    {
+      "url": "https://www.xrares.com/",
+      "http": 200
+    }
+  ],
+  "directories": [],
+  "navigation": [
+    {
+      "label": "More Recent Videos",
+      "url": "https://www.xrares.com/videos?o=mr"
+    }
+  ],
+  "errors": [],
+  "seconds": 1.36,
+  "controlsSource": {
+    "url": "https://www.xrares.com/search/videos?search_query=guy&type=public",
+    "http": 200
+  }
+}
