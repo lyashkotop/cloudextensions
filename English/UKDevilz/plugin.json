@@ -4,8 +4,8 @@
   "language": "en",
   "category": "English",
   "entryClass": "com.cloudextensions.entries.UKDevilzPlugin",
-  "providerClass": "com.example.websites.UKDevilzProvider",
-  "description": "UKDevilz — native Kotlin source with real metadata, bilingual search, source pagination and filters.",
+  "providerClass": "com.CXXX.NoodleMagazineProvider",
+  "description": "UKDevilz — original NoodleMagazineProvider from phisher98/CXXX, registered directly without shared behaviour wrappers.",
   "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/UKDevilz.png",
   "runtime": "kotlin"
 }
