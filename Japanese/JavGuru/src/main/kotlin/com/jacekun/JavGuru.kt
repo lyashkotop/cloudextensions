@@ -28,21 +28,9 @@ class JavGuru : MainAPI() {
     ): HomePageResponse {
         val all = ArrayList<HomePageList>()
         val url = if (page <= 1) mainUrl else "$mainUrl/page/$page/"
-        val doc = app.get(url).document
+        val doc = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),"$mainUrl/")
 
-        val items = doc.select("main.site-main div.row, div.inside-article").mapNotNull {
-            val aa = it.selectFirst("div.imgg a, a") ?: return@mapNotNull null
-            val link = fixUrlNull(aa.attr("href")) ?: return@mapNotNull null
-            val img = aa.selectFirst("img")
-            val name = img?.attr("alt")?.takeIf { it.isNotBlank() }
-                ?: it.selectFirst("h2, h3, a")?.text()
-                ?: return@mapNotNull null
-            val image = com.cloudextensions.russian.Metadata.poster(aa,mainUrl)
-
-            newMovieSearchResponse(name, link, globaltvType) {
-                this.posterUrl = image
-            }
-        }.distinctBy { it.url }
+        val items = doc.select("div.inside-article").mapNotNull { card(it) }.distinctBy { it.url }
 
         if (items.isNotEmpty()) {
             all.add(HomePageList("Latest JAV", items, isHorizontalImages = true))
@@ -55,40 +43,41 @@ class JavGuru : MainAPI() {
 
     override suspend fun search(query: String, page: Int): SearchResponseList {
 
-        val searchResponse = mutableListOf<SearchResponse>()
-        val encoded = query.trim().replace(" ", "+")
+        if(page<1)return newSearchResponseList(emptyList(),false)
+        val encoded = java.net.URLEncoder.encode(query.trim(),"UTF-8")
+        val url = if (page == 1) "$mainUrl/?s=$encoded" else "$mainUrl/page/$page/?s=$encoded"
+        val doc = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),"$mainUrl/")
+        val results = doc.select("div.inside-article").mapNotNull { card(it) }.distinctBy { it.url }
+        val allowed = results.filter { com.cloudextensions.russian.ContentPolicy.accepts(it.name) }
+        return newSearchResponseList(allowed,doc.selectFirst("a.next.page-numbers, .nav-links a.next")!=null)
+    }
 
-                run {
-
-            val url = if (page == 1) "$mainUrl/?s=$encoded" else "$mainUrl/page/$page/?s=$encoded"
-            val doc = app.get(url).document
-            val results = doc.select("main.site-main div.row, div.inside-article").mapNotNull {
-                val aa = it.selectFirst("div.imgg a, a") ?: return@mapNotNull null
-                val href = fixUrlNull(aa.attr("href")) ?: return@mapNotNull null
-                val img = aa.selectFirst("img")
-                val title = img?.attr("alt")?.takeIf { it.isNotBlank() }
-                    ?: it.selectFirst("h2, h3")?.text()
-                    ?: return@mapNotNull null
-                val image = com.cloudextensions.russian.Metadata.poster(aa,mainUrl)
-
-                newMovieSearchResponse(title, href, globaltvType) {
-                    this.posterUrl = image
-                }
-            }
-            val unique = results.filterNot { item -> searchResponse.any { it.url == item.url } }
-            if (unique.isEmpty()) return@run
-            searchResponse.addAll(unique)
-        
+    private fun preview(element:org.jsoup.nodes.Element):String? {
+        val raw=com.cloudextensions.russian.Metadata.poster(element,mainUrl) ?: return null
+        val uri=java.net.URI(raw)
+        // The site's uploads are also served by its own origin. Avoid the extra CDN host
+        // for Android image requests; this path was verified against live search results.
+        return if(uri.host=="cdn.javmiku.com" && uri.path.startsWith("/wp-content/uploads/"))
+            mainUrl.trimEnd('/')+uri.rawPath else raw
+    }
+    private fun card(element:org.jsoup.nodes.Element):SearchResponse? {
+        val anchor=element.selectFirst(".imgg a[href]") ?: return null
+        val link=fixUrlNull(anchor.attr("href")) ?: return null
+        val heading=element.selectFirst("h2 a, h3 a")
+        val label=com.cloudextensions.russian.Metadata.title(link,listOf(heading?.attr("title").orEmpty(),heading?.text().orEmpty(),anchor.selectFirst("img")?.attr("alt").orEmpty()))
+        if(label.isBlank())return null
+        val image=preview(anchor)
+        return newMovieSearchResponse(label,link,globaltvType){
+            posterUrl=image
+            posterHeaders=com.cloudextensions.russian.Network.imageHeaders(image,"$mainUrl/")
         }
-        val allowed = searchResponse.distinctBy { it.url }.filter { com.cloudextensions.russian.ContentPolicy.accepts(it.name) }
-        return newSearchResponseList(allowed, searchResponse.isNotEmpty())
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val doc = app.get(url).document
+        val doc = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),"$mainUrl/")
         val poster = com.cloudextensions.russian.Metadata.choosePoster(url,
-            doc.selectFirst("meta[property=og:image]")?.attr("content"),
-            doc.selectFirst("div.large-screenimg")?.let{com.cloudextensions.russian.Metadata.poster(it,mainUrl)})
+            doc.selectFirst("div.large-screenimg")?.let{preview(it)},
+            doc.selectFirst("meta[property=og:image]")?.attr("content"))
         val title = doc.selectFirst("h1.titl, meta[property='og:title']")?.text()?.takeIf { it.isNotBlank() }
             ?: doc.selectFirst("meta[property='og:title']")?.attr("content")?.takeIf { it.isNotBlank() }
             ?: doc.title()
@@ -109,16 +98,7 @@ class JavGuru : MainAPI() {
             .distinct()
 
         val recommendations = doc.select("div.related-posts div.inside-article, div.row")
-            .mapNotNull {
-                val aa = it.selectFirst("div.imgg a, a") ?: return@mapNotNull null
-                val link = fixUrlNull(aa.attr("href")) ?: return@mapNotNull null
-                val name = aa.selectFirst("img")?.attr("alt")?.takeIf { it.isNotBlank() }
-                    ?: it.selectFirst("h2, h3, a")?.text()
-                    ?: return@mapNotNull null
-                newMovieSearchResponse(name, link, globaltvType)
-            }
-            .distinctBy { it.url }
-            .filter { it.url != url }
+            .mapNotNull { card(it) }.distinctBy { it.url }.filter { it.url != url }
 
         return newMovieLoadResponse(
             name = title,
@@ -128,6 +108,7 @@ class JavGuru : MainAPI() {
         ).apply {
             this.apiName = this@JavGuru.name
             this.posterUrl = poster
+            this.posterHeaders = com.cloudextensions.russian.Network.imageHeaders(poster,"$mainUrl/")
             this.year = year
             this.plot = descript
             this.tags = tags

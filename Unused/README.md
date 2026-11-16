@@ -11,3 +11,5 @@
 - Javx
 - SpankBang
 - Whoreshub
+
+Дополнительно отключены: JavGG, Javangel, Javdoe, SuperJav. Из японских оставлены только MissAV и JavGuru.

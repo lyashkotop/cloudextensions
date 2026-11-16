@@ -2,11 +2,7 @@
 
 Активные модули:
 
-- [JavGG](JavGG/)
 - [JavGuru](JavGuru/)
-- [Javangel](Javangel/)
-- [Javdoe](Javdoe/)
 - [MissAV](MissAV/)
-- [SuperJav](SuperJav/)
 
-Отключённые по просьбе владельца исходники сохранены в [Unused](../Unused/).
+Остальные японские источники сохранены в [Unused](../Unused/) и исключены из списка расширений.
