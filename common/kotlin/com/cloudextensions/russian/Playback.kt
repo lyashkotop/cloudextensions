@@ -30,6 +30,27 @@ object Playback {
             val url=absolute(page.baseUri(),e.attr("src").ifBlank { e.attr("content") }) ?: continue
             if(playable(url))result+=Source(url,e.attr("label").ifBlank { e.attr("res") }.takeIf(String::isNotBlank))
         }
+        // Modern Next.js players declare only this video's sources in pageProps.firstVideo.
+        AggregatorPages.video(page)?.let { video ->
+            val list=video.optJSONArray("sources")
+            val entries=mutableListOf<JSONObject>()
+            video.optJSONObject("source")?.let{entries+=it}
+            if(list!=null)for(i in 0 until list.length())list.optJSONObject(i)?.let{entries+=it}
+            for(item in entries){val url=absolute(page.baseUri(),item.optString("src"))?:continue;if(playable(url))result+=Source(url,item.optString("label").takeIf(String::isNotBlank))}
+        }
+        // Player-scoped source maps (e.g. Pornvio) provide explicit resolution keys.
+        for(player in page.select("[data-sources]"))try {
+            val map=JSONObject(player.attr("data-sources"))
+            for(key in map.keys()){val url=absolute(page.baseUri(),map.optString(key))?:continue;if(playable(url))result+=Source(url,key)}
+        }catch(_:Exception){}
+        for(script in page.select("script")) {
+            val match=Regex("""\b(?:const|let|var)\s+sources\s*=\s*""").find(script.data()) ?: continue
+            try {
+                val data=JSONTokener(script.data().substring(match.range.last+1)).nextValue()
+                val entries=when(data){is JSONObject->listOf(data);is JSONArray->(0 until data.length()).mapNotNull{data.optJSONObject(it)};else->emptyList()}
+                for(item in entries){val url=absolute(page.baseUri(),item.optString("file").ifBlank{item.optString("src")})?:continue;if(playable(url))result+=Source(url,item.optString("label").takeIf(String::isNotBlank))}
+            }catch(_:Exception){}
+        }
         val values=variables.findAll(page.html()).associate { it.groupValues[1] to unescape(it.groupValues[3]) }
         val license=Regex("""license_code\s*:\s*(['"])([^'"]*)\1""").find(page.html())?.groupValues?.get(2)
         for((key,value) in values)if(!key.endsWith("_text")) {
@@ -90,11 +111,9 @@ object Playback {
             }}
             if(status==null && requireConfirmed){unreachable=true;return}
             if(status!=null && status !in 200..299){rejected=status;return}
-            if(source.url.contains(".m3u8",true)) {
-                val variants=try { M3u8Helper.generateM3u8(name,source.url,referer,headers=headers) }catch(e:CancellationException){throw e}catch(_:Exception){emptyList()}catch(_:LinkageError){emptyList()}
-                if(variants.isNotEmpty()){variants.forEach(::accept);return}
-            }
-            accept(newExtractorLink(name,name,source.url,INFER_TYPE) {
+            val path=try{java.net.URI(source.url).path.orEmpty().lowercase()}catch(_:Exception){""}
+            val type=when{path.endsWith(".m3u8")->ExtractorLinkType.M3U8;path.endsWith(".mpd")->ExtractorLinkType.DASH;else->ExtractorLinkType.VIDEO}
+            accept(newExtractorLink(name,name,source.url,type) {
                 this.referer=referer
                 this.headers=headers
                 quality=getQualityFromName(source.label)
@@ -116,7 +135,7 @@ object Playback {
                 }
             }
         }
-        resolve(page,pageUrl)
+        resolve(page,page.baseUri())
         if(emitted.isNotEmpty())return true
         // Let CloudStream's maintained extractors handle embedded hosts first.
         for(frame in page.select("iframe[src]").filter { it.closest(".ad,.ads,.advertisement") == null }) {
@@ -126,11 +145,13 @@ object Playback {
             // Resolve that declared page before falling back to an Android WebView.
             try {
                 val child=RequestLimits.optional(6500){Network.page(PageRequest(url),pageUrl)}
-                if(child!=null)resolve(child,url)
+                if(child!=null)resolve(child,child.baseUri())
                 if(emitted.isNotEmpty())continue
             }catch(e:CancellationException){throw e}catch(_:Exception){}
             try { loadExtractor(url,pageUrl,subtitles,::accept) }catch(e:CancellationException){throw e}catch(_:Exception){}
         }
+        if(emitted.isNotEmpty())return true
+        if(page.baseUri()!=pageUrl)try{loadExtractor(page.baseUri(),origin,subtitles,::accept)}catch(e:CancellationException){throw e}catch(_:Exception){}
         if(emitted.isNotEmpty())return true
         if(rejected!=null)throw ErrorLoadingException("Сервер файла видео вернул HTTP $rejected")
         if(requireConfirmed && unreachable)throw ErrorLoadingException("Сервер видео не ответил: нет подтверждённых потоков")

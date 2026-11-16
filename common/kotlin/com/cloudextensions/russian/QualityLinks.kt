@@ -11,27 +11,30 @@ object QualityLinks {
     const val MAX_HEIGHT=1080
     fun allowed(quality:Int)=quality<=MAX_HEIGHT
     data class Master(val streams:List<Variant>,val hasHigher:Boolean)
-    data class Variant(val url:String,val height:Int)
+    data class Variant(val url:String,val height:Int,val codecPreference:Int=0)
     fun variants(base:String,text:String):List<Variant> {
         if(!text.trimStart().startsWith("#EXTM3U"))return emptyList()
         // A child playlist alone cannot preserve externally declared audio/subtitle groups.
         if(Regex("#EXT-X-MEDIA:.*URI=",RegexOption.IGNORE_CASE).containsMatchIn(text))return emptyList()
         val result=mutableListOf<Variant>()
         var height:Int?=null
+        var codec=0
         for(raw in text.lineSequence()) {
             val line=raw.trim()
             if(line.startsWith("#EXT-X-STREAM-INF:")) {
-                height=Regex("RESOLUTION=\\d+x(\\d+)",RegexOption.IGNORE_CASE).find(line)?.groupValues?.get(1)?.toIntOrNull()
+                val match=Regex("RESOLUTION=(\\d+)x(\\d+)",RegexOption.IGNORE_CASE).find(line)
+                height=match?.let{minOf(it.groupValues[1].toInt(),it.groupValues[2].toInt())}
+                codec=when{line.contains("avc1",true)->3;line.contains("hvc1",true)||line.contains("hev1",true)->2;line.contains("av01",true)->1;else->0}
             } else if(line.isNotBlank() && !line.startsWith('#')) {
                 val resolution=height
                 if(resolution!=null && resolution in 100..8640) {
                     val url=try{URI(base).resolve(line).toString()}catch(_:Exception){""}
-                    if(url.startsWith("https://")||url.startsWith("http://"))result+=Variant(url,resolution)
+                    if(url.startsWith("https://")||url.startsWith("http://"))result+=Variant(url,resolution,codec)
                 }
                 height=null
             }
         }
-        return result.distinctBy{it.url}
+        return result.groupBy{it.height}.values.mapNotNull{it.maxByOrNull{v->v.codecPreference}}
     }
     fun label(name:String,quality:Int,hls:Boolean):String = when {
         name.contains("preview",true) || name.contains("превью",true)->"Превью"
@@ -51,7 +54,7 @@ object QualityLinks {
                 source.request(262_145)
                 if(source.buffer.size>262_144)return@use null
                 val text=source.readUtf8()
-                Master(variants(response.request.url.toString(),text),Regex("RESOLUTION=\\d+x(\\d+)",RegexOption.IGNORE_CASE).findAll(text).any{(it.groupValues[1].toIntOrNull() ?: 0)>MAX_HEIGHT})
+                Master(variants(response.request.url.toString(),text),Regex("RESOLUTION=(\\d+)x(\\d+)",RegexOption.IGNORE_CASE).findAll(text).any{minOf(it.groupValues[1].toIntOrNull() ?: 0,it.groupValues[2].toIntOrNull() ?: 0)>MAX_HEIGHT})
             }
         }
     }

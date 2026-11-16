@@ -125,10 +125,11 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy {
         }catch(e:CancellationException){throw e}catch(e:Exception){BranchResult(branch,emptyList(),null,emptySet(),e)}
     }
     override suspend fun fullTitle(url:String):String? = searchMetadata(url).title
+    protected open fun readMetadata(document:Document):VideoDetail = Metadata.detail(document,spec)
     suspend fun searchMetadata(url:String):VideoDetail {
         val document=page(PageRequest(url))
         if(spec.id=="ThisVid" && document.selectFirst(".box ul.description")==null)throw ErrorLoadingException("Не удалось проверить категории ThisVid")
-        val meta=Metadata.detail(document,spec)
+        val meta=readMetadata(document)
         val heading=document.selectFirst("h1")?.text().orEmpty()
         if(!ContentPolicy.accepts(heading,meta.tags))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         if(meta.title.isBlank())throw ErrorLoadingException("Название не получено")
@@ -136,7 +137,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy {
     }
     override suspend fun load(url: String): LoadResponse {
         val document=page(PageRequest(url))
-        val detail=DetailEnrichment.complete(document,spec,Metadata.detail(document,spec))
+        val detail=DetailEnrichment.complete(document,spec,readMetadata(document))
         if(detail.title.isBlank())throw ErrorLoadingException("На странице нет названия видео")
         if(!ContentPolicy.accepts(detail.title,detail.tags))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         val recommendations=RequestLimits.optional { related(document,detail,url) }.orEmpty()
@@ -152,7 +153,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy {
             if(seconds>0)duration=(seconds/60).toInt()
         }
     }
-    private suspend fun related(document: Document,detail: VideoDetail,url: String): List<SearchResponse> {
+    protected open suspend fun related(document: Document,detail: VideoDetail,url: String): List<SearchResponse> {
         val result=LinkedHashMap<String,VideoCard>()
         fun add(cards: List<VideoCard>) { for(card in cards)if(videoKey(card.url)!=videoKey(url))if(!result.containsKey(videoKey(card.url)))result[videoKey(card.url)]=card }
         for(container in document.select(spec.related))add(Metadata.cards(container,spec))

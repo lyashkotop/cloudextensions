@@ -1,0 +1,48 @@
+[
+  {
+    "mp4": true,
+    "descriptionPresent": false,
+    "qualities": [
+      400,
+      0,
+      1080,
+      720,
+      540,
+      360,
+      270
+    ],
+    "titlePresent": true,
+    "source": "Tik.Porn",
+    "streamHttp": 206,
+    "recommendations": 10,
+    "hls": false,
+    "tags": 4
+  },
+  {
+    "mp4": false,
+    "descriptionPresent": false,
+    "qualities": [
+      0,
+      240,
+      480,
+      720
+    ],
+    "titlePresent": true,
+    "source": "Porner.TV",
+    "streamHttp": 206,
+    "recommendations": 8,
+    "hls": true,
+    "tags": 3
+  },
+  {
+    "mp4": true,
+    "descriptionPresent": true,
+    "qualities": [720],
+    "titlePresent": true,
+    "source": "Pornvio",
+    "streamHttp": 206,
+    "recommendations": 42,
+    "hls": false,
+    "tags": 5
+  }
+]

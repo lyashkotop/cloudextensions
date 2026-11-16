@@ -1,0 +1,59 @@
+[
+  {
+    "source": "Tik.Porn",
+    "http": 200,
+    "hls": true,
+    "mp4": false,
+    "res": [
+      "1080x1920",
+      "1080x1920",
+      "1080x1920",
+      "720x1280",
+      "720x1280",
+      "720x1280",
+      "540x960",
+      "540x960",
+      "540x960",
+      "360x640",
+      "360x640",
+      "360x640",
+      "270x480",
+      "270x480",
+      "270x480",
+      "1080x1920",
+      "720x1280",
+      "540x960",
+      "360x640",
+      "270x480"
+    ],
+    "externalAudio": false
+  },
+  {
+    "source": "Tik.Porn",
+    "http": 206,
+    "hls": false,
+    "mp4": true,
+    "res": [],
+    "externalAudio": false
+  },
+  {
+    "source": "Porner.TV",
+    "http": 206,
+    "hls": true,
+    "mp4": false,
+    "res": [
+      "426x240",
+      "852x480",
+      "1280x720"
+    ],
+    "externalAudio": false
+  },
+  {
+    "source": "Pornvio",
+    "http": 206,
+    "hls": false,
+    "mp4": true,
+    "res": [],
+    "externalAudio": false
+  }
+]

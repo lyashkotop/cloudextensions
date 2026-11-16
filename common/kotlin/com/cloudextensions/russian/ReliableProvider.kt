@@ -38,7 +38,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 }
             }?.takeIf{it.isNotBlank()} ?: card.name
         }else Metadata.title(card.url,listOf(card.name))
-        val ready=if(card is MovieSearchResponse)card.copy(name=full,posterUrl=image,posterHeaders=card.posterHeaders.orEmpty()+Network.imageHeaders(image,mainUrl.trimEnd('/')+"/")) else card
+        val ready=if(card is MovieSearchResponse)card.copy(name=full,posterUrl=image,posterHeaders=Network.imageHeaders(image,mainUrl.trimEnd('/')+"/")+card.posterHeaders.orEmpty()) else card
         if(prefetch)ImagePrefetch.warm(listOf(ready),0)
         ready
     } } }.awaitAll() }
@@ -134,7 +134,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         result.plot=Metadata.description(result.plot,result.name)
         result.tags=result.tags.orEmpty().mapNotNull(Metadata::tag).distinctBy{it.lowercase()}
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
-        if(result is MovieLoadResponse)result.posterHeaders=result.posterHeaders.orEmpty()+Network.imageHeaders(result.posterUrl,url)
+        if(result is MovieLoadResponse)result.posterHeaders=Network.imageHeaders(result.posterUrl,url)+result.posterHeaders.orEmpty()
         result.recommendations=cards(result.recommendations.orEmpty(),prefetch=true)
         ImagePrefetch.warm(result.recommendations.orEmpty(),0)
         result
