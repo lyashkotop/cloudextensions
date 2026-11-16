@@ -1,8 +1,8 @@
 {
-  "version": 85,
-  "sourceCommit": "ec5d43c82989d333eccd5aea1f407a5adb57b4d1",
-  "plugins": 36,
-  "dexClasses": 3260,
-  "entryRegistrationsValidated": 36,
-  "kotlinProviders": 36
+  "version": 86,
+  "sourceCommit": "16fbc4a0029259a2357eb01ba0faee4311ad57a0",
+  "plugins": 33,
+  "dexClasses": 3587,
+  "entryRegistrationsValidated": 33,
+  "kotlinProviders": 33
 }
