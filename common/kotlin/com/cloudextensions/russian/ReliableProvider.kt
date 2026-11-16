@@ -3,6 +3,10 @@ package com.cloudextensions.russian
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import okhttp3.Interceptor
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -136,7 +140,17 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         result
     }
     override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = RequestLimits.required("Плеер",45_000) {
-        source.loadLinks(data,isCasting,subtitleCallback,callback)
+        coroutineScope {
+            val jobs=java.util.Collections.synchronizedList(mutableListOf<Job>())
+            val count=java.util.concurrent.atomic.AtomicInteger()
+            source.loadLinks(data,isCasting,subtitleCallback){link->
+                jobs+=launch(start=CoroutineStart.UNDISPATCHED){
+                    for(choice in QualityLinks.choices(link)){callback(choice);count.incrementAndGet()}
+                }
+            }
+            jobs.toList().joinAll()
+            count.get()>0
+        }
     }
     override fun getVideoInterceptor(extractorLink:ExtractorLink):Interceptor?=source.getVideoInterceptor(extractorLink)
 }

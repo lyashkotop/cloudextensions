@@ -1,0 +1,16 @@
+{
+  "mp4Labels": [
+    "720p",
+    "1080p"
+  ],
+  "realHlsQualities": [
+    0,
+    720,
+    184,
+    288,
+    480,
+    1080
+  ],
+  "preservedDrm": true,
+  "preservedStreamFields": true
+}

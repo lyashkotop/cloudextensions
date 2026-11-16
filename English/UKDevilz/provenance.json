@@ -5,13 +5,14 @@
   "sha256": "70a5e4e5495bf97660d10f6c85685f57f03b46f18460fc0415724ff428461a90",
   "sourceUnmodified": false,
   "registration": "ReliableProvider wrapping the adapted source; query translation disabled via SearchPolicy.",
-  "adaptedSha256": "1bdadda81b909065462d12a88362ac6ed89391060a7031e6206a09d8ce26722c",
+  "adaptedSha256": "201fe2faf36ab5286ecb90fb6447bc7193bbc3a798130a26fcdd0d9bcdc310b3",
   "adaptations": [
     "poster source fallbacks and request headers",
     "real English video tags and duration",
     "robust playlist and individually labelled validated qualities",
     "retain Range/If-Range in player interceptor",
     "shared filters and Coil preloading",
-    "original search path, page argument, item selector and order retained"
+    "original search path, page argument, item selector and order retained",
+    "quality labels rendered once by host; global HLS rendition selection"
   ]
 }

@@ -113,9 +113,8 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy {
             if(!working)continue
             val label=source.optString("label")
             val resolution=label.removeSuffix("p").toIntOrNull()
-            val display=if(resolution!=null)"${resolution}p" else label.ifBlank{"Original"}
             emitted++
-            callback(newExtractorLink(name,"$name · $display",url,INFER_TYPE){
+            callback(newExtractorLink(name,"",url,INFER_TYPE){
                 referer="$mainUrl/"
                 quality=resolution ?: Qualities.Unknown.value
                 this.headers=headers
