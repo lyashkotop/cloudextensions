@@ -51,7 +51,11 @@ object Translation {
     }
     suspend fun translated(query:String):String? {
         if(coroutineContext[SourceOnly]!=null)return null
-        val target=target(query)?:return null
+        return text(query,target(query)?:return null)
+    }
+    suspend fun text(query:String,target:String):String? {
+        require(target in listOf("ru","en"))
+        if(query.isBlank())return null
         val normalized=query.trim().lowercase(Locale.ROOT)
         val known=if(target=="ru")dictionary[normalized] else dictionary.entries.firstOrNull{it.value==normalized}?.key
         if(known!=null)return known

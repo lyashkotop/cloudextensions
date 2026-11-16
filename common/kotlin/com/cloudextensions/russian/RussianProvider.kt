@@ -17,6 +17,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI() {
     override var name=spec.title
     override var mainUrl=spec.origin
     override var lang="ru"
+    open val englishSearchFirst=false
     override val supportedTypes=setOf(TvType.NSFW)
     override val hasMainPage=true
     override val hasDownloadSupport=true
@@ -39,7 +40,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI() {
         var initialized=false
     }
     private data class BranchResult(val branch: Branch,val cards: List<VideoCard>,val next: PageRequest?,val fingerprint: Set<String>,val error: Exception?=null)
-    private suspend fun page(request: PageRequest): Document {
+    protected open suspend fun page(request: PageRequest): Document {
         val document=Network.page(request,"${mainUrl.trimEnd('/')}/")
         // Follow ordinary site redirects; never replace the provider with an unrelated host.
         val actual=URI(document.baseUri()); val host=actual.host.orEmpty()

@@ -82,7 +82,9 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         val batches=coroutineScope {
             val original=async{branch(query)}
             val translated=async{Translation.translated(query)?.let{branch(it)}}
-            listOfNotNull(original.await(),translated.await())
+            val first=original.await();val second=translated.await()
+            if(source is RussianProvider && source.englishSearchFirst && Translation.target(query)=="en")listOfNotNull(second,first)
+            else listOfNotNull(first,second)
         }
         val responses=batches.mapNotNull{it.response}
         if(responses.isEmpty())batches.firstNotNullOfOrNull{it.error}?.let{throw it}

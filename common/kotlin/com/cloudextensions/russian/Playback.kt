@@ -49,6 +49,18 @@ object Playback {
             }catch(_:Exception){}
         }
         for(script in page.select("script")) {
+            val assignment=Regex("""window\.playlist\s*=\s*""").find(script.data()) ?: continue
+            try {
+                val config=JSONTokener(script.data().substring(assignment.range.last+1)).nextValue() as? JSONObject ?: continue
+                val list=config.optJSONArray("sources") ?: continue
+                for(i in 0 until list.length()) {
+                    val item=list.optJSONObject(i) ?: continue
+                    val url=absolute(page.baseUri(),item.optString("file")) ?: continue
+                    if(playable(url))result+=Source(url,item.optString("label").takeIf(String::isNotBlank))
+                }
+            }catch(_:Exception){}
+        }
+        for(script in page.select("script")) {
             val match=Regex("""["']?mediaDefinitions["']?\s*:\s*""").find(script.data()) ?: continue
             try {
                 val list=JSONTokener(script.data().substring(match.range.last+1)).nextValue() as? JSONArray ?: continue
@@ -59,11 +71,14 @@ object Playback {
         absolute(page.baseUri(),structured)?.takeIf(::playable)?.let { result+=Source(it) }
         return result.distinctBy { it.url }
     }
-    suspend fun links(name: String,origin: String,pageUrl: String,subtitles: (SubtitleFile)->Unit,callback: (ExtractorLink)->Unit): Boolean {
+    suspend fun links(name:String,origin:String,pageUrl:String,subtitles:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = resolveLinks(name,origin,pageUrl,subtitles,callback,false)
+    suspend fun confirmedLinks(name:String,origin:String,pageUrl:String,subtitles:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = resolveLinks(name,origin,pageUrl,subtitles,callback,true)
+    private suspend fun resolveLinks(name: String,origin: String,pageUrl: String,subtitles: (SubtitleFile)->Unit,callback: (ExtractorLink)->Unit,requireConfirmed:Boolean): Boolean {
         val page=Network.page(PageRequest(pageUrl),origin)
         val emitted=Collections.synchronizedSet(mutableSetOf<String>())
         fun accept(link: ExtractorLink) { if(playable(link.url)&&emitted.add(link.url))callback(link) }
         var rejected:Int?=null
+        var unreachable=false
         suspend fun emit(source: Source,referer: String,headers: Map<String,String>) {
             if(!playable(source.url))return
             val status=RequestLimits.optional(3500){withContext(Dispatchers.IO){
@@ -73,6 +88,7 @@ object Playback {
                     if(response.isSuccessful && response.header("Content-Type").orEmpty().contains("text/html"))415 else response.code
                 }
             }}
+            if(status==null && requireConfirmed){unreachable=true;return}
             if(status!=null && status !in 200..299){rejected=status;return}
             if(source.url.contains(".m3u8",true)) {
                 val variants=try { M3u8Helper.generateM3u8(name,source.url,referer,headers=headers) }catch(e:CancellationException){throw e}catch(_:Exception){emptyList()}catch(_:LinkageError){emptyList()}
@@ -117,6 +133,7 @@ object Playback {
         }
         if(emitted.isNotEmpty())return true
         if(rejected!=null)throw ErrorLoadingException("Сервер файла видео вернул HTTP $rejected")
+        if(requireConfirmed && unreachable)throw ErrorLoadingException("Сервер видео не ответил: нет подтверждённых потоков")
         // Players whose URLs are computed in JavaScript are resolved by the host WebView.
         // The page's own player runs normally; no fabricated links or qualities are returned.
         val exposed=Collections.synchronizedList(mutableListOf<Source>())
