@@ -1,0 +1,86 @@
+[
+  {
+    "cards": 25,
+    "verifiedPrefix": [
+      {
+        "tagsAllowed": true,
+        "tagCount": 5,
+        "titleAllowed": true
+      },
+      {
+        "tagsAllowed": true,
+        "tagCount": 5,
+        "titleAllowed": true
+      },
+      {
+        "tagsAllowed": true,
+        "tagCount": 6,
+        "titleAllowed": true
+      },
+      {
+        "tagsAllowed": true,
+        "tagCount": 6,
+        "titleAllowed": true
+      },
+      {
+        "tagsAllowed": true,
+        "tagCount": 7,
+        "titleAllowed": true
+      },
+      {
+        "tagsAllowed": true,
+        "tagCount": 10,
+        "titleAllowed": true
+      },
+      {
+        "tagsAllowed": true,
+        "tagCount": 6,
+        "titleAllowed": true
+      }
+    ],
+    "ms": 2384,
+    "query": "guy"
+  },
+  {
+    "cards": 34,
+    "verifiedPrefix": [
+      {
+        "tagsAllowed": true,
+        "tagCount": 5,
+        "titleAllowed": true
+      },
+      {
+        "tagsAllowed": true,
+        "tagCount": 6,
+        "titleAllowed": true
+      },
+      {
+        "tagsAllowed": true,
+        "tagCount": 8,
+        "titleAllowed": true
+      },
+      {
+        "tagsAllowed": true,
+        "tagCount": 9,
+        "titleAllowed": true
+      },
+      {
+        "tagsAllowed": true,
+        "tagCount": 9,
+        "titleAllowed": true
+      },
+      {
+        "tagsAllowed": true,
+        "tagCount": 3,
+        "titleAllowed": true
+      },
+      {
+        "tagsAllowed": true,
+        "tagCount": 3,
+        "titleAllowed": true
+      }
+    ],
+    "ms": 1881,
+    "query": "woman"
+  }
+]

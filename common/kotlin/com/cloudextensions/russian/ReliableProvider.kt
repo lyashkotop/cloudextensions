@@ -22,11 +22,11 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     override val hasChromecastSupport get()=source.hasChromecastSupport
     override val vpnStatus get()=source.vpnStatus
     private val titlePermits=Semaphore(4)
-    private suspend fun cards(items:List<SearchResponse>):List<SearchResponse> = coroutineScope {
+    private suspend fun cards(items:List<SearchResponse>,resolveTitles:Boolean=true,prefetch:Boolean=false):List<SearchResponse> = coroutineScope {
         val deadline=System.nanoTime()+3_000_000_000L
         items.filter{ContentPolicy.accepts(it.name)}.map { card -> async { titlePermits.withPermit {
         val image=Metadata.rememberPoster(card.url,card.posterUrl)
-        val full=if(Regex("(?:…|\\.\\.\\.)$").containsMatchIn(card.name.trim())) {
+        val full=if(resolveTitles && Regex("(?:…|\\.\\.\\.)$").containsMatchIn(card.name.trim())) {
             RequestLimits.optional(minOf(2500L,((deadline-System.nanoTime())/1_000_000).coerceAtLeast(1))){
                 if(source is SearchPolicy)source.fullTitle(card.url) else {
                     val page=Network.page(PageRequest(card.url),mainUrl)
@@ -34,7 +34,9 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 }
             }?.takeIf{it.isNotBlank()} ?: card.name
         }else Metadata.title(card.url,listOf(card.name))
-        if(card is MovieSearchResponse)card.copy(name=full,posterUrl=image,posterHeaders=card.posterHeaders.orEmpty()+Network.imageHeaders(image,mainUrl.trimEnd('/')+"/")) else card
+        val ready=if(card is MovieSearchResponse)card.copy(name=full,posterUrl=image,posterHeaders=card.posterHeaders.orEmpty()+Network.imageHeaders(image,mainUrl.trimEnd('/')+"/")) else card
+        if(prefetch)ImagePrefetch.warm(listOf(ready),0)
+        ready
     } } }.awaitAll() }
     private data class Review(val allowed:Boolean,val detail:LoadResponse?,val title:String?=detail?.name)
     private val reviews=java.util.Collections.synchronizedMap(BoundedMap<String,Pair<Long,Review>>(128))
@@ -61,24 +63,37 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         val accepted=mutableListOf<SearchResponse>()
         val deadline=System.nanoTime()+5_000_000_000L
         var cursor=0
-        while(accepted.size<10 && cursor<items.size) {
+        while(accepted.size<7 && cursor<items.size) {
             val budget=((deadline-System.nanoTime())/1_000_000).coerceAtMost(3500)
             if(budget<=0)break
-            val batch=items.drop(cursor).take(10-accepted.size)
+            val batch=items.drop(cursor).take(7-accepted.size)
             cursor+=batch.size
             accepted+=batch.map { card -> async {
                 val checked=review(card,budget) ?: return@async null
                 if(!checked.allowed)return@async null
                 val full=checked.title?.let{Metadata.title(card.url,listOf(it))} ?: card.name
-                if(card is MovieSearchResponse)card.copy(name=full) else card
+                val ready=if(card is MovieSearchResponse)card.copy(name=full) else card
+                ImagePrefetch.warm(listOf(ready),0)
+                ready
             }}.awaitAll().filterNotNull()
         }
-        // Keep unreviewed cards below a fully checked prefix. Never shift one into the first ten.
-        if(accepted.size>=10)accepted+items.drop(cursor) else accepted
+        // Keep unreviewed cards below a fully checked prefix. Never shift one into the first seven.
+        if(accepted.size>=7)accepted+items.drop(cursor) else accepted
+    }
+    private suspend fun prepareSearch(items:List<SearchResponse>):List<SearchResponse> = coroutineScope {
+        val normalized=cards(items,resolveTitles=false)
+        // Resolve long titles while the first seven metadata checks and approved images load.
+        val expanded=async { cards(normalized) }
+        val reviewed=previewSearch(normalized)
+        val titles=expanded.await().associateBy{videoKey(it.url)}
+        reviewed.map { card ->
+            val full=Metadata.title(card.url,listOf(card.name,titles[videoKey(card.url)]?.name.orEmpty()))
+            if(card is MovieSearchResponse)card.copy(name=full) else card
+        }
     }
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная") {
         val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
-        val rows=result.items.map{it.copy(list=cards(it.list))}
+        val rows=result.items.map{it.copy(list=cards(it.list,prefetch=true))}
         ImagePrefetch.warm(rows.flatMap{it.list})
         newHomePageResponse(rows,result.hasNext)
     }
@@ -89,7 +104,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         if(!ContentPolicy.accepts(query))return@required newSearchResponseList(emptyList(),false)
         if(lang !in listOf("ru","en") || (source as? SearchPolicy)?.translateQueries==false) {
             val result=Translation.originalOnly{source.search(query,page)}?:return@required newSearchResponseList(emptyList(),false)
-            val ready=previewSearch(cards(result.items))
+            val ready=prepareSearch(result.items)
             ImagePrefetch.warm(ready)
             return@required newSearchResponseList(ready,result.hasNext)
         }
@@ -102,9 +117,9 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         }
         val responses=batches.mapNotNull{it.response}
         if(responses.isEmpty())batches.firstNotNullOfOrNull{it.error}?.let{throw it}
-        val merged=cards(responses.flatMap{it.items}).distinctBy{videoKey(it.url)}
+        val merged=responses.flatMap{it.items}.filter{ContentPolicy.accepts(it.name)}.distinctBy{videoKey(it.url)}
         val previous=synchronized(searchHistory){if(page==1)searchHistory[query]=mutableMapOf();searchHistory.getOrPut(query){mutableMapOf()}.filterKeys{it<page}.values.flatten().toSet()}
-        val fresh=previewSearch(merged.filter{videoKey(it.url) !in previous})
+        val fresh=prepareSearch(merged.filter{videoKey(it.url) !in previous})
         synchronized(searchHistory){searchHistory.getOrPut(query){mutableMapOf()}[page]=fresh.map{videoKey(it.url)}.toSet()}
         ImagePrefetch.warm(fresh)
         newSearchResponseList(fresh,responses.any{it.hasNext})
@@ -116,7 +131,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         result.tags=result.tags.orEmpty().mapNotNull(Metadata::tag).distinctBy{it.lowercase()}
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
         if(result is MovieLoadResponse)result.posterHeaders=result.posterHeaders.orEmpty()+Network.imageHeaders(result.posterUrl,url)
-        result.recommendations=cards(result.recommendations.orEmpty())
+        result.recommendations=cards(result.recommendations.orEmpty(),prefetch=true)
         ImagePrefetch.warm(result.recommendations.orEmpty(),0)
         result
     }

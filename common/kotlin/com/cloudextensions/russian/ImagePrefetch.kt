@@ -12,11 +12,11 @@ object ImagePrefetch {
     @Volatile private var context:Context?=null
     @Volatile private var warned=false
     private val scope=CoroutineScope(SupervisorJob()+Dispatchers.IO)
-    private val permits=Semaphore(4)
+    private val permits=Semaphore(6)
     private val jobs=BoundedMap<String,Pair<Long,Deferred<Unit>>>(256)
     fun configure(value:Context){context=value.applicationContext}
 
-    suspend fun warm(cards:List<SearchResponse>,waitMs:Long=1000) {
+    suspend fun warm(cards:List<SearchResponse>,waitMs:Long=250) {
         val ctx=context ?: return
         val pending=cards.filter{!it.posterUrl.isNullOrBlank()}.take(80).map { card ->
             val url=card.posterUrl!!
@@ -27,7 +27,7 @@ object ImagePrefetch {
                     permits.withPermit {
                         try {
                             val request=enqueue(ctx,url,headers)
-                            val result=withTimeoutOrNull(10_000){request.await()}
+                            val result=withTimeoutOrNull(5_000){request.await()}
                             if(result==null){request.cancel();error("Image preload timed out")}
                             if(result.javaClass.simpleName=="ErrorResult")error("Image server rejected preload")
                         }catch(e:CancellationException){throw e}catch(e:Exception){
@@ -38,7 +38,7 @@ object ImagePrefetch {
                 }.also{jobs[key]=System.nanoTime() to it}
             }
         }
-        if(waitMs>0)withTimeoutOrNull(waitMs){pending.take(10).awaitAll()}
+        if(waitMs>0)withTimeoutOrNull(waitMs){pending.take(7).awaitAll()}
     }
 
     private fun enqueue(ctx:Context,url:String,headers:Map<String,String>):Deferred<*> {
@@ -50,7 +50,7 @@ object ImagePrefetch {
         val builderType=cls(prefix+".request.ImageRequest\$Builder")
         val builder=builderType.getConstructor(Context::class.java).newInstance(ctx)
         builderType.getMethod("data",Any::class.java).invoke(builder,url)
-        builderType.getMethod("size",Int::class.javaPrimitiveType,Int::class.javaPrimitiveType).invoke(builder,640,360)
+        builderType.getMethod("size",Int::class.javaPrimitiveType,Int::class.javaPrimitiveType).invoke(builder,480,320)
         if(version==3) {
             val headerBuilder=cls("coil3.network.NetworkHeaders\$Builder").getConstructor().newInstance()
             val setter=headerBuilder.javaClass.getMethod("set",String::class.java,String::class.java)
