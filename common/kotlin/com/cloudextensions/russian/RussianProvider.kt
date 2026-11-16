@@ -124,6 +124,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI() {
             BranchResult(branch,cards,if(emptyNotice)null else Pagination.next(document,route)?.takeUnless { it==route },cards.map { videoKey(it.url) }.toSet())
         }catch(e:CancellationException){throw e}catch(e:Exception){BranchResult(branch,emptyList(),null,emptySet(),e)}
     }
+    suspend fun searchMetadata(url:String):VideoDetail = Metadata.detail(page(PageRequest(url)),spec)
     override suspend fun load(url: String): LoadResponse {
         val document=page(PageRequest(url))
         val detail=DetailEnrichment.complete(document,spec,Metadata.detail(document,spec))

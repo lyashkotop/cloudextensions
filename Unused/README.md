@@ -13,3 +13,7 @@
 - Whoreshub
 
 Дополнительно отключены: JavGG, Javangel, Javdoe, SuperJav. Из японских оставлены только MissAV и JavGuru.
+
+Отключены также YouJizz и PunishBang по просьбе владельца.
+
+Epawg также отключён по просьбе владельца.

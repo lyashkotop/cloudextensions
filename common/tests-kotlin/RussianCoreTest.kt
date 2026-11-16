@@ -9,6 +9,17 @@ import org.json.JSONTokener
 private var checks=0
 private fun verify(value:Boolean,message:String){checks++;check(value){message}}
 fun main(args:Array<String>) {
+    verify(Metadata.title("https://example.org/growing",listOf("A short title"))=="A short title","initial source title")
+    verify(Metadata.title("https://example.org/growing",listOf("A short title with a full ending"))=="A short title with a full ending","a full source title replaces its cached prefix")
+    verify(Metadata.description("Watch A film on Bdsmstreak.","A film").isEmpty(),"site watch boilerplate is empty")
+    verify(Metadata.description("Video A film HQ Mp4","A film").isEmpty(),"SEO title wrapper is empty")
+    val seoPage=Jsoup.parse("<h1>A film</h1><meta property='og:title' content='A film - Site branding'><meta name=description content='Site marketing'><script type='application/ld+json'>{\"@type\":\"VideoObject\",\"name\":\"A film\",\"keywords\":\"fake, title, fragments\"}</script>","https://example.org/seo")
+    val seoSpec=SiteSpec("probe","Probe","https://example.org",".card","a","h3",emptyList())
+    verify(Metadata.detail(seoPage,seoSpec).title=="A film","SEO branding never extends the video title")
+    verify(Metadata.detail(seoPage,seoSpec).description.isEmpty(),"SEO description is not a video plot")
+    verify(Metadata.detail(seoPage,seoSpec).tags.isEmpty(),"SEO keywords are not video tags")
+    val privateCards=Jsoup.parse("<a href='/private-video' class=card title=Private><span class='thumb private'><img src='/static/images/bg_private_video.gif'></span></a><a href='/public-video' class=card title=Public><img src='/real.jpg'></a>","https://thisvid.com/")
+    verify(Metadata.cards(privateCards,seoSpec.copy(id="ThisVid")).map{it.title}==listOf("Public"),"ThisVid private cards are excluded")
     val times=mapOf("123" to "02:03","PT2M3S" to "02:03","PT1H2M3.5S" to "1:02:03.5","01:02:03" to "1:02:03","12:34" to "12:34","0" to "","1:99" to "","unknown" to "","" to "")
     for((raw,expected)in times)verify(Metadata.timing(raw)==expected,"source duration $raw")
     for(word in listOf("guy","lesbian","lesbians","лесби","лесбиянки","gay lesbians","gay лесби"))verify(ContentPolicy.accepts(word),"allowed word $word")

@@ -3,6 +3,9 @@ package com.cloudextensions.russian
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import okhttp3.Interceptor
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
@@ -18,9 +21,48 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     override val hasDownloadSupport get()=source.hasDownloadSupport
     override val hasChromecastSupport get()=source.hasChromecastSupport
     override val vpnStatus get()=source.vpnStatus
-    private fun cards(items:List<SearchResponse>)=items.filter{ContentPolicy.accepts(it.name)}.map { card ->
+    private val titlePermits=Semaphore(4)
+    private suspend fun cards(items:List<SearchResponse>):List<SearchResponse> = coroutineScope {
+        val deadline=System.nanoTime()+3_000_000_000L
+        items.filter{ContentPolicy.accepts(it.name)}.map { card -> async { titlePermits.withPermit {
         val image=Metadata.rememberPoster(card.url,card.posterUrl)
-        if(card is MovieSearchResponse)card.copy(posterUrl=image,posterHeaders=card.posterHeaders.orEmpty()+Network.imageHeaders(image,mainUrl.trimEnd('/')+"/")) else card
+        val full=if(Regex("(?:…|\\.\\.\\.)$").containsMatchIn(card.name.trim())) {
+            RequestLimits.optional(minOf(2500L,((deadline-System.nanoTime())/1_000_000).coerceAtLeast(1))){
+                val page=Network.page(PageRequest(card.url),mainUrl)
+                Metadata.detail(page,SiteSpec("title",name,mainUrl,".none","a","h1",emptyList())).title
+            }?.takeIf{it.isNotBlank()} ?: card.name
+        }else Metadata.title(card.url,listOf(card.name))
+        if(card is MovieSearchResponse)card.copy(name=full,posterUrl=image,posterHeaders=card.posterHeaders.orEmpty()+Network.imageHeaders(image,mainUrl.trimEnd('/')+"/")) else card
+    } } }.awaitAll() }
+    private data class Review(val allowed:Boolean,val detail:LoadResponse?,val title:String?=detail?.name)
+    private val reviews=java.util.Collections.synchronizedMap(BoundedMap<String,Pair<Long,Review>>(128))
+    private val reviewPermits=Semaphore(4)
+    private fun savedReview(url:String)=reviews[videoKey(url)]?.takeIf{System.nanoTime()-it.first<300_000_000_000L}?.second
+    private suspend fun review(card:SearchResponse):Review? {
+        savedReview(card.url)?.let{return it}
+        val result=RequestLimits.optional(3500){reviewPermits.withPermit {
+            try {
+                if(source is RussianProvider){
+                    val meta=source.searchMetadata(card.url)
+                    return@withPermit Review(ContentPolicy.accepts(meta.title,meta.tags),null,meta.title)
+                }
+                val detail=source.load(card.url) ?: return@withPermit null
+                Review(ContentPolicy.accepts(detail.name,detail.tags.orEmpty()),detail)
+            }catch(e:ErrorLoadingException){
+                if(Regex("(?iu)hidden by category filter|скрыто фильтром|приватн|private video").containsMatchIn(e.message.orEmpty()))Review(false,null) else null
+            }
+        }} ?: return null
+        reviews[videoKey(card.url)]=System.nanoTime() to result
+        return result
+    }
+    private suspend fun previewSearch(items:List<SearchResponse>):List<SearchResponse> = coroutineScope {
+        items.mapIndexed { index,card -> async {
+            if(index>=10)return@async card
+            val checked=review(card) ?: return@async card
+            if(!checked.allowed)return@async null
+            val full=checked.title?.let{Metadata.title(card.url,listOf(it))} ?: card.name
+            if(card is MovieSearchResponse)card.copy(name=full) else card
+        }}.awaitAll().filterNotNull()
     }
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная") {
         val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
@@ -33,7 +75,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         if(!ContentPolicy.accepts(query))return@required newSearchResponseList(emptyList(),false)
         if(lang !in listOf("ru","en")) {
             val result=source.search(query,page)?:return@required newSearchResponseList(emptyList(),false)
-            return@required newSearchResponseList(cards(result.items),result.hasNext)
+            return@required newSearchResponseList(previewSearch(cards(result.items)),result.hasNext)
         }
         data class Batch(val response:SearchResponseList?,val error:Exception?=null)
         suspend fun branch(term:String):Batch=try{Batch(Translation.originalOnly{source.search(term,page)})}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){Batch(null,e)}
@@ -46,13 +88,15 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         if(responses.isEmpty())batches.firstNotNullOfOrNull{it.error}?.let{throw it}
         val merged=cards(responses.flatMap{it.items}).distinctBy{videoKey(it.url)}
         val previous=synchronized(searchHistory){if(page==1)searchHistory[query]=mutableMapOf();searchHistory.getOrPut(query){mutableMapOf()}.filterKeys{it<page}.values.flatten().toSet()}
-        val fresh=merged.filter{videoKey(it.url) !in previous}
+        val fresh=previewSearch(merged.filter{videoKey(it.url) !in previous})
         synchronized(searchHistory){searchHistory.getOrPut(query){mutableMapOf()}[page]=fresh.map{videoKey(it.url)}.toSet()}
         newSearchResponseList(fresh,responses.any{it.hasNext})
     }
     override suspend fun load(url:String):LoadResponse = RequestLimits.required("Карточка") {
-        val result=source.load(url) ?: throw ErrorLoadingException("Источник не вернул карточку")
+        val result=savedReview(url)?.detail ?: source.load(url) ?: throw ErrorLoadingException("Источник не вернул карточку")
         if(!ContentPolicy.accepts(result.name,result.tags.orEmpty()))throw ErrorLoadingException("Видео скрыто фильтром категорий")
+        result.plot=Metadata.description(result.plot,result.name)
+        result.tags=result.tags.orEmpty().mapNotNull(Metadata::tag).distinctBy{it.lowercase()}
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
         if(result is MovieLoadResponse)result.posterHeaders=result.posterHeaders.orEmpty()+Network.imageHeaders(result.posterUrl,url)
         result.recommendations=cards(result.recommendations.orEmpty())

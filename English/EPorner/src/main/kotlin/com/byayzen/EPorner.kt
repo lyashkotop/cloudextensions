@@ -74,7 +74,7 @@ class EPorner : MainAPI() {
         val duration = document.selectFirst("span.vid-length")?.text()?.replace("min", "")?.trim()
             ?.toIntOrNull()
         val description =
-            document.selectFirst("meta[property=og:description]")?.attr("content")?.trim()
+            document.selectFirst("#video-description, .video-description")?.text()?.trim()
         val recommendations =
             document.select("div#relateddiv div.mb").mapNotNull { it.toRecommendationResult() }
         val actors = document.select("span.valor a").map { Actor(it.text()) }

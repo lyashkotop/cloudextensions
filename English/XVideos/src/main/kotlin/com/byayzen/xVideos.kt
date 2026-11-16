@@ -75,8 +75,7 @@ class xVideos : MainAPI() {
             ?: d.selectFirst("meta[property=og:title]")?.attr("content") ?: return null
 
         val poster = d.selectFirst("meta[property=og:image]")?.attr("content")?.fixUrl()
-        val description = d.selectFirst("meta[name=description]")?.attr("content")
-            ?: d.selectFirst("div.video-description-text")?.text()
+        val description = d.selectFirst("div.video-description-text")?.text()
 
         val tags = d.select("div.video-tags-list li a.is-keyword").map { it.text() }.filter { it.isNotBlank() }
         val uploaderName = d.selectFirst("li.main-uploader a.uploader-tag span.name")?.text()

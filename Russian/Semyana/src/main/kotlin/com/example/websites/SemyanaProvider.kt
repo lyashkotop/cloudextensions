@@ -5,7 +5,7 @@ import com.cloudextensions.russian.*
 class SemyanaProvider: RussianProvider(SiteSpec(
     id="Semyana", title="Semyana", origin="https://w.semyana.com",
     cards=".video-card", link="a.video-card-link[href]", titleSelector=".video-title", searchMode="get",
-    tagSelector="", descriptionSelector="", related="#related-videos",
+    tagSelector=".video-taxonomy .tax-cats a", descriptionSelector="", related="#related-videos",
     sections=listOf(
         Section("Новинки","/new/"),
         Section("Популярное","/best/"),

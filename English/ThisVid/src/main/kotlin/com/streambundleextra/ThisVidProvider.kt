@@ -8,7 +8,7 @@ class ThisVidProvider: RussianProvider(SiteSpec(
  link="a[href]",
  titleSelector=".title",
  tagSelector=".box ul.description a[href*=/tags/], .box ul.description a[href*=/categories/]",
- descriptionSelector=".video-info .description",
+ descriptionSelector=".box ul.description > li:first-child p",
  durationSelector=".box .title-description:matchesOwn([0-9]+:[0-9]{2})",
  sections=listOf(Section("Latest","/"),Section("Popular","/popular/"))
 )){override var lang="en"}

@@ -8,5 +8,6 @@ class UKDevilzProvider: RussianProvider(SiteSpec(
  link="a.item_link[href]",
  titleSelector=".title",
  searchMode="path:/video/",
+ tagSelector="#videoTagsBar a.vtag", descriptionSelector=".l_info .description",
  sections=listOf(Section("Latest","/home"),Section("Popular","/popular/month"))
 )){override var lang="en"}
