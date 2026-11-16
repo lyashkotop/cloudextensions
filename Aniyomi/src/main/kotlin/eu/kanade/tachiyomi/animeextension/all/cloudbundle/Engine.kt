@@ -75,7 +75,7 @@ class Engine(val profile:Profile) {
         return Metadata.scoped(p.id){state.mutex.withLock {
             if(state.branches.isEmpty() && state.number==0) {
                 if(mode!="search" || query.isBlank()) {
-                    val route=selection.category?.url ?: selection.tags.singleOrNull()?.let{tag->p.tags.firstOrNull{it.label.equals(tag,true)}?.url?.takeIf{it.startsWith("http")}} ?: browseRoute(mode!="latest")
+                    val route=selection.category?.url ?: selection.tags.singleOrNull()?.let{tag->p.tags.firstOrNull{it.label.equals(tag,true)}?.url?.takeIf{it.startsWith("http")}} ?: browseRoute(mode=="popular")
                     state.branches+=Branch("",withOrder(PageRequest(route),selection.order))
                 }else {
                     state.branches+=Branch(query,withOrder(searchRoute(query),selection.order))

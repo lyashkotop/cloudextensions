@@ -33,7 +33,7 @@ python Aniyomi/scripts/fetch_tools.py --directory .aniyomi-tools/android
 export ANIYOMI_KEYSTORE=/path/to/aniyomi-release.jks
 read -rs ANIYOMI_KEYSTORE_PASSWORD
 export ANIYOMI_KEYSTORE_PASSWORD
-python Aniyomi/scripts/build.py --tools .aniyomi-tools/android --compiler-tools .aniyomi-tools/compiler --version 2
+python Aniyomi/scripts/build.py --tools .aniyomi-tools/android --compiler-tools .aniyomi-tools/compiler --version 3
 python Aniyomi/scripts/check.py --tools .aniyomi-tools/android --compiler-tools .aniyomi-tools/compiler
 ```
 
