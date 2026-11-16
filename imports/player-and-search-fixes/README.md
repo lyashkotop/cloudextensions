@@ -67,3 +67,5 @@ Onlyfans/Latina/Hentai убраны из разделов. Проверены HT
 DEX/entry Noodle, BDSMX, Epawg, JavGuru, Javdoe, Supjav, ProstoPorno, XRares.
 Осталось 40 активных модулей: Russian 9, English 25, Japanese 6; в Unused сохранены 9.
 Noodle с настоящими Popular/Trending опубликован отдельным обновлением v82.
+Финальная v84: GitHub Actions run 43840382449 завершился успешно. После публикации
+скачаны все 40 пакетов: проверены версия, SHA-256, manifest и регистрация DEX/entry.
