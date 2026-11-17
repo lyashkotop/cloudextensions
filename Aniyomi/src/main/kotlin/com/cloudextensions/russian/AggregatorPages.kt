@@ -10,7 +10,7 @@ object AggregatorPages {
     fun video(page:Document):JSONObject? {
         val item=props(page)?.optJSONObject("firstVideo") ?: return null
         val path=item.optString("basePath").trimEnd('/')
-        val current=try{URI(page.baseUri()).path.trimEnd('/')}catch(_:Exception){""}
+        val current=try{webUri(page.baseUri()).path.trimEnd('/')}catch(_:Exception){""}
         return item.takeIf{path.isNotBlank() && current==path}
     }
     private fun tags(item:JSONObject):List<String> {
@@ -51,6 +51,6 @@ object AggregatorPages {
             val selectors=".RelatedVideos a[href*=/video/]:has(img), main article.card a[href*=/video/]:has(img)"
             result+=Metadata.cards(page,spec.copy(cards=selectors,link="a[href]",titleSelector=".card-t,.title,h2,h3"))
         }
-        return result.filter{videoKey(it.url)!=videoKey(page.baseUri()) && URI(it.url).host==URI(page.baseUri()).host}.distinctBy{videoKey(it.url)}
+        return result.filter{videoKey(it.url)!=videoKey(page.baseUri()) && webUri(it.url).host==webUri(page.baseUri()).host}.distinctBy{videoKey(it.url)}
     }
 }

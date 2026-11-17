@@ -9,7 +9,7 @@ object DetailEnrichment {
     fun original(page:Document):String? {
         for(frame in page.select("iframe[src]")) {
             val raw=absolute(page.baseUri(),frame.attr("src")) ?: continue
-            val uri=try{URI(raw)}catch(_:Exception){continue}
+            val uri=try{webUri(raw)}catch(_:Exception){continue}
             if(uri.host.orEmpty().removePrefix("www.")!="xvideos.com")continue
             val id=Regex("^/embedframe/([A-Za-z0-9]+)$").matchEntire(uri.path.orEmpty())?.groupValues?.get(1) ?: continue
             // This is the source's public ID route; its own og:url supplies the full permalink.

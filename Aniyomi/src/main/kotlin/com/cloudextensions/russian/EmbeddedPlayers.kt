@@ -16,13 +16,13 @@ object EmbeddedPlayers {
         return null
     }
     fun original(page:Document):String? {
-        val host=try{URI(page.baseUri()).host.orEmpty().removePrefix("www.")}catch(_:Exception){return null}
+        val host=try{webUri(page.baseUri()).host.orEmpty().removePrefix("www.")}catch(_:Exception){return null}
         if(host!="xhamster.com")return null
         val url=initials(page)?.optJSONObject("sharingComponent")?.optString("shareLink") ?: return null
-        return absolute(page.baseUri(),url)?.takeIf{URI(it).host.orEmpty().removePrefix("www.")==host && it!=page.baseUri()}
+        return absolute(page.baseUri(),url)?.takeIf{webUri(it).host.orEmpty().removePrefix("www.")==host && it!=page.baseUri()}
     }
     fun sources(page:Document):List<Playback.Source> {
-        if(try{URI(page.baseUri()).host.orEmpty().removePrefix("www.")!="xhamster.com"}catch(_:Exception){true})return emptyList()
+        if(try{webUri(page.baseUri()).host.orEmpty().removePrefix("www.")!="xhamster.com"}catch(_:Exception){true})return emptyList()
         val data=initials(page)?.optJSONObject("xplayerSettings")?.optJSONObject("sources") ?: return emptyList()
         val result=mutableListOf<Playback.Source>()
         // Apply the same public URL transformation as the site's player.
@@ -33,7 +33,7 @@ object EmbeddedPlayers {
         return result
     }
     private fun abId(page:Document):String? {
-        val uri=try{URI(page.baseUri())}catch(_:Exception){return null}
+        val uri=try{webUri(page.baseUri())}catch(_:Exception){return null}
         if(uri.host.orEmpty().removePrefix("www.")!="abxxx.com")return null
         return Regex("^/video/(\\d+)/").find(uri.path.orEmpty())?.groupValues?.get(1)
     }

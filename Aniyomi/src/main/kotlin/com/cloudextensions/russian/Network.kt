@@ -27,7 +27,7 @@ object Network {
         })
     }
     suspend fun page(request:PageRequest,referer:String):Document {
-        val host=java.net.URI(request.url).host.orEmpty()
+        val host=webUri(request.url).host.orEmpty()
         val fetch=if(host.endsWith(".strip2.co")&&request.data==null)request.url+(if(request.url.contains('?'))"&" else "?")+"_refresh="+(System.currentTimeMillis()/60000) else request.url
         val builder=Request.Builder().url(fetch)
         (headers(referer)+request.headers).forEach{(k,v)->builder.header(k,v)}

@@ -9,10 +9,10 @@ import org.jsoup.nodes.Element
 object Pagination {
     private val nextText=Regex("(?iu)^(?:next(?: page)?|далее|дальше|следующ(?:ая|ая страница|ие)?|впер[её]д|показать ещ[её]|ещ[её]|[›»→>]+)$")
     private fun address(page: Document,element: Element,attribute: String): String? = absolute(page.baseUri(),element.attr(attribute))?.takeIf { url ->
-        URI(url).host.equals(URI(page.baseUri()).host,true) && url.substringBefore('#')!=page.baseUri().substringBefore('#')
+        webUri(url).host.equals(webUri(page.baseUri()).host,true) && url.substringBefore('#')!=page.baseUri().substringBefore('#')
     }
     fun next(page: Document, current: PageRequest): PageRequest? {
-        val uri=URI(current.url)
+        val uri=webUri(current.url)
         val parameters=uri.rawQuery.orEmpty().split('&').filter { it.isNotBlank() }.associate { URLDecoder.decode(it.substringBefore('='),"UTF-8") to URLDecoder.decode(it.substringAfter('=',""),"UTF-8") }
         // These routes and counters come from the sites' own scrolling scripts.
         if(uri.host.orEmpty().removePrefix("www.")=="tubesafari.com" && page.select(".vid_li").size>=120 && page.attr("data-results-remaining")!="0") {
@@ -32,7 +32,7 @@ object Pagination {
             return PageRequest("${uri.scheme}://${uri.rawAuthority}${uri.rawPath}?$query")
         }
         // KVS pagers expose the actual next cursor as data parameters rather than an href.
-        val currentValues=URI(current.url).rawQuery.orEmpty().split('&').associate { it.substringBefore('=') to it.substringAfter('=',"") }
+        val currentValues=webUri(current.url).rawQuery.orEmpty().split('&').associate { it.substringBefore('=') to it.substringAfter('=',"") }
         val currentNumber=currentValues.filterKeys { it=="from" || it.startsWith("from_") }.values.mapNotNull(String::toIntOrNull).maxOrNull() ?: 1
         val controls=page.select("[data-parameters][data-block-id]").filter { it.closest(".pagination,.pagination-list,.load-more,.pager")!=null || it.hasClass("next") }
         val candidates=controls.mapNotNull { e ->
@@ -44,7 +44,7 @@ object Pagination {
                 for(name in parameter.substringBefore(':').split('+')) { values[name]=value;if((name=="from" || name.startsWith("from_")))number=value.toIntOrNull() }
             }
             if(number==null || number!!<=currentNumber)return@mapNotNull null
-            val uri=URI(page.baseUri());val base="${uri.scheme}://${uri.rawAuthority}${uri.rawPath}"
+            val uri=webUri(page.baseUri());val base="${uri.scheme}://${uri.rawAuthority}${uri.rawPath}"
             val query=values.entries.joinToString("&") { (k,v)->URLEncoder.encode(k,"UTF-8")+"="+URLEncoder.encode(v,"UTF-8") }
             number!! to PageRequest("$base?$query")
         }

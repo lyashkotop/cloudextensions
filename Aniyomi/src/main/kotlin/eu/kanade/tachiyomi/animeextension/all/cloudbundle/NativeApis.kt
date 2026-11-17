@@ -35,7 +35,7 @@ object NativeApis {
         val id=Regex("/video/(\\d+)").find(url)?.groupValues?.get(1) ?: return emptyList()
         val raw=Network.page(PageRequest("${p.base}/api/videofile.php?video_id=$id&lifetime=8640000",headers=p.requestHeaders),url).wholeText()
         val list=JSONArray(raw)
-        return (0 until list.length()).mapNotNull{i->val item=list.optJSONObject(i) ?: return@mapNotNull null;if(item.optString("format")=="_tr.mp4")return@mapNotNull null;val decoded=EmbeddedPlayers.decodeAb(item.optString("video_url")) ?: return@mapNotNull null;Playback.Source(URI(p.base).resolve(decoded).toString())}
+        return (0 until list.length()).mapNotNull{i->val item=list.optJSONObject(i) ?: return@mapNotNull null;if(item.optString("format")=="_tr.mp4")return@mapNotNull null;val decoded=EmbeddedPlayers.decodeAb(item.optString("video_url")) ?: return@mapNotNull null;Playback.Source(WebUrls.resolve(p.base,decoded) ?: return@mapNotNull null)}
     }
     suspend fun beegSearch(p:Profile,query:String,page:Int):Pair<List<VideoCard>,PageRequest?> {
         val endpoint="https://api-search.xv-cdn.net/search/?format=ajax&k=${URLEncoder.encode(query,"UTF-8")}&p=$page"

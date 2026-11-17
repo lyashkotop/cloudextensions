@@ -41,7 +41,7 @@ object Metadata {
         titles[a]?.let{titles[b]=it};posters[a]?.let{posters[b]=it;posterTimes[a]?.let{stamp->posterTimes[b]=stamp}};durations[a]?.let{durations[b]=it}
     }
     fun imageUrl(base:String,raw:String?):String? = raw?.trim()?.takeUnless { it.isBlank() || it.lowercase(Locale.ROOT) in setOf("null","undefined","false") }?.let { absolute(base,it.replace("\\/","/").replace("&amp;","&")) }?.takeUnless {
-        val path=java.net.URI(it).path.orEmpty().lowercase(Locale.ROOT)
+        val path=webUri(it).path.orEmpty().lowercase(Locale.ROOT)
         path.endsWith(".svg") || path.endsWith("/null") || path.endsWith("/undefined") || Regex("(?i)/(?:flags?|logos?|avatars?|icons?)/|/(?:logo|favicon|spacer|blank|transparent|placeholder|loading)(?:[_.][^/]*)?$").containsMatchIn(path)
     }
     fun rememberPoster(url:String,raw:String?):String? {
@@ -107,7 +107,7 @@ object Metadata {
             val link = if (card.tagName() == "a" && card.hasAttr("href")) card else card.selectFirst(spec.link) ?: continue
             val url = absolute(page.baseUri(),link.attr("href")) ?: continue
             if(spec.id=="DarknessPorn") {
-                val uri=java.net.URI(url);val host=java.net.URI(page.baseUri()).host.orEmpty().removePrefix("www.")
+                val uri=webUri(url);val host=webUri(page.baseUri()).host.orEmpty().removePrefix("www.")
                 if(uri.host.orEmpty().removePrefix("www.")!=host || !Regex("""^/\d+-[^/]+/?$""").matches(uri.path.orEmpty()) || card.closest(".ad,.ads,.advertisement,[data-spot],[data-ad],[rel=sponsored]")!=null)continue
             }
             val image = card.selectFirst("img")
@@ -124,11 +124,11 @@ object Metadata {
         return result.values.toList()
     }
     fun emptySearch(page: Document, request: PageRequest): Boolean {
-        val current=java.net.URI(page.baseUri())
+        val current=webUri(page.baseUri())
         // ThisVid renders trending blocks when no search matches. Those are never search results.
-        val requested=java.net.URI(request.url)
+        val requested=webUri(request.url)
         if(requested.host.orEmpty().removePrefix("www.")=="thisvid.com" && requested.path.orEmpty().startsWith("/search/") && page.selectFirst("#list_videos_common_videos_list_items")==null)return true
-        val redirected=request.data==null && java.net.URI(request.url).path.orEmpty().contains("search") && current.path.orEmpty().trim('/').isEmpty() && current.query.isNullOrBlank()
+        val redirected=request.data==null && webUri(request.url).path.orEmpty().contains("search") && current.path.orEmpty().trim('/').isEmpty() && current.query.isNullOrBlank()
         return page.attr("data-response-code")=="404" || redirected || page.select("h1,h2,.empty,.no-results,.no-result,.nothing-found,.list-videos .message,.message").any {
             Regex("(?iu)(?:ничего не найдено|ничего не нашлось|нет результатов|no (?:results|videos|matches|posts)(?: found)?|nothing found|0 результатов)").containsMatchIn(it.text())
         }

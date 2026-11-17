@@ -46,12 +46,12 @@ class Engine(val profile:Profile) {
         val nav=p.catalog.optJSONArray("navigation")
         if(nav!=null)for(i in 0 until nav.length()){val item=nav.getJSONObject(i);if(desired.containsMatchIn(item.optString("label")))return item.getString("url")}
         val sections=p.data.optJSONArray("sections")
-        if(sections!=null)for(i in 0 until sections.length()){val item=sections.getJSONObject(i);if(desired.containsMatchIn(item.optString("name")))return URI(p.base).resolve(item.getString("path")).toString()}
+        if(sections!=null)for(i in 0 until sections.length()){val item=sections.getJSONObject(i);if(desired.containsMatchIn(item.optString("name")))return WebUrls.resolve(p.base,item.getString("path")) ?: continue}
         if(!popular)return p.base+"/"
         val doc=homepage()
         for(a in doc.select("nav a[href],header a[href],.sort a[href],.sorting a[href],a[href]")) {
             if(a.selectFirst("img")!=null || !desired.containsMatchIn(a.text()+" "+a.attr("title")) || a.text().length>60)continue
-            val route=URI(doc.baseUri()).resolve(a.attr("href"));if(route.host==URI(doc.baseUri()).host && route.toString()!=doc.baseUri() && route.fragment==null)return route.toString()
+            val route=webUri(WebUrls.resolve(doc.baseUri(),a.attr("href")) ?: continue);if(route.host==webUri(doc.baseUri()).host && route.toString()!=doc.baseUri() && route.fragment==null)return route.toString()
         }
         return when(p.engine) {
             "eporner"->p.base+if(popular)"/most-viewed/" else "/"
@@ -73,13 +73,14 @@ class Engine(val profile:Profile) {
         if(selection.durationBands.isEmpty())return Results(emptyList(),false)
         if(query.isNotBlank() && !ContentPolicy.accepts(query))return Results(emptyList(),false)
         val directTag=if(query.isBlank()&&selection.category==null&&selection.tags.size==1)selection.tags.single().let{tag->p.tags.firstOrNull{it.label.equals(tag,true)&&it.url.startsWith("http")}} else null
-        val effective=if(query.isBlank())selection.copy(category=null,tags=if(directTag!=null)emptyList() else selection.tags) else selection
+        val directCategory=selection.category?.takeIf{it.url.startsWith("http")}
+        val effective=if(query.isBlank())selection.copy(category=if(directCategory!=null)null else selection.category,tags=if(directTag!=null)emptyList() else selection.tags) else selection
         val key="$mode|$query|$selection"
         val state=synchronized(states){if(page==1&&states[key]?.let{System.nanoTime()-it.created>8_000_000_000L}==true)states.remove(key);states.getOrPut(key){State(mutableListOf(),selection)}}
         return Metadata.scoped(p.id){state.mutex.withLock {
             if(state.branches.isEmpty() && state.number==0) {
                 if(mode!="search" || query.isBlank()) {
-                    val route=selection.category?.url ?: directTag?.url ?: browseRoute(mode=="popular")
+                    val route=directCategory?.url ?: directTag?.url ?: browseRoute(mode=="popular")
                     state.branches+=Branch("",withOrder(PageRequest(route),selection.order))
                 }else {
                     state.branches+=Branch(query,withOrder(searchRoute(query),selection.order))
@@ -111,7 +112,7 @@ class Engine(val profile:Profile) {
         val slots=Semaphore(8)
         cards.map{card->async(Dispatchers.IO){slots.withPermit{
             val needsLabels=selection.category!=null||selection.tags.isNotEmpty()||selection.excluded.isNotEmpty()
-            if(!needsLabels&&card.duration.isNotBlank())card.takeIf{selection.accepts(card,null)}
+            if((!needsLabels&&card.duration.isNotBlank()) || (selection.excluded.isEmpty()&&selection.accepts(card,null)))card.takeIf{selection.accepts(card,null)}
             else {val detail=RequestLimits.optional(4000){detail(card.url)};card.takeIf{detail!=null&&selection.accepts(card,detail)}}
         }}}.awaitAll().filterNotNull()
     }
@@ -134,7 +135,7 @@ class Engine(val profile:Profile) {
         if(p.engine=="bdsmx")return NativeApis.catalog(p,query,number,request)
         if(p.engine=="beeg" && query.isNotBlank())return NativeApis.beegSearch(p,query,number)
         val doc=page(request)
-        if(java.net.URI(request.url).path.orEmpty().trim('/').isEmpty())root.page=doc
+        if(webUri(request.url).path.orEmpty().trim('/').isEmpty())root.page=doc
         val list=if(query.isNotBlank())Metadata.searchCards(doc,p.spec,request) else Metadata.cards(doc,p.spec)
         if(query.isNotBlank() && Metadata.emptySearch(doc,request))return emptyList<VideoCard>() to null
         var next=Pagination.next(doc,request)

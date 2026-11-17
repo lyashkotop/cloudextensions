@@ -14,9 +14,24 @@ class Profile(val data:JSONObject,val catalog:JSONObject,taxonomyProvider:()->JS
     val engine=data.optString("engine","html")
     val translate=data.optBoolean("translate")
     val spec=SiteSpec(id,name,base,data.getString("cards"),data.getString("link"),data.getString("titleSelector"),emptyList(),data.optString("searchMode","get"),data.optString("tagSelector"),data.optString("descriptionSelector"),detailTitleSelector=data.optString("detailTitleSelector"),durationSelector=data.optString("durationSelector"),titleLanguage=data.optString("titleLanguage"))
+    private val taxonomyPath=Regex("/(?:tags?|categories|category|genres?|cat)/([^/]+)")
+    private val localePath=Regex("^/([a-z]{2})/")
     fun taxa(key:String):List<Taxon> {
         val list=taxonomy.optJSONArray(key) ?: return emptyList()
-        return (0 until list.length()).map{list.getJSONObject(it)}.map{Taxon(cleanLabel(it.getString("label")),it.getString("url"),if(it.has("count"))it.optLong("count") else null)}.filter{it.label.isNotBlank()&&it.label.length<=100}.sortedBy{t->val path=java.net.URI(t.url).path;when{path.startsWith("/$lang/")->0;!Regex("^/[a-z]{2}/").containsMatchIn(path)->1;else->2}}.distinctBy{t->Regex("/(?:tags?|categories|category|genres?|cat)/([^/]+)").find(java.net.URI(t.url).path)?.value ?: t.label.lowercase()}
+        val chosen=LinkedHashMap<String,Pair<Int,Taxon>>()
+        for(i in 0 until list.length()) {
+            val item=list.getJSONObject(i);val label=cleanLabel(item.getString("label"));val url=item.getString("url")
+            if(label.isBlank()||label.length>100||!url.startsWith("http"))continue
+            // Do not construct/parse thousands of URIs on the filter UI thread.
+            val path="/"+url.substringAfter("://").substringAfter('/',"").substringBefore('?').substringBefore('#')
+            val locale=localePath.find(path)?.groupValues?.get(1)
+            if(locale!=null&&locale!=lang)continue
+            val score=if(locale==lang)0 else 1
+            val canonical=taxonomyPath.find(path)?.value ?: label.lowercase()
+            if(chosen[canonical]?.first?.let{it<=score}==true)continue
+            chosen[canonical]=score to Taxon(label,url,if(item.has("count"))item.optLong("count") else null)
+        }
+        return chosen.values.map{it.second}
     }
     private fun cleanLabel(text:String)=text.replace(Regex("""\s+\d[\d,.]*\s*.*\d+%$"""),"").replace(Regex("""\s+\d+[ ]*(?:videos?|видео)$""",RegexOption.IGNORE_CASE),"").trim().removePrefix("#")
     private val publishedTags by lazy{taxa("tags")}
@@ -36,9 +51,9 @@ data class Selection(val category:Taxon?=null,val tags:List<String> = emptyList(
     fun accepts(card:VideoCard,detail:VideoDetail?):Boolean {
         if(!ContentPolicy.accepts(detail?.title ?: card.title,detail?.tags ?: card.tags))return false
         val values=(detail?.tags ?: card.tags).map{Metadata.clean(it).lowercase()}.toSet()
-        if(category!=null&&category.label.lowercase() !in values)return false
-        if(tags.isNotEmpty() && !(if(anyTag)tags.any{it.lowercase() in values}else tags.all{it.lowercase() in values}))return false
-        if(excluded.any{it.lowercase() in values})return false
+        if(category!=null&&!Categories.matchesCategory(category.label,values))return false
+        if(tags.isNotEmpty() && !(if(anyTag)tags.any{Categories.matches(it,values)}else tags.all{Categories.matches(it,values)}))return false
+        if(excluded.any{Categories.matches(it,values)})return false
         val duration=detail?.duration?.ifBlank{card.duration} ?: card.duration
         val seconds=duration.split(':').fold(0.0){a,v->a*60+(v.toDoubleOrNull()?:0.0)}
         if((minSeconds>0||maxSeconds>0||durationBands.size!=5)&&seconds<=0)return false

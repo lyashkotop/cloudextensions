@@ -1,6 +1,7 @@
 package com.cloudextensions.russian
 
 import java.net.URI
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.LinkedHashMap
 
 interface SearchPolicy {
@@ -26,13 +27,19 @@ data class PageRequest(val url: String, val data: Map<String, String>? = null, v
 internal class BoundedMap<K,V>(private val capacity: Int): LinkedHashMap<K,V>(16, .75f, true) {
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K,V>?) = size > capacity
 }
-internal fun absolute(base: String, value: String?): String? = try {
-    val raw = value.orEmpty().trim()
-    if (raw.isEmpty() || raw.startsWith("data:") || raw.startsWith("javascript:") || raw == "#") null
-    else (URI(raw).takeIf { it.isAbsolute } ?: URI(base).resolve(raw)).normalize().toString().takeIf { it.startsWith("http://") || it.startsWith("https://") }
-} catch (_: Exception) { null }
+/** Encode raw site links once; preserve existing percent escapes and query separators. */
+object WebUrls {
+    fun normalize(url:String):String=url.toHttpUrlOrNull()?.toString() ?: throw IllegalArgumentException("Invalid HTTP URL")
+    fun resolve(base:String,raw:String):String?=base.toHttpUrlOrNull()?.resolve(raw)?.toString()
+}
+internal fun webUri(url:String):java.net.URI=java.net.URI(WebUrls.normalize(url))
+internal fun absolute(base:String,value:String?):String? {
+    val raw=value.orEmpty().trim()
+    if(raw.isBlank()||raw.startsWith("data:")||raw.startsWith("javascript:")||raw=="#")return null
+    return try{WebUrls.resolve(base,raw)}catch(_:Exception){null}
+}
 internal fun videoKey(url: String): String = try {
-    val u = URI(url)
+    val u = webUri(url)
     val path = u.rawPath.orEmpty().trimEnd('/')
     // Every migrated provider uses a path ID. Strip only tracking parameters; retain meaningful query IDs.
     val query = u.rawQuery.orEmpty().split('&').filter { it.isNotBlank() && it.substringBefore('=') !in setOf("Li", "Lii", "Lt", "Sn", "utm_source", "utm_medium", "utm_campaign") }.joinToString("&")

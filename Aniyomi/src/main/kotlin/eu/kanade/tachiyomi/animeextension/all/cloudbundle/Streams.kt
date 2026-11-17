@@ -33,7 +33,7 @@ object Streams {
         for(script in page.select("script:not([type=application/ld+json]):not(#__NEXT_DATA__)")) {
             val decoded=unpack(script.data())
             for(m in Regex("""(?:file|hls4|hls2|source|src)\s*[:=]\s*(['"])([^'"\s]+)\1""").findAll(decoded)) {
-                val url=URI(page.baseUri()).resolve(m.groupValues[2].replace("\\/","/")).toString()
+                val url=WebUrls.resolve(page.baseUri(),m.groupValues[2].replace("\\/","/")) ?: continue
                 if(media.containsMatchIn(url))result+=Playback.Source(url)
             }
             if(decoded!=script.data())for(m in Regex("""https?://[^\s'"<>]+\.m3u8[^\s'"<>]*""").findAll(decoded))result+=Playback.Source(m.value.replace("\\/","/"))
@@ -51,18 +51,18 @@ object Streams {
                     for(source in NativeApis.apiSources(p,url))found+=probe(source,url,p.requestHeaders)
                     if(found.isNotEmpty())break
                 }
-                val page=Network.page(PageRequest(target,headers=if(URI(target).host==URI(p.base).host)p.requestHeaders else emptyMap()),referer)
+                val page=Network.page(PageRequest(target,headers=if(webUri(target).host==webUri(p.base).host)p.requestHeaders else emptyMap()),referer)
                 val actual=page.baseUri()
                 val candidates=Playback.sources(page)+extras(page)+EmbeddedPlayers.abSources(page)
                 for(source in candidates.distinctBy{it.url})found+=probe(source,actual,if(p.engine=="noodle")p.requestHeaders+mapOf("User-Agent" to "stagefright/1.2 (Linux;Android 13)") else Network.headers(actual))
                 if(found.isNotEmpty())break
-                if(p.engine=="eporner" || URI(actual).host.orEmpty().removePrefix("www.")=="eporner.com")for(source in eporner(p,actual))found+=probe(source,p.base,Network.headers(p.base))
+                if(p.engine=="eporner" || webUri(actual).host.orEmpty().removePrefix("www.")=="eporner.com")for(source in eporner(p,actual))found+=probe(source,p.base,Network.headers(p.base))
                 EmbeddedPlayers.original(page)?.let{queue.add(it to actual)}
                 for(frame in page.select("iframe[src],iframe[data-src]")) {
                     if(frame.closest(".ad,.ads,.advertisement")!=null)continue
                     val raw=frame.attr("data-src").ifBlank{frame.attr("src")}
                     if(raw.isBlank()||raw.startsWith("javascript:")||raw.startsWith("data:"))continue
-                    val child=URI(actual).resolve(raw).toString()
+                    val child=WebUrls.resolve(actual,raw) ?: continue
                     if(Regex("(?i)googletagmanager|doubleclick|trafficjunky|adserver").containsMatchIn(child))continue
                     queue.add(child to actual)
                 }
@@ -114,14 +114,14 @@ object Streams {
             val external=Regex("#EXT-X-MEDIA:.*URI=",RegexOption.IGNORE_CASE).containsMatchIn(text)
             for(line in text.lineSequence().map{it.trim()}) {
                 if(line.startsWith("#EXT-X-STREAM-INF:")){height=Regex("RESOLUTION=(\\d+)x(\\d+)",RegexOption.IGNORE_CASE).find(line)?.let{minOf(it.groupValues[1].toInt(),it.groupValues[2].toInt())};if((height?:0)>1080)hasHigher=true}
-                else if(line.isNotBlank()&&!line.startsWith('#')){val h=height;if(h!=null&&h in 100..1080&&!external)result+=stream.copy(url=URI(response.request.url.toString()).resolve(line).toString(),quality=h);height=null}
+                else if(line.isNotBlank()&&!line.startsWith('#')){val h=height;if(h!=null&&h in 100..1080&&!external)result+=stream.copy(url=WebUrls.resolve(response.request.url.toString(),line) ?: continue,quality=h);height=null}
             }
             if(!hasHigher)result.add(0,stream)
             result.distinctBy{it.quality}
         }
     } ?: listOf(stream)
     private suspend fun eporner(p:Profile,url:String):List<Playback.Source> {
-        val base=URI(url).let{"${it.scheme}://${it.rawAuthority}"}
+        val base=webUri(url).let{"${it.scheme}://${it.rawAuthority}"}
         val id=Regex("/(?:video-|hd-porn/|embed/)([A-Za-z0-9]+)").find(url)?.groupValues?.get(1) ?: return emptyList()
         val embed="$base/embed/$id/";val text=Network.page(PageRequest(embed),url).html()
         val hash=Regex("""EP\.video\.player\.hash\s*=\s*'([^']+)'""").find(text)?.groupValues?.get(1) ?: return emptyList()
