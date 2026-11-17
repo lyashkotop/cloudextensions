@@ -16,6 +16,23 @@ object NativeApis {
     }
     private fun poster(p:Profile,item:JSONObject)=listOf("scr","thumbsrc","thumb","poster").firstNotNullOfOrNull{Metadata.imageUrl(p.base,item.optString(it))}
     private suspend fun json(p:Profile,url:String)=JSONObject(Network.page(PageRequest(url,headers=p.requestHeaders),p.base).wholeText())
+    suspend fun wordpressLatest(p:Profile,page:Int):Pair<List<VideoCard>,PageRequest?> {
+        val url=p.base+"/wp-json/wp/v2/posts?per_page=20&page=$page&orderby=date&order=desc&_embed=wp:featuredmedia&_fields=id,link,title,date,_links,_embedded"
+        val response=Network.response(PageRequest(url,headers=p.requestHeaders),p.base)
+        val rows=JSONArray(response.text)
+        val cards=(0 until rows.length()).mapNotNull{i->
+            val item=rows.getJSONObject(i);val link=item.optString("link").takeIf{it.startsWith("http")} ?: return@mapNotNull null
+            val title=Metadata.title(link,listOf(org.jsoup.Jsoup.parse(item.optJSONObject("title")?.optString("rendered").orEmpty()).text()))
+            if(title.isBlank())return@mapNotNull null
+            val media=item.optJSONObject("_embedded")?.optJSONArray("wp:featuredmedia")?.optJSONObject(0)
+            val sizes=media?.optJSONObject("media_details")?.optJSONObject("sizes")
+            val image=listOf("medium","medium_large","large").firstNotNullOfOrNull{key->sizes?.optJSONObject(key)?.optString("source_url")?.takeIf{it.isNotBlank()}} ?: media?.optString("source_url")
+            val poster=Metadata.rememberPoster(link,image)
+            VideoCard(title,link,poster)
+        }
+        val pages=response.headers["X-WP-TotalPages"]?.toIntOrNull() ?: page
+        return cards to PageRequest(url.toHttpUrl().newBuilder().setQueryParameter("page",(page+1).toString()).build().toString()).takeIf{page<pages}
+    }
     suspend fun catalog(p:Profile,query:String,page:Int,request:PageRequest):Pair<List<VideoCard>,PageRequest?> {
         val sort=request.url.toHttpUrl().queryParameter("sort_by") ?: if(query.isBlank())"latest-updates" else "relevance"
         val q=URLEncoder.encode(query,"UTF-8")

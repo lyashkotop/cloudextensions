@@ -7,6 +7,7 @@ def main():
  subprocess.run([sys.executable,str(ROOT/'scripts/run_probe.py'),'Contracts','--tools',str(compiler)],check=True)
  subprocess.run([sys.executable,str(ROOT/'scripts/run_probe.py'),'RequestBudget','--tools',str(compiler)],check=True)
  subprocess.run([sys.executable,str(ROOT/'scripts/run_probe.py'),'Paging','--tools',str(compiler)],check=True)
+ subprocess.run([sys.executable,str(ROOT/'scripts/run_probe.py'),'BrowseContracts','--tools',str(compiler)],check=True)
  apk=ROOT/'build/CloudExtensions.apk'
  if not apk.exists():apk=ROOT/'build/cloudextensions-unsigned.apk'
  with zipfile.ZipFile(apk) as z:

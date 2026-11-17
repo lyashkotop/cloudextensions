@@ -19,7 +19,7 @@ class BundleSource(val profile:Profile):AnimeHttpSource() {
     override val name=(when(profile.lang){"ru"->"1. ";"ja"->"2. ";else->"3. "})+profile.name
     override val lang=profile.lang
     override val baseUrl=profile.base
-    override val supportsLatest=profile.id!="Xnxx"
+    override val supportsLatest=Browse.supported(profile,false)
     override val client=network.cloudflareClient.newBuilder().connectTimeout(8,TimeUnit.SECONDS).readTimeout(12,TimeUnit.SECONDS).callTimeout(18,TimeUnit.SECONDS).build()
     private val engine=Engine(profile)
     init{Network.client=client;AndroidPlayer.attach(network)}

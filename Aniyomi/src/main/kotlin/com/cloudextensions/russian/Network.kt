@@ -9,6 +9,7 @@ import kotlinx.coroutines.delay
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.FormBody
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.json.JSONObject
@@ -26,9 +27,10 @@ object Network {
             override fun onResponse(call:okhttp3.Call,response:okhttp3.Response){if(continuation.isActive)continuation.resume(response){response.close()} else response.close()}
         })
     }
-    suspend fun page(request:PageRequest,referer:String):Document {
+    data class TextResponse(val text:String,val url:String,val code:Int,val headers:okhttp3.Headers)
+    suspend fun response(request:PageRequest,referer:String):TextResponse {
         val host=webUri(request.url).host.orEmpty()
-        val fetch=if(host.endsWith(".strip2.co")&&request.data==null)request.url+(if(request.url.contains('?'))"&" else "?")+"_refresh="+(System.currentTimeMillis()/60000) else request.url
+        val fetch=if(host.endsWith(".strip2.co")&&request.data==null)request.url.toHttpUrl().newBuilder().setQueryParameter("_refresh",(System.currentTimeMillis()/1000).toString()).build().toString() else request.url
         val builder=Request.Builder().url(fetch)
         (headers(referer)+request.headers).forEach{(k,v)->builder.header(k,v)}
         request.data?.let{data->val form=FormBody.Builder();data.forEach{(k,v)->form.add(k,v)};builder.post(form.build())}
@@ -42,12 +44,17 @@ object Network {
                 }
                 if(!response.isSuccessful && !(request.allowNotFound&&response.code==404))throw IOException("HTTP ${response.code}: ${response.request.url.host}")
                 val raw=response.body?.string() ?: throw IOException("Empty source response")
-                val envelope=if(raw.trimStart().startsWith('{'))try{JSONObject(raw)}catch(_:Exception){null} else null
-                return Jsoup.parse(envelope?.optString("html")?.takeIf{it.isNotBlank()} ?: raw,response.request.url.toString()).apply {
-                    attr("data-response-code",response.code.toString())
-                    if(envelope?.has("results_remaining")==true)attr("data-results-remaining",envelope.optInt("results_remaining").toString())
-                }
+                return TextResponse(raw,response.request.url.toString(),response.code,response.headers)
             }
         }
     }
+    suspend fun page(request:PageRequest,referer:String):Document {
+        val response=response(request,referer);val raw=response.text
+        val envelope=if(raw.trimStart().startsWith('{'))try{JSONObject(raw)}catch(_:Exception){null} else null
+        return Jsoup.parse(envelope?.optString("html")?.takeIf{it.isNotBlank()} ?: raw,response.url).apply {
+            attr("data-response-code",response.code.toString())
+            if(envelope?.has("results_remaining")==true)attr("data-results-remaining",envelope.optInt("results_remaining").toString())
+        }
+    }
+
 }

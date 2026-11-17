@@ -100,9 +100,10 @@ object Metadata {
         // Some site dictionaries escape Unicode twice inside the HTML JSON attribute.
         return Regex("""\\u([0-9a-fA-F]{4})""").replace(raw){it.groupValues[1].toInt(16).toChar().toString()}
     }
-    fun cards(page: Element, spec: SiteSpec): List<VideoCard> {
+    fun cards(page: Element, spec: SiteSpec, within:Element?=null): List<VideoCard> {
         val result = LinkedHashMap<String,VideoCard>()
         for (card in page.select(spec.cards)) {
+            if(within!=null&&within!==page&&card!==within&&within !in card.parents())continue
             if(spec.id=="ThisVid" && card.selectFirst(".private,.icon-private,.svg-icon-private,img[src*=bg_private_video]")!=null)continue
             val link = if (card.tagName() == "a" && card.hasAttr("href")) card else card.selectFirst(spec.link) ?: continue
             val url = absolute(page.baseUri(),link.attr("href")) ?: continue

@@ -1,0 +1,1747 @@
+[
+  {
+    "source": "Ebalka",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 35,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://1ebalka.ru.actor/most-popular/"],
+        "wire": ["200 https://1ebalka.ru.actor/most-popular/"],
+        "ms": 1522,
+        "count": 35,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://1ebalka.ru.actor/most-popular/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed&from=2"],
+        "wire": ["200 https://1ebalka.ru.actor/most-popular/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed&from=2"],
+        "ms": 672,
+        "count": 35,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 35,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://1ebalka.ru.actor/latest-videos/"],
+        "wire": ["200 https://1ebalka.ru.actor/latest-videos/"],
+        "ms": 572,
+        "count": 35,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://1ebalka.ru.actor/latest-videos/?mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=post_date&from=2"],
+        "wire": ["200 https://1ebalka.ru.actor/latest-videos/?mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=post_date&from=2"],
+        "ms": 455,
+        "count": 25,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "Huyamba",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 20,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://ru.huyamba.name/videos/?by=video_viewed"],
+        "wire": ["200 https://ru.huyamba.name/videos/?by=video_viewed"],
+        "ms": 1337,
+        "count": 20,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://ru.huyamba.name/videos/?by=video_viewed&mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=video_viewed&from=2"],
+        "wire": ["200 https://ru.huyamba.name/videos/?by=video_viewed&mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=video_viewed&from=2"],
+        "ms": 221,
+        "count": 20,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 20,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://ru.huyamba.name/videos/?by=post_date"],
+        "wire": ["200 https://ru.huyamba.name/videos/?by=post_date"],
+        "ms": 251,
+        "count": 20,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://ru.huyamba.name/videos/?by=post_date&mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=post_date&from=2"],
+        "wire": ["200 https://ru.huyamba.name/videos/?by=post_date&mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=post_date&from=2"],
+        "ms": 187,
+        "count": 20,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "NoodleMagazine",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://hot.tyler-brown.com/recent?range=month"],
+        "wire": ["200 https://hot.tyler-brown.com/recent?range=month"],
+        "ms": 1456,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://hot.tyler-brown.com/recent?range=month&p=1"],
+        "wire": ["200 https://hot.tyler-brown.com/recent?range=month&p=1"],
+        "ms": 354,
+        "count": 24,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://hot.tyler-brown.com/recent?range=recent"],
+        "wire": ["200 https://hot.tyler-brown.com/recent?range=recent"],
+        "ms": 331,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://hot.tyler-brown.com/recent?range=recent&p=1"],
+        "wire": ["200 https://hot.tyler-brown.com/recent?range=recent&p=1"],
+        "ms": 231,
+        "count": 24,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "Perdol",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://b.perdol.net/most-popular/"],
+        "wire": ["200 https://b.perdol.net/most-popular/"],
+        "ms": 1395,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://b.perdol.net/most-popular/2/"],
+        "wire": ["200 https://b.perdol.net/most-popular/2/"],
+        "ms": 260,
+        "count": 24,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 2,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://b.perdol.net/"],
+        "wire": ["200 https://b.perdol.net/"],
+        "ms": 236,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://b.perdol.net/2/"],
+        "wire": ["200 https://b.perdol.net/2/"],
+        "ms": 210,
+        "count": 24,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "Poebon",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://v.poebon.pro/most-popular/"],
+        "wire": ["200 https://v.poebon.pro/most-popular/"],
+        "ms": 831,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://v.poebon.pro/most-popular/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed&from=02"],
+        "wire": ["200 https://v.poebon.pro/most-popular/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed&from=02"],
+        "ms": 284,
+        "count": 24,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 48,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://v.poebon.pro/"],
+        "wire": ["200 https://v.poebon.pro/"],
+        "ms": 410,
+        "count": 48,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://v.poebon.pro/?mode=async&function=get_block&block_id=list_videos_most_recent_videos&sort_by=last_time_view_date&from=02"],
+        "wire": ["200 https://v.poebon.pro/?mode=async&function=get_block&block_id=list_videos_most_recent_videos&sort_by=last_time_view_date&from=02"],
+        "ms": 374,
+        "count": 42,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "ProstoPorno",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 20,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://prostoporno.dev/best/all/"],
+        "wire": ["200 https://prostoporno.dev/best/all/"],
+        "ms": 1132,
+        "count": 20,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://prostoporno.dev/best/all/2/"],
+        "wire": ["200 https://prostoporno.dev/best/all/2/"],
+        "ms": 628,
+        "count": 20,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 1,
+        "count": 20,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://prostoporno.dev/latest-updates/"],
+        "wire": ["200 https://prostoporno.dev/latest-updates/"],
+        "ms": 341,
+        "count": 20,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://prostoporno.dev/latest-updates/2/"],
+        "wire": ["200 https://prostoporno.dev/latest-updates/2/"],
+        "ms": 595,
+        "count": 20,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "Semyana",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://w.semyana.com/best/all/"],
+        "wire": ["200 https://w.semyana.com/best/all/"],
+        "ms": 568,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://w.semyana.com/best/all/?p=2"],
+        "wire": ["200 https://w.semyana.com/best/all/?p=2"],
+        "ms": 292,
+        "count": 24,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://w.semyana.com/new/"],
+        "wire": ["200 https://w.semyana.com/new/"],
+        "ms": 407,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://w.semyana.com/new/?p=2"],
+        "wire": ["200 https://w.semyana.com/new/?p=2"],
+        "ms": 284,
+        "count": 24,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "Strip2",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 47,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://vps402.strip2.co/videocat/most-popular/?_refresh=1794903866"],
+        "wire": ["200 https://vps402.strip2.co/videocat/most-popular/?_refresh=1794903866"],
+        "ms": 1027,
+        "count": 47,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://vps402.strip2.co/videocat/most-popular/p2/?_refresh=1794903867"],
+        "wire": ["200 https://vps402.strip2.co/videocat/most-popular/p2/?_refresh=1794903867"],
+        "ms": 792,
+        "count": 47,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 47,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://vps402.strip2.co/videocat/new/?_refresh=1794903868"],
+        "wire": ["200 https://vps402.strip2.co/videocat/new/?_refresh=1794903868"],
+        "ms": 866,
+        "count": 47,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://vps402.strip2.co/videocat/new/p2/?_refresh=1794903869"],
+        "wire": ["200 https://vps402.strip2.co/videocat/new/p2/?_refresh=1794903869"],
+        "ms": 787,
+        "count": 47,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "Vpoisk",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 21,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://m.vpoisk.xyz/best/all/"],
+        "wire": ["200 https://m.vpoisk.xyz/best/all/"],
+        "ms": 485,
+        "count": 21,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://m.vpoisk.xyz/best/all/?p=2"],
+        "wire": ["200 https://m.vpoisk.xyz/best/all/?p=2"],
+        "ms": 260,
+        "count": 21,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 21,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://m.vpoisk.xyz/new/"],
+        "wire": ["200 https://m.vpoisk.xyz/new/"],
+        "ms": 387,
+        "count": 21,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://m.vpoisk.xyz/new/?p=2"],
+        "wire": ["200 https://m.vpoisk.xyz/new/?p=2"],
+        "ms": 352,
+        "count": 21,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "JavGuru",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://jav.guru/category/jav/?orderby=likes-today&order=DESC"],
+        "wire": ["200 https://jav.guru/category/jav/?orderby=likes-today&order=DESC"],
+        "ms": 926,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://jav.guru/category/jav/page/2/?orderby=likes-today&order=DESC"],
+        "wire": ["200 https://jav.guru/category/jav/page/2/?orderby=likes-today&order=DESC"],
+        "ms": 369,
+        "count": 24,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://jav.guru/"],
+        "wire": ["200 https://jav.guru/"],
+        "ms": 196,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://jav.guru/page/2/"],
+        "wire": ["200 https://jav.guru/page/2/"],
+        "ms": 182,
+        "count": 24,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "MissAV",
+    "popular": {"first": {
+      "ms": 179,
+      "requests": 1,
+      "error": "IOException: HTTP 403: missav.live"
+    }},
+    "latest": {"first": {
+      "ms": 48,
+      "requests": 1,
+      "error": "IOException: HTTP 403: missav.live"
+    }}
+  },
+  {
+    "source": "BDSMStreak",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 43,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://bdsmstreak.com/popular"],
+        "wire": ["200 https://bdsmstreak.com/popular"],
+        "ms": 502,
+        "count": 43,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://bdsmstreak.com/popular?page=2"],
+        "wire": ["200 https://bdsmstreak.com/popular?page=2"],
+        "ms": 387,
+        "count": 44,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 48,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://bdsmstreak.com/newest"],
+        "wire": ["200 https://bdsmstreak.com/newest"],
+        "ms": 459,
+        "count": 48,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://bdsmstreak.com/newest?page=2"],
+        "wire": ["200 https://bdsmstreak.com/newest?page=2"],
+        "ms": 428,
+        "count": 48,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "BDSMX",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 60,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://bdsmx.tube/api/json/videos2/86400/str/top-rated/60/..1.all...json"],
+        "wire": ["200 https://bdsmx.tube/api/json/videos2/86400/str/top-rated/60/..1.all...json"],
+        "ms": 958,
+        "count": 60,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://bdsmx.tube/api/json/videos2/86400/str/top-rated/60/..2.all...json"],
+        "wire": ["200 https://bdsmx.tube/api/json/videos2/86400/str/top-rated/60/..2.all...json"],
+        "ms": 487,
+        "count": 60,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 60,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://bdsmx.tube/api/json/videos2/86400/str/latest-updates/60/..1.all...json"],
+        "wire": ["200 https://bdsmx.tube/api/json/videos2/86400/str/latest-updates/60/..1.all...json"],
+        "ms": 279,
+        "count": 60,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://bdsmx.tube/api/json/videos2/86400/str/latest-updates/60/..2.all...json"],
+        "wire": ["200 https://bdsmx.tube/api/json/videos2/86400/str/latest-updates/60/..2.all...json"],
+        "ms": 296,
+        "count": 60,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "Beeg",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 30,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://beeg.porn/trends/"],
+        "wire": ["200 https://beeg.porn/trends/"],
+        "ms": 928,
+        "count": 30,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://beeg.porn/trends/2/"],
+        "wire": ["200 https://beeg.porn/trends/2/"],
+        "ms": 84,
+        "count": 27,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 120,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://beeg.porn/new/"],
+        "wire": ["200 https://beeg.porn/new/"],
+        "ms": 607,
+        "count": 120,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://beeg.porn/new/2/"],
+        "wire": ["200 https://beeg.porn/new/2/"],
+        "ms": 301,
+        "count": 120,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "BoundHub",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.boundhub.com/most-popular/"],
+        "wire": ["200 https://www.boundhub.com/most-popular/"],
+        "ms": 384,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.boundhub.com/most-popular/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed&from=02"],
+        "wire": ["200 https://www.boundhub.com/most-popular/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed&from=02"],
+        "ms": 295,
+        "count": 24,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.boundhub.com/latest-updates/"],
+        "wire": ["200 https://www.boundhub.com/latest-updates/"],
+        "ms": 237,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.boundhub.com/latest-updates/?mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=post_date&from=02"],
+        "wire": ["200 https://www.boundhub.com/latest-updates/?mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=post_date&from=02"],
+        "ms": 291,
+        "count": 24,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "DarknessPorn",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 47,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://darknessporn.com/?filter=most-viewed"],
+        "wire": ["200 https://darknessporn.com/?filter=most-viewed"],
+        "ms": 233,
+        "count": 47,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://darknessporn.com/page/2/?filter=most-viewed"],
+        "wire": ["200 https://darknessporn.com/page/2/?filter=most-viewed"],
+        "ms": 145,
+        "count": 47,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 47,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://darknessporn.com/?filter=latest"],
+        "wire": ["200 https://darknessporn.com/?filter=latest"],
+        "ms": 110,
+        "count": 47,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://darknessporn.com/page/2/?filter=latest"],
+        "wire": ["200 https://darknessporn.com/page/2/?filter=latest"],
+        "ms": 95,
+        "count": 47,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "EPorner",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 79,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.eporner.com/most-viewed/"],
+        "wire": ["200 https://www.eporner.com/most-viewed/"],
+        "ms": 931,
+        "count": 79,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.eporner.com/2/most-viewed/"],
+        "wire": ["200 https://www.eporner.com/2/most-viewed/"],
+        "ms": 320,
+        "count": 63,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 41,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.eporner.com/"],
+        "wire": ["200 https://www.eporner.com/"],
+        "ms": 370,
+        "count": 41,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.eporner.com/2/"],
+        "wire": ["200 https://www.eporner.com/2/"],
+        "ms": 210,
+        "count": 66,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "ForcedCinema",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 20,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://forcedcinema.net/?filter=most-viewed"],
+        "wire": ["200 https://forcedcinema.net/?filter=most-viewed"],
+        "ms": 507,
+        "count": 20,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://forcedcinema.net/page/2/?filter=most-viewed"],
+        "wire": ["200 https://forcedcinema.net/page/2/?filter=most-viewed"],
+        "ms": 390,
+        "count": 20,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 20,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://forcedcinema.net/wp-json/wp/v2/posts?per_page=20&page=1&orderby=date&order=desc&_embed=wp:featuredmedia&_fields=id,link,title,date,_links,_embedded"],
+        "wire": ["200 https://forcedcinema.net/wp-json/wp/v2/posts?per_page=20&page=1&orderby=date&order=desc&_embed=wp:featuredmedia&_fields=id,link,title,date,_links,_embedded"],
+        "ms": 490,
+        "count": 20,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://forcedcinema.net/wp-json/wp/v2/posts?per_page=20&page=2&orderby=date&order=desc&_embed=wp:featuredmedia&_fields=id,link,title,date,_links,_embedded"],
+        "wire": ["200 https://forcedcinema.net/wp-json/wp/v2/posts?per_page=20&page=2&orderby=date&order=desc&_embed=wp:featuredmedia&_fields=id,link,title,date,_links,_embedded"],
+        "ms": 586,
+        "count": 20,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "HcBDSMX",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 30,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://hcbdsm.com/most-popular/"],
+        "wire": ["200 https://hcbdsm.com/most-popular/"],
+        "ms": 574,
+        "count": 30,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://hcbdsm.com/most-popular/2/"],
+        "wire": ["200 https://hcbdsm.com/most-popular/2/"],
+        "ms": 401,
+        "count": 30,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 30,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://hcbdsm.com/latest-updates/"],
+        "wire": ["200 https://hcbdsm.com/latest-updates/"],
+        "ms": 337,
+        "count": 30,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://hcbdsm.com/latest-updates/2/"],
+        "wire": ["200 https://hcbdsm.com/latest-updates/2/"],
+        "ms": 355,
+        "count": 30,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "HeavyR",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 40,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.heavy-r.com/videos/most_viewed/"],
+        "wire": ["200 https://www.heavy-r.com/videos/most_viewed/"],
+        "ms": 1608,
+        "count": 40,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.heavy-r.com/videos/most_viewed/1/"],
+        "wire": ["200 https://www.heavy-r.com/videos/most_viewed/1/"],
+        "ms": 1655,
+        "count": 40,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 40,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.heavy-r.com/videos/recent/"],
+        "wire": ["200 https://www.heavy-r.com/videos/recent/"],
+        "ms": 258,
+        "count": 40,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.heavy-r.com/videos/recent/1/"],
+        "wire": ["200 https://www.heavy-r.com/videos/recent/1/"],
+        "ms": 284,
+        "count": 40,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "HurtSex",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 60,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.hurtsex.com/most_viewed"],
+        "wire": ["200 https://www.hurtsex.com/most_viewed"],
+        "ms": 411,
+        "count": 60,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.hurtsex.com/most_viewed/2"],
+        "wire": ["200 https://www.hurtsex.com/most_viewed/2"],
+        "ms": 117,
+        "count": 60,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 3,
+        "count": 120,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.hurtsex.com/"],
+        "wire": ["200 https://www.hurtsex.com/"],
+        "ms": 322,
+        "count": 120,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.hurtsex.com/page/2"],
+        "wire": ["200 https://www.hurtsex.com/page/2"],
+        "ms": 197,
+        "count": 60,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "Pervertium",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.pervertium.com/most-popular/"],
+        "wire": ["200 https://www.pervertium.com/most-popular/"],
+        "ms": 374,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.pervertium.com/most-popular/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed&from=2"],
+        "wire": ["200 https://www.pervertium.com/most-popular/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed&from=2"],
+        "ms": 143,
+        "count": 24,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.pervertium.com/last-updates/"],
+        "wire": ["200 https://www.pervertium.com/last-updates/"],
+        "ms": 199,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.pervertium.com/last-updates/?mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=post_date&from=2"],
+        "wire": ["200 https://www.pervertium.com/last-updates/?mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=post_date&from=2"],
+        "ms": 147,
+        "count": 24,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "PornVideos",
+    "popular": {
+      "repeat": {
+        "next": false,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 60,
+        "requests": 0
+      },
+      "first": {
+        "next": false,
+        "urls": ["https://www.pornvideos.rs/"],
+        "wire": ["200 https://www.pornvideos.rs/"],
+        "ms": 369,
+        "count": 60,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 60,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.pornvideos.rs/"],
+        "wire": ["200 https://www.pornvideos.rs/"],
+        "ms": 144,
+        "count": 60,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.pornvideos.rs/page/2"],
+        "wire": ["200 https://www.pornvideos.rs/page/2"],
+        "ms": 215,
+        "count": 60,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "PunishWorld",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 48,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://punishworld.com/?filter=most-viewed"],
+        "wire": ["200 https://punishworld.com/?filter=most-viewed"],
+        "ms": 247,
+        "count": 48,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://punishworld.com/page/2/?filter=most-viewed"],
+        "wire": ["200 https://punishworld.com/page/2/?filter=most-viewed"],
+        "ms": 137,
+        "count": 47,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 48,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://punishworld.com/?filter=latest"],
+        "wire": ["200 https://punishworld.com/?filter=latest"],
+        "ms": 121,
+        "count": 48,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://punishworld.com/page/2/?filter=latest"],
+        "wire": ["200 https://punishworld.com/page/2/?filter=latest"],
+        "ms": 94,
+        "count": 47,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "SickJunk",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 20,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://sickjunk.com/?orderby=comment_count&order=DESC"],
+        "wire": ["200 https://sickjunk.com/?orderby=comment_count&order=DESC"],
+        "ms": 844,
+        "count": 20,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://sickjunk.com/page/2/?orderby=comment_count&order=DESC"],
+        "wire": ["200 https://sickjunk.com/page/2/?orderby=comment_count&order=DESC"],
+        "ms": 250,
+        "count": 17,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 20,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://sickjunk.com/?orderby=date&order=DESC"],
+        "wire": ["200 https://sickjunk.com/?orderby=date&order=DESC"],
+        "ms": 329,
+        "count": 20,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://sickjunk.com/page/2/?orderby=date&order=DESC"],
+        "wire": ["200 https://sickjunk.com/page/2/?orderby=date&order=DESC"],
+        "ms": 252,
+        "count": 20,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "SickR",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 60,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://sick-r.com/most-popular/"],
+        "wire": ["200 https://sick-r.com/most-popular/"],
+        "ms": 557,
+        "count": 60,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://sick-r.com/most-popular/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed&from=2"],
+        "wire": ["200 https://sick-r.com/most-popular/?mode=async&function=get_block&block_id=list_videos_common_videos_list&sort_by=video_viewed&from=2"],
+        "ms": 322,
+        "count": 60,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 60,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://sick-r.com/latest-updates/"],
+        "wire": ["200 https://sick-r.com/latest-updates/"],
+        "ms": 478,
+        "count": 60,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://sick-r.com/latest-updates/?mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=post_date&from=2"],
+        "wire": ["200 https://sick-r.com/latest-updates/?mode=async&function=get_block&block_id=list_videos_latest_videos_list&sort_by=post_date&from=2"],
+        "ms": 352,
+        "count": 60,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "ThisVid",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 36,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://thisvid.com/most-popular/"],
+        "wire": ["200 https://thisvid.com/most-popular/"],
+        "ms": 626,
+        "count": 36,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://thisvid.com/most-popular/2/"],
+        "wire": ["200 https://thisvid.com/most-popular/2/"],
+        "ms": 198,
+        "count": 36,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 36,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://thisvid.com/latest-updates/"],
+        "wire": ["200 https://thisvid.com/latest-updates/"],
+        "ms": 259,
+        "count": 36,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://thisvid.com/latest-updates/2/"],
+        "wire": ["200 https://thisvid.com/latest-updates/2/"],
+        "ms": 208,
+        "count": 36,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "TubeBDSM",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 120,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.tubebdsm.com/popular"],
+        "wire": ["200 https://www.tubebdsm.com/popular"],
+        "ms": 779,
+        "count": 120,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.tubebdsm.com/popular?page=2"],
+        "wire": ["200 https://www.tubebdsm.com/popular?page=2"],
+        "ms": 434,
+        "count": 120,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 120,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.tubebdsm.com/new"],
+        "wire": ["200 https://www.tubebdsm.com/new"],
+        "ms": 873,
+        "count": 120,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.tubebdsm.com/new?page=2"],
+        "wire": ["200 https://www.tubebdsm.com/new?page=2"],
+        "ms": 512,
+        "count": 120,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "TubeSafari",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 120,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://tubesafari.com/api?method=search&query=&sort=best&page=0"],
+        "wire": ["200 https://tubesafari.com/api?method=search&query=&sort=best&page=0"],
+        "ms": 605,
+        "count": 120,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://tubesafari.com/api?method=search&query=&sort=best&page=1"],
+        "wire": ["200 https://tubesafari.com/api?method=search&query=&sort=best&page=1"],
+        "ms": 303,
+        "count": 120,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 120,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://tubesafari.com/api?method=search&query=&sort=new&page=0"],
+        "wire": ["200 https://tubesafari.com/api?method=search&query=&sort=new&page=0"],
+        "ms": 382,
+        "count": 120,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://tubesafari.com/api?method=search&query=&sort=new&page=1"],
+        "wire": ["200 https://tubesafari.com/api?method=search&query=&sort=new&page=1"],
+        "ms": 307,
+        "count": 120,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "UKDevilz",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://tyler-brown.com/recent?range=month"],
+        "wire": ["200 https://tyler-brown.com/recent?range=month"],
+        "ms": 864,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://tyler-brown.com/recent?range=month&p=1"],
+        "wire": ["200 https://tyler-brown.com/recent?range=month&p=1"],
+        "ms": 289,
+        "count": 24,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://tyler-brown.com/recent?range=recent"],
+        "wire": ["200 https://tyler-brown.com/recent?range=recent"],
+        "ms": 206,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://tyler-brown.com/recent?range=recent&p=1"],
+        "wire": ["200 https://tyler-brown.com/recent?range=recent&p=1"],
+        "ms": 230,
+        "count": 24,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "XRares",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.xrares.com/videos?type=public&o=mv"],
+        "wire": ["200 https://www.xrares.com/videos?type=public&o=mv"],
+        "ms": 1394,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.xrares.com/videos?type=public&o=mv&page=2"],
+        "wire": ["200 https://www.xrares.com/videos?type=public&o=mv&page=2"],
+        "ms": 205,
+        "count": 24,
+        "requests": 1
+      }
+    },
+    "latest": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 24,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.xrares.com/videos?type=public&o=mr"],
+        "wire": ["200 https://www.xrares.com/videos?type=public&o=mr"],
+        "ms": 793,
+        "count": 24,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.xrares.com/videos?type=public&o=mr&page=2"],
+        "wire": ["200 https://www.xrares.com/videos?type=public&o=mr&page=2"],
+        "ms": 403,
+        "count": 24,
+        "requests": 1
+      }
+    }
+  },
+  {
+    "source": "Xnxx",
+    "popular": {
+      "repeat": {
+        "next": true,
+        "urls": [],
+        "wire": [],
+        "ms": 0,
+        "count": 32,
+        "requests": 0
+      },
+      "noPageOverlap": true,
+      "first": {
+        "next": true,
+        "urls": ["https://www.xnxx.com/hits"],
+        "wire": ["200 https://www.xnxx.com/hits"],
+        "ms": 1448,
+        "count": 32,
+        "requests": 1
+      },
+      "second": {
+        "next": true,
+        "urls": ["https://www.xnxx.com/hits/1"],
+        "wire": ["200 https://www.xnxx.com/hits/1"],
+        "ms": 961,
+        "count": 32,
+        "requests": 1
+      }
+    },
+    "latest": {"unsupported": "Рабочая общая лента новинок пока не найдена; проверенные /new/ и RSS возвращают 404"}
+  }
+]
