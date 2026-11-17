@@ -1,8 +1,8 @@
 {
   "file": "CloudExtensions.apk",
-  "version": 3,
+  "version": 5,
   "api": 14,
   "sources": 32,
-  "bytes": 672290,
-  "sha256": "e5450416c655c8a3a3f0926f1f73b6b4ab4e4565de4ee7a05d841fb0700b0ad1"
+  "bytes": 664098,
+  "sha256": "0e2d3e437c87785c1157de087969ad704e1e5dab15ea401d12bf463d7db51d78"
 }

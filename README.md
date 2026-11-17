@@ -1,11 +1,11 @@
-# Cloud Extensions for Aniyomi
+# CloudExtensions для Aniyomi — v5
 
-[Download signed APK](https://raw.githubusercontent.com/lyashkotop/cloudextensions/aniyomi-builds/CloudExtensions.apk?v=3)
+[Скачать подписанный APK](https://raw.githubusercontent.com/lyashkotop/cloudextensions/aniyomi-builds/CloudExtensions.apk?v=5)
 
-32 active sources, API 14, Android 8+. Install the APK, then trust the extension in Aniyomi → Browse → Extensions. This is an extension, not a standalone Aniyomi application.
+32 источника. Версия 14.5 / код 5; тот же ключ подписи для обновления поверх v3/v4. Это расширение для установленного Aniyomi.
 
-[Source code and rebuild instructions](https://github.com/lyashkotop/cloudextensions/tree/main/Aniyomi). Source revision: eb88b60. Signature verification and native filter contracts passed. The Android UI/WebView path has not been device-tested here. MissAV and some CDNs require Cloudflare access; deleted/unavailable records are not counted as working.
+Исправлены пагинация с сохранением запроса, дубли по ID, отмена запросов, добор публичных роликов ThisVid, настоящие каталоги категорий. «Все теги» подняты в начало. Автоматических стоп-слов нет.
 
-The private signing key is not published. Future updates must use the same signing key and a higher version code.
+[Исходники](https://github.com/lyashkotop/cloudextensions/tree/main/Aniyomi) · [Проверка и ограничения сайтов](https://github.com/lyashkotop/cloudextensions/blob/main/Aniyomi/imports/build5/README.md)
 
-Build 3: no automatic content stop-list or card detail preflights; compact two-list tags UI, duration ranges, clean category captions and DarknessPorn advertisement link exclusion. Popularity uses published counters when available; unavailable counters are not invented.
+MissAV в тестовой сети отвечает 403; отдельная популярная сортировка PornVideos/SickJunk не обнаружена. Интерфейс на Android не запускался.
