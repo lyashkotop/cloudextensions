@@ -21,9 +21,10 @@ class Profile(val data:JSONObject,val catalog:JSONObject,taxonomyProvider:()->JS
         val chosen=LinkedHashMap<String,Pair<Int,Taxon>>()
         for(i in 0 until list.length()) {
             val item=list.getJSONObject(i);val label=cleanLabel(item.getString("label"));val url=item.getString("url")
-            if(label.isBlank()||label.length>100||!url.startsWith("http"))continue
+            if(label.isBlank()||label.length>100||!url.startsWith("http")||serviceLabel.matches(label))continue
             // Do not construct/parse thousands of URIs on the filter UI thread.
             val path="/"+url.substringAfter("://").substringAfter('/',"").substringBefore('?').substringBefore('#')
+            if(Regex("(?i)/(?:albums?|photos?|members?|models?)/|/(?:categories|tags)/page/|/(?:categories|tags)/[0-9]+/?$").containsMatchIn(path))continue
             val locale=localePath.find(path)?.groupValues?.get(1)
             if(locale!=null&&locale!=lang)continue
             val score=if(locale==lang)0 else 1
@@ -33,16 +34,17 @@ class Profile(val data:JSONObject,val catalog:JSONObject,taxonomyProvider:()->JS
         }
         return chosen.values.map{it.second}
     }
+    private val serviceLabel=Regex("(?iu)^(?:show more|see (?:all|more)|view (?:all|more)(?: posts)?|all (?:tags|categories)|next(?: page)?|previous(?: page)?|показать ещ[её]|все (?:теги|категории)|далее|назад|ещ[её]|[0-9]+)[\\s.»›→]*$")
     private fun cleanLabel(text:String)=text.replace(Regex("""\s+\d[\d,.]*\s*.*\d+%$"""),"").replace(Regex("""\s+\d+[ ]*(?:videos?|видео)$""",RegexOption.IGNORE_CASE),"").trim().removePrefix("#")
     private val publishedTags by lazy{taxa("tags")}
     private val observedTags=java.util.concurrent.ConcurrentHashMap<String,Taxon>()
     fun observeTags(values:List<String>){for(value in values)if(Metadata.tag(value)!=null&&ContentPolicy.accepts(value))observedTags.putIfAbsent(value.lowercase(),Taxon(value,""))}
     val tags get()=(publishedTags+observedTags.values).distinctBy{it.label.lowercase()}.sortedWith(compareByDescending<Taxon>{it.count ?: -1L})
-    val categories by lazy{taxa("categories")}
+    val categories by lazy{taxa("categories").distinctBy{it.label.lowercase()}}
     val orders by lazy{
         val list=catalog.optJSONArray("sorts")
         val result=if(list==null)emptyList() else (0 until list.length()).map{list.getJSONObject(it)}.map{Order(it.getString("label"),it.getString("key"),it.getString("value"))}
-        result.filter{(engine!="noodle"||it.value.toIntOrNull()!=null)&&it.value.lowercase() !in setOf("relevance","relevancy","best")&&!Regex("(?iu)relevan|релевант").containsMatchIn(it.label)}.distinctBy{it.key+"="+it.value}
+        result.filter{!it.value.startsWith("avg_")&&!it.value.startsWith("total_")&&(engine!="noodle"||it.value.toIntOrNull()!=null)&&it.value.lowercase() !in setOf("relevance","relevancy","best")&&!Regex("(?iu)relevan|релевант").containsMatchIn(it.label)}.distinctBy{it.key+"="+it.value}
     }
     val requestHeaders:Map<String,String> get()=Network.headers(base+"/")+if(engine=="noodle")mapOf("Cookie" to "ui_lang=$lang","Accept-Language" to lang) else emptyMap()
 }

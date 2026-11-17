@@ -38,10 +38,14 @@ internal fun absolute(base:String,value:String?):String? {
     if(raw.isBlank()||raw.startsWith("data:")||raw.startsWith("javascript:")||raw=="#")return null
     return try{WebUrls.resolve(base,raw)}catch(_:Exception){null}
 }
-internal fun videoKey(url: String): String = try {
+internal fun videoKey(url: String): String { return try {
     val u = webUri(url)
-    val path = u.rawPath.orEmpty().trimEnd('/')
-    // Every migrated provider uses a path ID. Strip only tracking parameters; retain meaningful query IDs.
-    val query = u.rawQuery.orEmpty().split('&').filter { it.isNotBlank() && it.substringBefore('=') !in setOf("Li", "Lii", "Lt", "Sn", "utm_source", "utm_medium", "utm_campaign") }.joinToString("&")
-    "${u.host.orEmpty().removePrefix("www.")}$path" + if (query.isEmpty()) "" else "?$query"
+    val host=u.host.orEmpty().removePrefix("www.")
+    val path=u.rawPath.orEmpty().trimEnd('/')
+    // KVS numeric IDs remain stable when a site changes a title/slug.
+    Regex("^/(videos?|watch)/(\\d+)(?:/|$)").find(path)?.let{return "$host/${it.groupValues[1]}/${it.groupValues[2]}"}
+    val tracking=Regex("(?i)^(?:utm_.*|fbclid|gclid|ref|referrer|source|from|sort_by|sort|order|Li|Lii|Lt|Sn)$")
+    val query=u.rawQuery.orEmpty().split('&').filter{it.isNotBlank()&&!tracking.matches(it.substringBefore('='))}.sorted().joinToString("&")
+    "$host$path"+if(query.isEmpty())"" else "?$query"
 } catch (_: Exception) { url.substringBefore('#') }
+}

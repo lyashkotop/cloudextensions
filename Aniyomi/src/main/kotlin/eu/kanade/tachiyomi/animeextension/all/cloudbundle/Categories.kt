@@ -1,6 +1,6 @@
 package eu.kanade.tachiyomi.animeextension.all.cloudbundle
 
-/** Common category names are facets over actual source labels, not invented video tags. */
+/** Semantic aliases for explicit user filters; never adds options to source taxonomies. */
 object Categories {
     private val names=linkedMapOf(
         "БДСМ" to setOf("bdsm","бдсм","bondage","бондаж"),
@@ -23,8 +23,4 @@ object Categories {
         return matches(label,values)
     }
     fun matches(label:String,values:Collection<String>)=values.any{normal(it) in aliases(label)}
-    fun choices(native:List<Taxon>):List<Taxon> {
-        val common=names.keys.map{label->Taxon(label,(native.firstOrNull{normal(it.label)==normal(label)} ?: native.firstOrNull{matches(label,listOf(it.label))})?.url.orEmpty())}
-        return common+native.filter{t->names.keys.none{matches(it,listOf(t.label))}}.distinctBy{normal(it.label)}
-    }
 }

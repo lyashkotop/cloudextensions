@@ -6,7 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 ROOT=Path(__file__).resolve().parents[1]
 UA='Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36'
-TAX=re.compile(r'/(tags?|categor(?:y|ies)|genres?|cat)/([^/?#]+)',re.I)
+TAX=re.compile(r'/(tags?|categor(?:y|ies)|genres?|cat|c)/([^/?#]+)',re.I)
 INDEX=re.compile(r'/(?:tags|categories|genres|category)(?:/|\.html)?$',re.I)
 def crawl(p):
  start=time.monotonic();base=p['origin'];session=requests.Session();headers={'User-Agent':UA,'Referer':base+'/'}
@@ -28,9 +28,9 @@ def crawl(p):
      if u.hostname!=urllib.parse.urlsplit(r.url).hostname:continue
      label=a.get_text(' ',strip=True) or a.get('title','') or (a.select_one('img').get('alt','') if a.select_one('img') else '');m=TAX.search(u.path)
      if len(seen)==1 and not a.select_one('img') and len(label)<60 and re.search(r'(?i)popular|most.view|trending|latest|recent|new videos|новин|популяр|новые|рейтин',label):result['navigation'].append({'label':label,'url':link})
-     if m and 2<=len(label)<=100 :
+     if m and 2<=len(label)<=100 and not re.search(r'/(?:albums?|photos?|members?)/|/(?:categories|tags)/page/',u.path,re.I) and not re.match(r'(?i)^(?:show more|view (?:all|more)|see (?:all|more)|next|previous|показать ещ[её])',label):
       kind='tags' if 'tag' in m[1].lower() or 'genre' in m[1].lower() else 'categories';tax[(kind,u.path)]={'label':re.sub(r'\s*\(?[\d,]+\)?$','',label).strip(),'url':link}
-     if p['id']=='TubeSafari' and '/categories' in url:
+     if '/categories' in url:
       special=(p['engine']=='noodle' and u.path.startswith('/video/')) or (p['id']=='Semyana' and u.path=='/search/') or (p['id']=='TubeSafari' and u.path.startswith('/search/')) or (p['id']=='XRares' and u.path.startswith('/search/porn_videos'))
       if special and 2<=len(label)<=80 and not a.select_one('img') and label.lower() not in ['search','поиск']:
        tax[('tags',u.path+'?'+u.query)]={'label':label,'url':link}

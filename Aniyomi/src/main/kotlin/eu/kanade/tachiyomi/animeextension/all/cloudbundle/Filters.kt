@@ -23,11 +23,12 @@ object Filters {
     class Max:AnimeFilter.Text("Длительность до, минут")
     fun create(profile:Profile):AnimeFilterList {
         val filters=mutableListOf<AnimeFilter<*>>()
-        filters+=Sort(profile.orders)
-        filters+=Category(Categories.choices(profile.categories))
-        filters+=Length();filters+=Match();filters+=Include();filters+=Exclude()
         val tags=profile.tags
         if(tags.isNotEmpty())filters+=Tags(if(tags.any{it.count!=null})"Все теги · по числу видео" else "Все теги",tags)
+        filters+=Include();filters+=Exclude()
+        filters+=Category(profile.categories)
+        filters+=Sort(profile.orders)
+        filters+=Length();filters+=Match()
         return AnimeFilterList(filters)
     }
     fun selection(filters:AnimeFilterList):Selection {

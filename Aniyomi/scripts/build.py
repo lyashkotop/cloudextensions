@@ -5,7 +5,7 @@ import argparse,os,sys,subprocess,zipfile,json,hashlib,shutil
 ROOT=Path(__file__).resolve().parents[1]
 def run(*args,**kw):subprocess.run(list(map(str,args)),check=True,**kw)
 def main():
- parser=argparse.ArgumentParser();parser.add_argument('--tools',type=Path,default=ROOT/'.tools');parser.add_argument('--compiler-tools',type=Path);parser.add_argument('--compile-only',action='store_true');parser.add_argument('--unsigned',action='store_true');parser.add_argument('--version',type=int,default=4);args=parser.parse_args()
+ parser=argparse.ArgumentParser();parser.add_argument('--tools',type=Path,default=ROOT/'.tools');parser.add_argument('--compiler-tools',type=Path);parser.add_argument('--compile-only',action='store_true');parser.add_argument('--unsigned',action='store_true');parser.add_argument('--version',type=int,default=5);args=parser.parse_args()
  tools=args.tools.resolve();compiler=(args.compiler_tools or tools).resolve();out=ROOT/'build';out.mkdir(exist_ok=True)
  run(sys.executable,ROOT/'scripts/generate_registry.py')
  libraries=[compiler/'kotlin-stdlib-2.1.0.jar',compiler/'kotlinx-coroutines-core-jvm-1.6.4.jar',compiler/'okhttp-4.12.0.jar',compiler/'okio-jvm-3.6.0.jar',compiler/'jsoup-1.18.3.jar',compiler/'json-20240303.jar',compiler/'annotations-13.0.jar',tools/'android.jar',tools/'aniyomi-lib14.jar',tools/'rxjava.jar',tools/'injekt.jar',tools/'injekt-api.jar']

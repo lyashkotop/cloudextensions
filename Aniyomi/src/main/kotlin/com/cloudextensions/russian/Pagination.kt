@@ -34,9 +34,9 @@ object Pagination {
         // KVS pagers expose the actual next cursor as data parameters rather than an href.
         val currentValues=webUri(current.url).rawQuery.orEmpty().split('&').associate { it.substringBefore('=') to it.substringAfter('=',"") }
         val currentNumber=currentValues.filterKeys { it=="from" || it.startsWith("from_") }.values.mapNotNull(String::toIntOrNull).maxOrNull() ?: 1
-        val controls=page.select("[data-parameters][data-block-id]").filter { it.closest(".pagination,.pagination-list,.load-more,.pager")!=null || it.hasClass("next") }
+        val controls=page.select("[data-parameters][data-block-id]").filter { !it.attr("data-block-id").startsWith("list_albums") }.filter { it.closest(".pagination,.pagination-list,.load-more,.pager")!=null || it.hasClass("next") }
         val candidates=controls.mapNotNull { e ->
-            val values=linkedMapOf("mode" to "async","function" to "get_block","block_id" to e.attr("data-block-id"))
+            val values=LinkedHashMap(parameters).apply{put("mode","async");put("function","get_block");put("block_id",e.attr("data-block-id"))}
             var number:Int?=null
             for(parameter in e.attr("data-parameters").split(';')) {
                 if(!parameter.contains(':'))continue

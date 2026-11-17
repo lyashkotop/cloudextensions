@@ -19,16 +19,16 @@ class BundleSource(val profile:Profile):AnimeHttpSource() {
     override val name=(when(profile.lang){"ru"->"1. ";"ja"->"2. ";else->"3. "})+profile.name
     override val lang=profile.lang
     override val baseUrl=profile.base
-    override val supportsLatest=true
+    override val supportsLatest=profile.id!="Xnxx"
     override val client=network.cloudflareClient.newBuilder().connectTimeout(8,TimeUnit.SECONDS).readTimeout(12,TimeUnit.SECONDS).callTimeout(18,TimeUnit.SECONDS).build()
     private val engine=Engine(profile)
     init{Network.client=client;AndroidPlayer.attach(network)}
     override fun headersBuilder():Headers.Builder = super.headersBuilder().apply{profile.requestHeaders.forEach{(k,v)->set(k,v)}}
     private fun item(card:VideoCard)=SAnime.create().apply{url=card.url;title=card.title;thumbnail_url=card.poster;genre=card.tags.joinToString(", ");status=SAnime.COMPLETED}
     private fun results(result:Results)=AnimesPage(result.cards.map(::item),result.hasNext)
-    override suspend fun getPopularAnime(page:Int)=withContext(Dispatchers.IO){results(engine.browse(page,true))}
-    override suspend fun getLatestUpdates(page:Int)=withContext(Dispatchers.IO){results(engine.browse(page,false))}
-    override suspend fun getSearchAnime(page:Int,query:String,filters:AnimeFilterList)=withContext(Dispatchers.IO){results(engine.search(query,page,Filters.selection(filters)))}
+    override suspend fun getPopularAnime(page:Int)=withContext(Dispatchers.IO){withTimeout(20000){results(engine.browse(page,true))}}
+    override suspend fun getLatestUpdates(page:Int)=withContext(Dispatchers.IO){withTimeout(20000){results(engine.browse(page,false))}}
+    override suspend fun getSearchAnime(page:Int,query:String,filters:AnimeFilterList)=withContext(Dispatchers.IO){withTimeout(20000){results(engine.search(query,page,Filters.selection(filters)))}}
     override suspend fun getAnimeDetails(anime:SAnime)=withContext(Dispatchers.IO){
         val info=engine.detail(anime.url)
         SAnime.create().apply{url=anime.url;title=info.title;thumbnail_url=info.poster;description=if(profile.id=="UKDevilz")"" else info.description;genre=info.tags.joinToString(", ");status=SAnime.COMPLETED;initialized=true}
@@ -40,7 +40,15 @@ class BundleSource(val profile:Profile):AnimeHttpSource() {
     }
     override fun getFilterList()=Filters.create(profile)
     // API 14 remains supported by current Aniyomi, including older clients using RxJava.
-    private fun <T> observable(block:suspend ()->T):Observable<T> = Observable.fromCallable{runBlocking(Dispatchers.IO){block()}}
+    private fun <T> observable(block:suspend ()->T):Observable<T> = Observable.create{subscriber->
+        val job=CoroutineScope(Dispatchers.IO).launch {
+            try{val result=block();if(!subscriber.isUnsubscribed){subscriber.onNext(result);subscriber.onCompleted()}}
+            catch(e:TimeoutCancellationException){if(!subscriber.isUnsubscribed)subscriber.onError(java.io.IOException("Источник не ответил за 20 секунд",e))}
+            catch(e:CancellationException){throw e}
+            catch(e:Exception){if(!subscriber.isUnsubscribed)subscriber.onError(e)}
+        }
+        subscriber.add(rx.subscriptions.Subscriptions.create{job.cancel()})
+    }
     override fun fetchPopularAnime(page:Int)=observable{getPopularAnime(page)}
     override fun fetchLatestUpdates(page:Int)=observable{getLatestUpdates(page)}
     override fun fetchSearchAnime(page:Int,query:String,filters:AnimeFilterList)=observable{getSearchAnime(page,query,filters)}

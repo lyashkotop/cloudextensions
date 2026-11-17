@@ -30,7 +30,8 @@ class Engine(val profile:Profile) {
         "missav"->PageRequest(p.base+"/en/search/"+enc(query),allowNotFound=true)
         "avideo"->PageRequest(p.base+"/search/videos?search_query="+enc(query)+"&type=public",allowNotFound=true)
         "safari"->PageRequest(p.base+"/search/"+enc(query),allowNotFound=true)
-        else->Pagination.search(homepage(),p.spec,p.base,query).copy(allowNotFound=true)
+        else->if(p.spec.searchMode.startsWith("path"))Pagination.search(org.jsoup.Jsoup.parse("",p.base+"/"),p.spec,p.base,query).copy(allowNotFound=true)
+        else Pagination.search(homepage(),p.spec,p.base,query).copy(allowNotFound=true)
     }
     private fun withOrder(request:PageRequest,order:Order?):PageRequest {
         if(order==null)return request
@@ -40,6 +41,8 @@ class Engine(val profile:Profile) {
     private suspend fun browseRoute(popular:Boolean):String {
         if(p.engine=="bdsmx")return p.base+if(popular)"/?sort_by=top-rated" else "/?sort_by=latest-updates"
         if(p.engine=="safari")return p.base+"/api?method=search&query=&sort="+(if(popular)"best" else "new")+"&page=0"
+        if(p.id in listOf("Semyana","Vpoisk")&&popular)return p.base+"/best/all/"
+        if(p.id=="BDSMStreak")return p.base+if(popular)"/popular" else "/newest"
         if(p.id=="Huyamba"&&popular)return p.base+"/videos/?by=video_viewed"
         if(p.engine=="noodle")return p.base+if(popular)"/popular/trending" else "/recent"
         val desired=if(popular)Regex("(?iu)popular|most.view|trending|популяр|top rated|топ|лучшее|просмотры") else Regex("(?iu)latest|recent|new video|новин|новые")
@@ -62,7 +65,9 @@ class Engine(val profile:Profile) {
             else->if(!popular)p.base+"/" else throw java.io.IOException("Сайт не публикует доступный раздел популярного")
         }
     }
-    private class Branch(val query:String,var cursor:PageRequest?,var ended:Boolean=false)
+    private class Branch(val query:String,var cursor:PageRequest?,var ended:Boolean=false) {
+        var number=0;val seen=mutableSetOf<String>();val cursors=mutableSetOf<PageRequest>()
+    }
     private class State(val branches:MutableList<Branch>,val selection:Selection) {
         val created=System.nanoTime();val mutex=Mutex();val pages=mutableMapOf<Int,Results>();val seen=mutableSetOf<String>();var number=0
     }
@@ -76,8 +81,8 @@ class Engine(val profile:Profile) {
         val directCategory=selection.category?.takeIf{it.url.startsWith("http")}
         val effective=if(query.isBlank())selection.copy(category=if(directCategory!=null)null else selection.category,tags=if(directTag!=null)emptyList() else selection.tags) else selection
         val key="$mode|$query|$selection"
-        val state=synchronized(states){if(page==1&&states[key]?.let{System.nanoTime()-it.created>8_000_000_000L}==true)states.remove(key);states.getOrPut(key){State(mutableListOf(),selection)}}
-        return Metadata.scoped(p.id){state.mutex.withLock {
+        val state=synchronized(states){if(page==1&&states[key]?.let{System.nanoTime()-it.created>60_000_000_000L}==true)states.remove(key);states.getOrPut(key){State(mutableListOf(),selection)}}
+        return try{Metadata.scoped(p.id){state.mutex.withLock {
             if(state.branches.isEmpty() && state.number==0) {
                 if(mode!="search" || query.isBlank()) {
                     val route=directCategory?.url ?: directTag?.url ?: browseRoute(mode=="popular")
@@ -88,33 +93,48 @@ class Engine(val profile:Profile) {
                 }
             }
             while(state.number<page) {
-                val items=mutableListOf<VideoCard>()
-                var succeeded=false
-                var failed:Exception?=null
-                // Each branch retains its own native cursor; original-language items stay first.
-                val batches=coroutineScope{state.branches.filter{!it.ended}.map{branch->async(Dispatchers.IO){branch to try{Result.success(fetch(branch.query,branch.cursor!!,state.number+1))}catch(e:CancellationException){throw e}catch(e:Exception){Result.failure(e)}}}.awaitAll()}
-                for((branch,batch) in batches) {
-                    val result=batch.getOrElse{branch.ended=true;branch.cursor=null;failed=it as? Exception;null} ?: continue
-                    succeeded=true
-                    branch.cursor=result.second?.let{withOrder(it,selection.order)};branch.ended=branch.cursor==null
-                    var cards=result.first.filter{videoKey(it.url) !in state.seen}
-                    if(result.first.isNotEmpty()&&cards.isEmpty()){branch.ended=true;branch.cursor=null}
-                    if(effective.needsDetail)cards=filter(cards,effective)
-                    for(card in cards)if(state.seen.add(videoKey(card.url)))items+=card
-                }
-                if(!succeeded)failed?.let{throw it}
-                state.number++;state.pages[state.number]=Results(items,state.branches.any{!it.ended})
+                val items=state.branches.associateWith{mutableListOf<VideoCard>()}
+                var rounds=0
+                val started=System.nanoTime()
+                val maxRounds=if(p.id=="ThisVid")4 else if(effective.needsDetail)3 else 1
+                do {
+                    var succeeded=false
+                    var failed:Exception?=null
+                    val active=state.branches.filter{!it.ended}.filter{branch->
+                        if(p.engine!="bdsmx"&&branch.cursor!! in branch.cursors){branch.ended=true;false}else true
+                    }
+                    val batches=coroutineScope{active.map{branch->async(Dispatchers.IO){branch to try{Result.success(fetch(branch.query,branch.cursor!!,branch.number+1))}catch(e:CancellationException){throw e}catch(e:Exception){Result.failure(e)}}}.awaitAll()}
+                    for((branch,batch) in batches) {
+                        val result=batch.getOrElse{branch.ended=true;branch.cursor=null;failed=it as? Exception;null} ?: continue
+                        succeeded=true;branch.number++;branch.cursors.add(branch.cursor!!)
+                        branch.cursor=result.second?.let{withOrder(it,selection.order)};branch.ended=branch.cursor==null
+                        val fresh=result.first.filter{branch.seen.add(videoKey(it.url))}
+                        // Overlap between language branches must not terminate either cursor.
+                        if(result.first.isNotEmpty()&&fresh.isEmpty()){branch.ended=true;branch.cursor=null}
+                        var cards=fresh.filter{videoKey(it.url) !in state.seen}
+                        if(effective.needsDetail)cards=filter(cards,effective)
+                        for(card in cards)if(state.seen.add(videoKey(card.url)))items.getValue(branch)+=card
+                    }
+                    if(!succeeded && items.values.all{it.isEmpty()})failed?.let{throw it}
+                    rounds++
+                }while(rounds<maxRounds&&items.values.sumOf{it.size}<20&&state.branches.any{!it.ended}&&System.nanoTime()-started<6_000_000_000L)
+                state.number++;state.pages[state.number]=Results(state.branches.flatMap{items.getValue(it)},state.branches.any{!it.ended})
             }
             state.pages[page] ?: Results(emptyList(),false)
-        }}
+        }}}catch(e:CancellationException){synchronized(states){if(states[key]===state)states.remove(key)};throw e}
     }
     private suspend fun filter(cards:List<VideoCard>,selection:Selection):List<VideoCard> = coroutineScope {
         val slots=Semaphore(8)
-        cards.map{card->async(Dispatchers.IO){slots.withPermit{
+        cards.map{card->async(Dispatchers.IO){
             val needsLabels=selection.category!=null||selection.tags.isNotEmpty()||selection.excluded.isNotEmpty()
-            if((!needsLabels&&card.duration.isNotBlank()) || (selection.excluded.isEmpty()&&selection.accepts(card,null)))card.takeIf{selection.accepts(card,null)}
-            else {val detail=RequestLimits.optional(4000){detail(card.url)};card.takeIf{detail!=null&&selection.accepts(card,detail)}}
-        }}}.awaitAll().filterNotNull()
+            if((!needsLabels&&card.duration.isNotBlank()) || (selection.excluded.isEmpty()&&selection.accepts(card,null))) {
+                card.takeIf{selection.accepts(card,null)}
+            } else {
+                // Queueing counts against the budget too; a large page cannot create 12+ seconds of waves.
+                val detail=RequestLimits.optional(4000){slots.withPermit{detail(card.url)}}
+                card.takeIf{detail!=null&&selection.accepts(card,detail)}
+            }
+        }}.awaitAll().filterNotNull()
     }
     suspend fun detail(url:String):VideoDetail = Metadata.scoped(p.id){readDetail(url)}
     private suspend fun readDetail(url:String):VideoDetail {

@@ -116,7 +116,7 @@ object Metadata {
             val tags = card.select("[rel=tag], [data-tag]").map { clean(it.text()) }.filter(String::isNotBlank).distinct()
             if (!ContentPolicy.accepts(label,tags)) continue
             val clocks=card.select(".prop span,.video_length,.m_time").map { clean(it.text()) }.filter { it.matches(Regex("(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}")) }
-            val duration = (card.select(".duration, .card__duration, .video-duration, .time, [data-duration]").asSequence().map { timing(it.attr("data-duration").ifBlank { it.text() }) }.toList()+clocks.map(::timing)).firstOrNull(String::isNotBlank).orEmpty()
+            val duration = (card.select(".duration, .card__duration, .card__label--primary, .video-duration, .time, [data-duration]").asSequence().map { timing(it.attr("data-duration").ifBlank { it.text() }) }.toList()+clocks.map(::timing)).firstOrNull(String::isNotBlank).orEmpty()
             if (duration.isNotBlank()) durations[cacheKey(url)] = duration
             val picture=poster(link,page.baseUri()) ?: poster(card,page.baseUri());if(picture!=null)rememberPoster(url,picture)
             if(!result.containsKey(videoKey(url)))result[videoKey(url)]=VideoCard(label,url,picture,duration,tags)
@@ -165,7 +165,7 @@ object Metadata {
         val rawTitle=title(page.baseUri(),titleFields.ifEmpty{listOf(page.selectFirst("meta[property=og:title]")?.attr("content").orEmpty())})
         val tags=mutableListOf<String>()
         fun add(raw: String?) { val label=clean(raw); if((label.length>=3 || label.matches(Regex("[A-Za-z0-9]{2}"))) && label.length<=100 && !stopTag.matches(label) && tags.none { it.equals(label,true) })tags+=label }
-        for(e in page.select(spec.tagSelector.ifBlank{tagSelector})) if(e.closest("nav,header,aside,.related,.related-videos,#related-videos,#relateddiv,.tax-extra") == null && (e.closest("footer")==null || e.closest("article .single-entry-footer,article .entry-footer")!=null)) add(e.text())
+        for(e in page.select(listOf(spec.tagSelector,tagSelector).filter(String::isNotBlank).joinToString(","))) if(e.closest("nav,header,aside,.related,.related-videos,#related-videos,#relateddiv,.tax-extra") == null && (e.closest("footer")==null || e.closest("article .single-entry-footer,article .entry-footer")!=null)) add(e.text())
         if(tags.isEmpty() && data != null) for(key in listOf("genre")) {
             when(val item=data.opt(key)) { is JSONArray -> for(i in 0 until item.length())add(item.optString(i)); is String -> item.split(',',';').forEach(::add) }
         }
