@@ -1,6 +1,10 @@
 package com.example.websites
 
 import com.cloudextensions.russian.*
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.utils.ExtractorLink
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import org.jsoup.nodes.Document
 
 class Strip2Provider: RussianProvider(SiteSpec(
     id="Strip2", title="Strip2", origin="https://vps402.strip2.co",
@@ -46,4 +50,31 @@ class Strip2Provider: RussianProvider(SiteSpec(
         Section("Gina Gerson","/videocat/tag/gina-gerson/"),
         Section("Rocco Siffredi","/videocat/tag/rocco-siffredi/"),
     )
-))
+)) {
+    private val dimensions = Regex("""(\d+)\s*[×x]\s*(\d+)""")
+
+    fun downloadableSources(document: Document): List<Playback.Source> {
+        val address = document.baseUri().toHttpUrlOrNull() ?: return emptyList()
+        return document.select("a[href*=/video/download/]").mapNotNull { link ->
+            val url = address.resolve(link.attr("href")) ?: return@mapNotNull null
+            if (url.host != address.host || !url.encodedPath.startsWith("/video/download/") ||
+                !url.encodedPath.endsWith(".mp4", true)) return@mapNotNull null
+            val size = dimensions.find(link.text())
+            val width = size?.groupValues?.get(1)?.toIntOrNull()
+            val height = size?.groupValues?.get(2)?.toIntOrNull()
+            val shortSide = if (width != null && height != null) minOf(width, height) else null
+            if (shortSide != null && !QualityLinks.allowed(shortSide)) return@mapNotNull null
+            Playback.Source(url.toString(), shortSide?.let { "${it}p" })
+        }.distinctBy { it.url }
+    }
+
+    override suspend fun loadLinks(
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val document = page(PageRequest(data))
+        return Playback.linksFromPage(name, mainUrl, data, document, downloadableSources(document), subtitleCallback, callback)
+    }
+}

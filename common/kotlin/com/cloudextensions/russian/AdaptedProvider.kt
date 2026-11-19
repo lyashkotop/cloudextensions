@@ -3,13 +3,10 @@ package com.cloudextensions.russian
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Interceptor
 import java.util.Collections
 
-/** Keeps upstream site/extractor code while applying the repository's common behaviour. */
+/** Adapts upstream site and extractor code. ReliableProvider coordinates translated search. */
 class AdaptedProvider(private val source: MainAPI): MainAPI() {
     override var name: String get()=source.name;set(value){source.name=value}
     override var mainUrl: String get()=source.mainUrl;set(value){source.mainUrl=value}
@@ -25,15 +22,21 @@ class AdaptedProvider(private val source: MainAPI): MainAPI() {
     private fun normalize(values:List<SearchResponse>):List<SearchResponse> = values.filter{ContentPolicy.accepts(it.name)}.distinctBy{videoKey(it.url)}.map{card->
         if(card is MovieSearchResponse)card.copy(name=Metadata.title(card.url,listOf(card.name)),posterHeaders=Network.headers(mainUrl)+card.posterHeaders.orEmpty()) else card
     }
+    private fun uniquePage(key: String, page: Int, cards: List<SearchResponse>): List<SearchResponse> =
+        synchronized(histories) {
+            if (page == 1) histories[key] = mutableMapOf()
+            val pages = histories.getOrPut(key) { mutableMapOf() }
+            val previous = pages.entries.asSequence().filter { it.key < page }.flatMap { it.value.asSequence() }.toSet()
+            cards.filter { videoKey(it.url) !in previous }.also { fresh ->
+                pages[page] = fresh.mapTo(mutableSetOf()) { videoKey(it.url) }
+            }
+        }
+
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse {
         val data=source.getMainPage(page,request) ?: return newHomePageResponse(emptyList(),false)
         val items=data.items.map { section ->
-            val key="home:${request.data}:${section.name}"
-            val values=normalize(section.list)
-            val previous=synchronized(histories){if(page==1)histories[key]=mutableMapOf();histories.getOrPut(key){mutableMapOf()}.filterKeys{it<page}.values.flatten().toSet()}
-            val fresh=values.filter{videoKey(it.url) !in previous}
-            synchronized(histories){histories.getOrPut(key){mutableMapOf()}[page]=fresh.map{videoKey(it.url)}.toSet()}
-            section.copy(list=fresh)
+            val key = "home:${request.data}:${section.name}"
+            section.copy(list = uniquePage(key, page, normalize(section.list)))
         }
         return newHomePageResponse(items,data.hasNext&&(page==1||items.any{it.list.isNotEmpty()}))
     }
@@ -42,22 +45,9 @@ class AdaptedProvider(private val source: MainAPI): MainAPI() {
     override suspend fun search(query:String,page:Int):SearchResponseList {
         val input=Metadata.clean(query)
         if(input.isEmpty()||page<1)return newSearchResponseList(emptyList(),false)
-        data class Branch(val response:SearchResponseList?,val failure:Exception?=null)
-        suspend fun branch(term:String):Branch = try{Branch(source.search(term,page))}catch(e:CancellationException){throw e}catch(e:Exception){Branch(null,e)}
-        val outcomes=coroutineScope {
-            val original=async{branch(input)}
-            val translated=async{
-                try{withTimeoutOrNull(2500){Translation.translated(input)}?.let{branch(it)}}catch(e:CancellationException){throw e}catch(_:Exception){null}
-            }
-            listOfNotNull(original.await(),translated.await())
-        }
-        val batches=outcomes.mapNotNull{it.response}
-        if(batches.isEmpty())outcomes.firstNotNullOfOrNull{it.failure}?.let{throw it}
-        val merged=normalize(batches.flatMap{it.items})
-        val previous=synchronized(histories){if(page==1)histories[input]=mutableMapOf();histories.getOrPut(input){mutableMapOf()}.filterKeys{it<page}.values.flatten().toSet()}
-        val fresh=merged.filter{videoKey(it.url) !in previous}
-        synchronized(histories){histories.getOrPut(input){mutableMapOf()}[page]=fresh.map{videoKey(it.url)}.toSet()}
-        return newSearchResponseList(fresh,batches.any{it.hasNext}&&(page==1||fresh.isNotEmpty()))
+        val result = source.search(input, page)
+        val fresh = uniquePage(input, page, normalize(result?.items.orEmpty()))
+        return newSearchResponseList(fresh, result?.hasNext == true && (page == 1 || fresh.isNotEmpty()))
     }
     override suspend fun load(url:String):LoadResponse {
         val result=source.load(url) ?: throw ErrorLoadingException("Video metadata is missing")

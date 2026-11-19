@@ -4,9 +4,6 @@ import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import java.net.URLEncoder
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import org.json.JSONArray
 import okio.ByteString.Companion.decodeBase64
@@ -57,15 +54,9 @@ class BdsMxProvider:MainAPI() {
     }
     override suspend fun search(query:String):List<SearchResponse> = search(query,1).items
     override suspend fun quickSearch(query:String):List<SearchResponse> = search(query,1).items
-    override suspend fun search(query:String,page:Int):SearchResponseList {
-        if(query.isBlank())return newSearchResponseList(emptyList(),false)
-        val results=coroutineScope{
-            val original=async{catalogue(query,page)}
-            val translated=async{withTimeoutOrNull(2500){Translation.translated(query)}?.let{catalogue(it,page)}}
-            listOfNotNull(original.await(),translated.await())
-        }
-        return newSearchResponseList(results.flatMap{it.items}.distinctBy{it.url},results.any{it.hasNext})
-    }
+    override suspend fun search(query: String, page: Int): SearchResponseList =
+        if (query.isBlank()) newSearchResponseList(emptyList(), false) else catalogue(query, page)
+
     override suspend fun load(url:String):LoadResponse {
         val id=Regex("/video/(\\d+)").find(url)?.groupValues?.get(1)?.toLongOrNull() ?: throw ErrorLoadingException("Invalid video ID")
         val item=json("$mainUrl/api/json/video/86400/${id/1000000*1000000}/${id/1000*1000}/$id.json").optJSONObject("video") ?: throw ErrorLoadingException("Video metadata is missing")

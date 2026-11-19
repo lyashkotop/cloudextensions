@@ -197,7 +197,6 @@ fun main(args:Array<String>) {
         verify(Translation.translated("guy")=="парень","English query receives Russian companion")
         verify(Translation.translated("два слова")=="two words","two Russian words receive English companion")
         verify(Translation.translated("two words")=="два слова","two English words receive Russian companion")
-        verify(Translation.originalOnly{Translation.translated("guy")}==null,"the source does not recursively translate the coordinator's companion query")
     }
     println("PASS $checks Kotlin core checks; no Android or live-playback claims")
     if(args.size==2&&args[0]=="--live-dir"){live(File(args[1]));searchLive(File(args[1]))}

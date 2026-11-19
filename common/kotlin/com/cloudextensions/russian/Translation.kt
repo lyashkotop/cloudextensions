@@ -7,17 +7,11 @@ import org.json.JSONArray
 import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
-import kotlin.coroutines.AbstractCoroutineContextElement
-import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.coroutineContext
 import java.util.Locale
 
 object Translation {
     @Volatile private var shared:SharedPreferences?=null
     fun configure(context:Context){shared=context.applicationContext.getSharedPreferences("cloudextensions-translations",Context.MODE_PRIVATE)}
-    private class SourceOnly:AbstractCoroutineContextElement(Key){companion object Key:CoroutineContext.Key<SourceOnly>}
-    suspend fun <T> originalOnly(block:suspend ()->T):T=withContext(SourceOnly()){block()}
     private val dictionary=mapOf("guy" to "парень","woman" to "женщина","girl" to "девушка","man" to "мужчина","mother" to "мать","mom" to "мама","aunt" to "тётя","lesbian" to "лесбиянка","lesbians" to "лесбиянки","two words" to "два слова")
     private val cache=Collections.synchronizedMap(BoundedMap<String,String>(256))
     fun target(query: String): String? {
@@ -50,7 +44,6 @@ object Translation {
         return result.takeIf { it.isNotBlank()&&valid }
     }
     suspend fun translated(query:String):String? {
-        if(coroutineContext[SourceOnly]!=null)return null
         return text(query,target(query)?:return null)
     }
     suspend fun text(query:String,target:String):String? {

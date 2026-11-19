@@ -3,67 +3,111 @@ package com.cloudextensions.russian
 import android.content.Context
 import android.util.Log
 import com.lagradost.cloudstream3.SearchResponse
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withTimeoutOrNull
 
-/** Warms the host's own Coil cache; no private image cache or bundled Coil dependency. */
+/** Warms the host's Coil cache for the rows most likely to be shown first. */
 object ImagePrefetch {
-    @Volatile private var context:Context?=null
-    @Volatile private var warned=false
-    private val scope=CoroutineScope(SupervisorJob()+Dispatchers.IO)
-    private val permits=Semaphore(6)
-    private val jobs=BoundedMap<String,Pair<Long,Deferred<Unit>>>(256)
-    fun configure(value:Context){context=value.applicationContext}
+    @Volatile private var context: Context? = null
+    @Volatile private var warned = false
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val permits = Semaphore(6)
+    private data class Poster(val url: String, val headers: Map<String, String>)
 
-    suspend fun warm(cards:List<SearchResponse>,waitMs:Long=250) {
-        val ctx=context ?: return
-        val pending=cards.filter{!it.posterUrl.isNullOrBlank()}.take(80).map { card ->
-            val url=card.posterUrl!!
-            val headers=card.posterHeaders.orEmpty()
-            val key=url+"|"+headers.toSortedMap().hashCode()
-            synchronized(jobs) {
-                jobs[key]?.takeIf{System.nanoTime()-it.first<300_000_000_000L}?.second ?: scope.async {
-                    permits.withPermit {
-                        try {
-                            val request=enqueue(ctx,url,headers)
-                            val result=withTimeoutOrNull(5_000){request.await()}
-                            if(result==null){request.cancel();error("Image preload timed out")}
-                            if(result.javaClass.simpleName=="ErrorResult")error("Image server rejected preload")
-                        }catch(e:CancellationException){throw e}catch(e:Exception){
-                            synchronized(jobs){jobs.remove(key)}
-                            if(!warned){warned=true;Log.w("CloudExtensions","Coil preloading unavailable: ${e.javaClass.simpleName}")}
-                        }catch(e:LinkageError){if(!warned){warned=true;Log.w("CloudExtensions","Unsupported image loader")}}
-                    }
-                }.also{jobs[key]=System.nanoTime() to it}
-            }
-        }
-        if(waitMs>0)withTimeoutOrNull(waitMs){pending.take(7).awaitAll()}
+    private val scheduled = BoundedMap<Poster, Long>(256)
+    private val coil by lazy {
+        val singleton = try { coilClass("coil3.SingletonImageLoader") } catch (_: ClassNotFoundException) { null }
+        if (singleton == null) CoilAccess("coil", coilClass("coil.Coil"), "imageLoader")
+        else CoilAccess("coil3", singleton, "get")
     }
 
-    private fun enqueue(ctx:Context,url:String,headers:Map<String,String>):Deferred<*> {
-        fun cls(name:String)=Class.forName(name,true,ImagePrefetch::class.java.classLoader)
-        val version=try{cls("coil3.SingletonImageLoader");3}catch(_:ClassNotFoundException){2}
-        val prefix=if(version==3)"coil3" else "coil"
-        val owner=cls(if(version==3)"coil3.SingletonImageLoader" else "coil.Coil")
-        val instance=owner.getMethod(if(version==3)"get" else "imageLoader",Context::class.java).invoke(null,ctx)
-        val builderType=cls(prefix+".request.ImageRequest\$Builder")
-        val builder=builderType.getConstructor(Context::class.java).newInstance(ctx)
-        builderType.getMethod("data",Any::class.java).invoke(builder,url)
-        builderType.getMethod("size",Int::class.javaPrimitiveType,Int::class.javaPrimitiveType).invoke(builder,480,320)
-        if(version==3) {
-            val headerBuilder=cls("coil3.network.NetworkHeaders\$Builder").getConstructor().newInstance()
-            val setter=headerBuilder.javaClass.getMethod("set",String::class.java,String::class.java)
-            headers.forEach{(k,v)->setter.invoke(headerBuilder,k,v)}
-            val values=headerBuilder.javaClass.getMethod("build").invoke(headerBuilder)
-            cls("coil3.network.ImageRequestsKt").getMethod("httpHeaders",builderType,cls("coil3.network.NetworkHeaders")).invoke(null,builder,values)
-        } else {
-            val headerBuilder=okhttp3.Headers.Builder()
-            headers.forEach{(k,v)->headerBuilder.set(k,v)}
-            builderType.getMethod("headers",okhttp3.Headers::class.java).invoke(builder,headerBuilder.build())
+    fun configure(value: Context) {
+        context = value.applicationContext
+    }
+
+    fun warm(cards: List<SearchResponse>) {
+        val ctx = context ?: return
+        cards.asSequence().mapNotNull { card ->
+            card.posterUrl?.takeIf(String::isNotBlank)?.let { Poster(it, card.posterHeaders.orEmpty()) }
+        }.distinct().take(12).forEach { poster ->
+            val started = System.nanoTime()
+            synchronized(scheduled) {
+                if (scheduled[poster]?.let { started - it < 300_000_000_000L } == true) return@forEach
+                scheduled[poster] = started
+            }
+            scope.launch {
+                permits.withPermit {
+                    try {
+                        val request = coil.enqueue(ctx, poster)
+                        val result = withTimeoutOrNull(5000) { request.await() }
+                        if (result == null) {
+                            request.cancel()
+                            error("Image preload timed out")
+                        }
+                        if (result.javaClass.simpleName == "ErrorResult") error("Image server rejected preload")
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        synchronized(scheduled) {
+                            if (scheduled[poster] == started) scheduled.remove(poster)
+                        }
+                        warn(e.javaClass.simpleName)
+                    } catch (e: LinkageError) {
+                        warn(e.javaClass.simpleName)
+                    }
+                }
+            }
         }
-        val request=builderType.getMethod("build").invoke(builder)
-        val disposable=cls(prefix+".ImageLoader").getMethod("enqueue",cls(prefix+".request.ImageRequest")).invoke(instance,request)
-        return cls(prefix+".request.Disposable").getMethod("getJob").invoke(disposable) as Deferred<*>
+    }
+
+    private fun warn(reason: String) {
+        if (warned) return
+        warned = true
+        Log.w("CloudExtensions", "Coil preloading unavailable: $reason")
+    }
+
+    private fun coilClass(name: String): Class<*> = Class.forName(name, true, ImagePrefetch::class.java.classLoader)
+
+    private class CoilAccess(prefix: String, singleton: Class<*>, getter: String) {
+        private val imageRequest = coilClass("$prefix.request.ImageRequest")
+        private val builder = coilClass("$prefix.request.ImageRequest\$Builder")
+        private val newBuilder = builder.getConstructor(Context::class.java)
+        private val loader = singleton.getMethod(getter, Context::class.java)
+        private val data = builder.getMethod("data", Any::class.java)
+        private val size = builder.getMethod("size", Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
+        private val build = builder.getMethod("build")
+        private val enqueue = coilClass("$prefix.ImageLoader").getMethod("enqueue", imageRequest)
+        private val job = coilClass("$prefix.request.Disposable").getMethod("getJob")
+        private val headerType = if (prefix == "coil3") coilClass("coil3.network.NetworkHeaders") else null
+        private val headerBuilder = if (headerType != null) coilClass("coil3.network.NetworkHeaders\$Builder") else null
+        private val newHeaders = headerBuilder?.getConstructor()
+        private val setHeader = headerBuilder?.getMethod("set", String::class.java, String::class.java)
+        private val buildHeaders = headerBuilder?.getMethod("build")
+        private val applyHeaders = if (headerType == null) builder.getMethod("headers", okhttp3.Headers::class.java)
+            else coilClass("coil3.network.ImageRequestsKt").getMethod("httpHeaders", builder, headerType)
+
+        fun enqueue(context: Context, poster: Poster): Deferred<*> {
+            val request = newBuilder.newInstance(context)
+            data.invoke(request, poster.url)
+            size.invoke(request, 480, 320)
+            if (newHeaders == null) {
+                val headers = okhttp3.Headers.Builder()
+                poster.headers.forEach { (name, value) -> headers.set(name, value) }
+                applyHeaders.invoke(request, headers.build())
+            } else {
+                val headers = newHeaders.newInstance()
+                poster.headers.forEach { (name, value) -> setHeader!!.invoke(headers, name, value) }
+                applyHeaders.invoke(null, request, buildHeaders!!.invoke(headers))
+            }
+            val disposable = enqueue.invoke(loader.invoke(null, context), build.invoke(request))
+            return job.invoke(disposable) as Deferred<*>
+        }
     }
 }

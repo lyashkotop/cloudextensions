@@ -5,8 +5,6 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import okhttp3.Interceptor
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -47,29 +45,30 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         }?.takeIf { it.isNotBlank() } ?: card.name
     }
 
-    private suspend fun cards(items: List<SearchResponse>, prefetch: Boolean = false): List<SearchResponse> = coroutineScope {
+    private suspend fun cards(items: List<SearchResponse>): List<SearchResponse> = coroutineScope {
         val deadline = System.nanoTime() + 3_000_000_000L
         items.filter { ContentPolicy.accepts(it.name) }.map { card -> async {
-            val ready = if (Metadata.isTruncatedTitle(card.name)) {
+            if (Metadata.isTruncatedTitle(card.name)) {
                 val image = Metadata.rememberPoster(card.url, card.posterUrl)
                 normalizeCard(card, image, expandTitle(card, deadline))
             } else normalizeCard(card)
-            if (prefetch) ImagePrefetch.warm(listOf(ready), 0)
-            ready
         } }.awaitAll()
     }
     private val posterPermits = Semaphore(12)
     private suspend fun withResolvedPosters(items: List<SearchResponse>): List<SearchResponse> = coroutineScope {
         val provider = source as? PosterSource ?: return@coroutineScope items
-        items.map { item -> async {
+        items.mapIndexed { index, item -> async {
             if (item !is MovieSearchResponse) return@async item
             val headers = item.posterHeaders.orEmpty()
             val poster = RequestLimits.optional(provider.posterTimeoutMs) {
                 posterPermits.withPermit { provider.resolvePoster(item.url, item.posterUrl, headers) }
             }
-            if (poster == null || poster == item.posterUrl) return@async item
-            Metadata.rememberPoster(item.url, poster)
-            item.copy(posterUrl = poster, posterHeaders = Network.replacementImageHeaders(poster, item.url, headers))
+            val ready = if (poster == null || poster == item.posterUrl) item else {
+                Metadata.rememberPoster(item.url, poster)
+                item.copy(posterUrl = poster, posterHeaders = Network.replacementImageHeaders(poster, item.url, headers))
+            }
+            if (index < 7) ImagePrefetch.warm(listOf(ready))
+            ready
         } }.awaitAll()
     }
     private data class Review(val allowed:Boolean,val detail:LoadResponse?,val title:String?=detail?.name)
@@ -107,7 +106,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 if(!checked.allowed)return@async null
                 val full=checked.title?.let{Metadata.title(card.url,listOf(it))} ?: card.name
                 val ready=if(card is MovieSearchResponse)card.copy(name=full) else card
-                ImagePrefetch.warm(listOf(ready),0)
+                if (source !is PosterSource) ImagePrefetch.warm(listOf(ready))
                 ready
             }}.awaitAll().filterNotNull()
         }
@@ -130,7 +129,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     }
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная") {
         val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
-        val rows=result.items.map{it.copy(list=withResolvedPosters(cards(it.list,prefetch=true)))}
+        val rows=result.items.map{it.copy(list=withResolvedPosters(cards(it.list)))}
         ImagePrefetch.warm(rows.flatMap{it.list})
         newHomePageResponse(rows,result.hasNext)
     }
@@ -148,12 +147,12 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     override suspend fun search(query:String,page:Int):SearchResponseList = RequestLimits.required("Поиск") {
         if(!ContentPolicy.accepts(query))return@required newSearchResponseList(emptyList(),false)
         if(lang !in listOf("ru","en") || (source as? SearchPolicy)?.translateQueries==false) {
-            val result=Translation.originalOnly{source.search(query,page)}?:return@required newSearchResponseList(emptyList(),false)
+            val result=source.search(query,page)?:return@required newSearchResponseList(emptyList(),false)
             val ready=withResolvedPosters(prepareSearch(result.items))
             return@required searchPage(ready, page, result.hasNext)
         }
         data class Batch(val response:SearchResponseList?,val error:Exception?=null)
-        suspend fun branch(term:String):Batch=try{Batch(Translation.originalOnly{source.search(term,page)})}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){Batch(null,e)}
+        suspend fun branch(term:String):Batch=try{Batch(source.search(term,page))}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){Batch(null,e)}
         val batches=coroutineScope {
             val original=async{branch(query)}
             val translated=async{Translation.translated(query)?.let{branch(it)}}
@@ -184,22 +183,23 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 Network.replacementImageHeaders(poster, url, headers)
             } else headers
         }
-        result.recommendations=withResolvedPosters(cards(result.recommendations.orEmpty(),prefetch=true))
-        ImagePrefetch.warm(result.recommendations.orEmpty(),0)
+        result.recommendations=withResolvedPosters(cards(result.recommendations.orEmpty()))
+        ImagePrefetch.warm(result.recommendations.orEmpty())
         result
     }
     override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = RequestLimits.required("Плеер",45_000) {
+        val emitted = java.util.concurrent.atomic.AtomicBoolean()
         coroutineScope {
-            val jobs=java.util.Collections.synchronizedList(mutableListOf<Job>())
-            val count=java.util.concurrent.atomic.AtomicInteger()
-            source.loadLinks(data,isCasting,subtitleCallback){link->
-                jobs+=launch(start=CoroutineStart.UNDISPATCHED){
-                    for(choice in QualityLinks.choices(link)){callback(choice);count.incrementAndGet()}
+            source.loadLinks(data, isCasting, subtitleCallback) { link ->
+                launch(start = CoroutineStart.UNDISPATCHED) {
+                    for (choice in QualityLinks.choices(link)) {
+                        callback(choice)
+                        emitted.set(true)
+                    }
                 }
             }
-            jobs.toList().joinAll()
-            count.get()>0
         }
+        emitted.get()
     }
     override fun getVideoInterceptor(extractorLink:ExtractorLink):Interceptor?=source.getVideoInterceptor(extractorLink)
 }

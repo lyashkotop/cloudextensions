@@ -108,17 +108,23 @@ object Playback {
         callback: (ExtractorLink) -> Unit, staticPlayerHost: String
     ): Boolean = resolveLinks(name, origin, pageUrl, subtitles, callback, false, staticPlayerHost)
     suspend fun confirmedLinks(name:String,origin:String,pageUrl:String,subtitles:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = resolveLinks(name,origin,pageUrl,subtitles,callback,true)
+    suspend fun linksFromPage(
+        name: String, origin: String, pageUrl: String, page: Document, declared: List<Source>,
+        subtitles: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit
+    ): Boolean = resolveLinks(name, origin, pageUrl, subtitles, callback, false, loadedPage = page, declared = declared)
+
     private suspend fun resolveLinks(
         name: String, origin: String, pageUrl: String, subtitles: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit, requireConfirmed: Boolean, staticPlayerHost: String? = null
+        callback: (ExtractorLink) -> Unit, requireConfirmed: Boolean, staticPlayerHost: String? = null,
+        loadedPage: Document? = null, declared: List<Source> = emptyList()
     ): Boolean {
-        val page=Network.page(PageRequest(pageUrl),origin)
+        val page = loadedPage ?: Network.page(PageRequest(pageUrl),origin)
         val emitted=Collections.synchronizedSet(mutableSetOf<String>())
         fun accept(link: ExtractorLink) { if(playable(link.url)&&emitted.add(link.url))callback(link) }
         var rejected:Int?=null
         var unreachable=false
         var playerUrl=page.baseUri()
-        suspend fun emit(source: Source,referer: String,headers: Map<String,String>): Int? {
+        suspend fun emit(source: Source,referer: String,headers: Map<String,String>, confirmed: Boolean = requireConfirmed): Int? {
             if(!playable(source.url))return null
             val probe=RequestLimits.optional(3500){withContext(Dispatchers.IO){
                 val request=okhttp3.Request.Builder().url(source.url).header("Referer",referer).header("Range","bytes=0-31")
@@ -130,7 +136,7 @@ object Playback {
                 }
             }}
             val status=probe?.first
-            if(status==null && requireConfirmed){unreachable=true;return null}
+            if(status==null && confirmed){unreachable=true;return null}
             if(status!=null && status !in 200..299){rejected=status;return status}
             val type=streamType(probe?.second ?: source.url,probe?.third)
             accept(newExtractorLink(name,name,source.url,type) {
@@ -158,6 +164,10 @@ object Playback {
                 }
             }
             return statuses.firstOrNull()?.takeIf { statuses.all { code -> code == 404 || code == 410 } }
+        }
+        if (declared.isNotEmpty()) {
+            for (source in declared.distinctBy { it.url }) emit(source, page.baseUri(), Network.headers(page.baseUri()), confirmed = true)
+            if (emitted.isNotEmpty()) return true
         }
         resolve(page,page.baseUri())
         if(emitted.isNotEmpty())return true

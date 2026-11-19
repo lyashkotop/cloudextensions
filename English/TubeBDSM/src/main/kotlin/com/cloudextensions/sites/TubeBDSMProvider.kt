@@ -27,7 +27,7 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
  override suspend fun load(url:String):LoadResponse {
   val document=page(PageRequest(url))
   val listingPoster=Metadata.savedPoster(url)
-  val result=super.load(url)
+  val result=loadDocument(url, document)
   val target=native(document.baseUri())
   val extra=if(target==null)null else try{withTimeoutOrNull(3000){target.load(document.baseUri())}}
    catch(e:CancellationException){throw e}catch(e:ErrorLoadingException){if(Regex("(?iu)скрыто фильтром|hidden by category filter|приватн|private video").containsMatchIn(e.message.orEmpty()))throw e else null}catch(_:Exception){null}
@@ -50,7 +50,9 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
    callback(link);emitted.incrementAndGet()
   }}}catch(e:CancellationException){throw e}catch(_:Exception){}
   if(emitted.get()>0)return true
-  return super.loadLinks(data,isCasting,subtitleCallback,callback)
+  return Playback.linksFromPage(
+   name, mainUrl, data, document, PlayerConfig.sources(document), subtitleCallback, callback
+  )
  }
  override fun getVideoInterceptor(extractorLink:ExtractorLink):Interceptor? = interceptors[extractorLink.url]
  override suspend fun related(document:org.jsoup.nodes.Document,detail:VideoDetail,url:String):List<com.lagradost.cloudstream3.SearchResponse> {
