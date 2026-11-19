@@ -103,16 +103,23 @@ object Playback {
         return result.distinctBy { it.url }
     }
     suspend fun links(name:String,origin:String,pageUrl:String,subtitles:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = resolveLinks(name,origin,pageUrl,subtitles,callback,false)
+    suspend fun links(
+        name: String, origin: String, pageUrl: String, subtitles: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit, staticPlayerHost: String
+    ): Boolean = resolveLinks(name, origin, pageUrl, subtitles, callback, false, staticPlayerHost)
     suspend fun confirmedLinks(name:String,origin:String,pageUrl:String,subtitles:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = resolveLinks(name,origin,pageUrl,subtitles,callback,true)
-    private suspend fun resolveLinks(name: String,origin: String,pageUrl: String,subtitles: (SubtitleFile)->Unit,callback: (ExtractorLink)->Unit,requireConfirmed:Boolean): Boolean {
+    private suspend fun resolveLinks(
+        name: String, origin: String, pageUrl: String, subtitles: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit, requireConfirmed: Boolean, staticPlayerHost: String? = null
+    ): Boolean {
         val page=Network.page(PageRequest(pageUrl),origin)
         val emitted=Collections.synchronizedSet(mutableSetOf<String>())
         fun accept(link: ExtractorLink) { if(playable(link.url)&&emitted.add(link.url))callback(link) }
         var rejected:Int?=null
         var unreachable=false
         var playerUrl=page.baseUri()
-        suspend fun emit(source: Source,referer: String,headers: Map<String,String>) {
-            if(!playable(source.url))return
+        suspend fun emit(source: Source,referer: String,headers: Map<String,String>): Int? {
+            if(!playable(source.url))return null
             val probe=RequestLimits.optional(3500){withContext(Dispatchers.IO){
                 val request=okhttp3.Request.Builder().url(source.url).header("Referer",referer).header("Range","bytes=0-31")
                 for((k,v)in headers)request.header(k,v)
@@ -123,17 +130,19 @@ object Playback {
                 }
             }}
             val status=probe?.first
-            if(status==null && requireConfirmed){unreachable=true;return}
-            if(status!=null && status !in 200..299){rejected=status;return}
+            if(status==null && requireConfirmed){unreachable=true;return null}
+            if(status!=null && status !in 200..299){rejected=status;return status}
             val type=streamType(probe?.second ?: source.url,probe?.third)
             accept(newExtractorLink(name,name,source.url,type) {
                 this.referer=referer
                 this.headers=headers
                 quality=getQualityFromName(source.label)
             })
+            return null
         }
-        suspend fun resolve(document:Document,referer:String) {
-            for(source in sources(document))emit(source,referer,Network.headers(referer))
+        suspend fun resolve(document:Document,referer:String): Int? {
+            val headers = Network.headers(referer)
+            val statuses = sources(document).map { emit(it, referer, headers) }
             for(source in EmbeddedPlayers.abSources(document))emit(source,referer,Network.headers(referer))
             // Pornhub declares an MP4 catalogue URL in mediaDefinitions, not a video file.
             for(script in document.select("script")) {
@@ -148,10 +157,13 @@ object Playback {
                     for(j in 0 until streams.length()){val item=streams.optJSONObject(j)?:continue;val url=absolute(endpoint,item.optString("videoUrl"))?:continue;emit(Source(url,item.optString("quality")),referer,Network.headers(referer))}
                 }
             }
+            return statuses.firstOrNull()?.takeIf { statuses.all { code -> code == 404 || code == 410 } }
         }
         resolve(page,page.baseUri())
         if(emitted.isNotEmpty())return true
         // Let CloudStream's maintained extractors handle embedded hosts first.
+        var missingStaticFile: Int? = null
+        var unresolvedFrame = false
         for(frame in page.select("iframe[src],iframe[data-src]").filter { it.closest(".ad,.ads,.advertisement") == null }) {
             val url=absolute(page.baseUri(),frame.attr("data-src").ifBlank{frame.attr("src")}) ?: continue
             if(url==pageUrl||advertisement.containsMatchIn(url)||java.net.URI(url).host.orEmpty().contains("googletagmanager"))continue
@@ -161,7 +173,14 @@ object Playback {
             try {
                 val child=RequestLimits.optional(6500){Network.page(PageRequest(url),pageUrl)}
                 if(child!=null){
-                    finalUrl=child.baseUri();resolve(child,finalUrl)
+                    finalUrl = child.baseUri()
+                    val missingFile = resolve(child, finalUrl)
+                    if (missingFile != null && staticPlayerHost != null &&
+                        java.net.URI(finalUrl).host?.removePrefix("www.") == staticPlayerHost
+                    ) {
+                        missingStaticFile = missingFile
+                        continue
+                    }
                     if(emitted.isEmpty())EmbeddedPlayers.original(child)?.let{original ->
                         val source=RequestLimits.optional(6500){Network.page(PageRequest(original),finalUrl)}
                         if(source!=null){finalUrl=source.baseUri();resolve(source,finalUrl)}
@@ -169,12 +188,16 @@ object Playback {
                 }
                 if(emitted.isNotEmpty())continue
             }catch(e:CancellationException){throw e}catch(_:Exception){}
+            unresolvedFrame = true
             playerUrl=finalUrl
             try { loadExtractor(finalUrl,pageUrl,subtitles,::accept) }catch(e:CancellationException){throw e}catch(_:Exception){}
         }
         if(emitted.isNotEmpty())return true
         if(page.baseUri()!=pageUrl)try{loadExtractor(page.baseUri(),origin,subtitles,::accept)}catch(e:CancellationException){throw e}catch(_:Exception){}
         if(emitted.isNotEmpty())return true
+        if (!unresolvedFrame) missingStaticFile?.let { status ->
+            throw ErrorLoadingException("Сервер плеера $name вернул HTTP $status для файла видео")
+        }
         // Players whose URLs are computed in JavaScript are resolved by the host WebView.
         // The page's own player runs normally; no fabricated links or qualities are returned.
         val exposed=Collections.synchronizedList(mutableListOf<Source>())
@@ -198,7 +221,8 @@ object Playback {
             val headers=request.headers.toMap().filterKeys { it.lowercase() !in setOf("host","connection","content-length","accept-encoding","range") }
             emit(Source(request.url.toString()),playerUrl,headers)
         }
-        if(emitted.isEmpty() && rejected!=null)throw ErrorLoadingException("Сервер файла видео вернул HTTP $rejected")
+        val failure = missingStaticFile ?: rejected
+        if(emitted.isEmpty() && failure!=null)throw ErrorLoadingException("Сервер файла видео вернул HTTP $failure")
         if(emitted.isEmpty() && requireConfirmed && unreachable)throw ErrorLoadingException("Сервер видео не ответил: нет подтверждённых потоков")
         return emitted.isNotEmpty()
     }

@@ -56,6 +56,14 @@ fun main(args:Array<String>) {
     verify(AggregatorPages.video(nextPage)!=null,"Next video must match the requested page")
     verify(Playback.sources(nextPage).any{it.url=="https://cdn.example.org/123.mp4"},"Next.js current-video source is extracted")
     val aggSpec=SiteSpec("TubeBDSM","Tube","https://example.org",".none","a",".title",emptyList())
+    val aliases = """<a class=card title=First href="/out/clip?l=feed&c=1&v=2"></a>
+        <a class=card title=Alias href="/out/clip?l=search&c=9&v=2"></a>
+        <a class=card title=Variant href="/out/clip?v=3"></a>"""
+    val aliasSpec = aggSpec.copy(cards=".card")
+    val deduplicated = Metadata.cards(Jsoup.parse(aliases, "https://www.tubebdsm.com"), aliasSpec)
+    verify(deduplicated.map { it.title } == listOf("First","Variant"),"TubeBDSM collapses outbound aliases and preserves variants")
+    verify(deduplicated.first().url.endsWith("?l=feed&c=1&v=2"),"playback retains the original outbound link")
+    verify(Metadata.cards(Jsoup.parse(aliases, "https://another.test"), aliasSpec).size == 3,"other hosts retain meaningful query parameters")
     verify(AggregatorPages.detail(nextPage,aggSpec).tags==listOf("Bondage"),"only declared Next video tags")
     verify(AggregatorPages.detail(nextPage,aggSpec).description.isEmpty(),"Next SEO advertising never substitutes a missing description")
     verify(AggregatorPages.detail(nextPage,aggSpec).duration=="00:23","Next metadata duration replaces zero numeric field")

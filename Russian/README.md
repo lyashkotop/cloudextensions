@@ -1,13 +1,12 @@
 # Russian — Kotlin providers
 
-Все девять провайдеров имеют исходники `.kt` в `Russian/<Site>/src/main/kotlin/`.
+Все восемь провайдеров имеют исходники `.kt` в `Russian/<Site>/src/main/kotlin/`.
 Внутренние ID сохранены. По просьбе владельца имена источников имеют префикс `1.` для сортировки.
 Старые smali-версии доступны в истории до коммита перехода.
 
 - [Ebalka](Ebalka/)
 - [Huyamba](Huyamba/)
 - [Noodle Magazine 🇷🇺](NoodleMagazine/)
-- [Poebon](Poebon/)
 - [Perdol.net](Perdol/)
 - [ProstoPorno](ProstoPorno/)
 - [Semyana](Semyana/)

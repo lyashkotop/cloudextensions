@@ -13,7 +13,7 @@ import org.json.JSONObject
 import org.json.JSONTokener
 import org.jsoup.nodes.Document
 
-class NoodleMagazineProvider: MainAPI(),SearchPolicy {
+class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     override var mainUrl="https://tyler-brown.com"
     override var name="Noodle Magazine"
     override var lang="ru"
@@ -55,9 +55,12 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy {
         synchronized(pages){pages[page]=fresh}
         return newSearchResponseList(fresh,merged.isNotEmpty()&&(page==1||fresh.isNotEmpty()))
     }
+    override suspend fun posterPage(url: String): Document = document(PageRequest(url))
+
     override suspend fun fullTitle(url:String):String? = Metadata.detail(document(PageRequest(url)),spec).title
     override suspend fun load(url:String):LoadResponse {
         val page=document(PageRequest(url));val detail=Metadata.detail(page,spec)
+        rememberNoodlePosters(url, page)
         if(detail.title.isBlank())throw ErrorLoadingException("Video title is missing")
         if(!ContentPolicy.accepts(detail.title,detail.tags))throw ErrorLoadingException("Video hidden by category filter")
         var related=Metadata.cards(page,spec.copy(cards="div.item")).filter{it.url!=url}.map(::response)

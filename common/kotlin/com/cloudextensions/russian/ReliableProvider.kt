@@ -42,6 +42,20 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         if(prefetch)ImagePrefetch.warm(listOf(ready),0)
         ready
     } } }.awaitAll() }
+    private val posterPermits = Semaphore(12)
+    private suspend fun withNoodlePosters(items: List<SearchResponse>): List<SearchResponse> = coroutineScope {
+        val provider = source as? NoodlePosterSource ?: return@coroutineScope items
+        items.map { item -> async {
+            if (item !is MovieSearchResponse) return@async item
+            val headers = item.posterHeaders.orEmpty()
+            val poster = RequestLimits.optional(3500) {
+                posterPermits.withPermit { NoodlePosters.resolve(provider, item.url, item.posterUrl, headers) }
+            }
+            if (poster == null || poster == item.posterUrl) return@async item
+            Metadata.rememberPoster(item.url, poster)
+            item.copy(posterUrl = poster, posterHeaders = NoodlePosters.headersFor(poster, item.url, headers))
+        } }.awaitAll()
+    }
     private data class Review(val allowed:Boolean,val detail:LoadResponse?,val title:String?=detail?.name)
     private val reviews=java.util.Collections.synchronizedMap(BoundedMap<String,Pair<Long,Review>>(128))
     private val reviewPermits=Semaphore(4)
@@ -97,7 +111,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     }
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная") {
         val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
-        val rows=result.items.map{it.copy(list=cards(it.list,prefetch=true))}
+        val rows=result.items.map{it.copy(list=withNoodlePosters(cards(it.list,prefetch=true)))}
         ImagePrefetch.warm(rows.flatMap{it.list})
         newHomePageResponse(rows,result.hasNext)
     }
@@ -108,7 +122,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         if(!ContentPolicy.accepts(query))return@required newSearchResponseList(emptyList(),false)
         if(lang !in listOf("ru","en") || (source as? SearchPolicy)?.translateQueries==false) {
             val result=Translation.originalOnly{source.search(query,page)}?:return@required newSearchResponseList(emptyList(),false)
-            val ready=prepareSearch(result.items)
+            val ready=withNoodlePosters(prepareSearch(result.items))
             ImagePrefetch.warm(ready)
             return@required newSearchResponseList(ready,result.hasNext)
         }
@@ -134,8 +148,18 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         result.plot=Metadata.description(result.plot,result.name)
         result.tags=result.tags.orEmpty().mapNotNull(Metadata::tag).distinctBy{it.lowercase()}
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
-        if(result is MovieLoadResponse)result.posterHeaders=Network.imageHeaders(result.posterUrl,url)+result.posterHeaders.orEmpty()
-        result.recommendations=cards(result.recommendations.orEmpty(),prefetch=true)
+        if(result is MovieLoadResponse) {
+            val headers = Network.imageHeaders(result.posterUrl, url) + result.posterHeaders.orEmpty()
+            val provider = source as? NoodlePosterSource
+            val poster = provider?.let {
+                RequestLimits.optional(3500) { NoodlePosters.resolve(it, url, result.posterUrl, headers) }
+            }
+            result.posterHeaders = if (poster != null && poster != result.posterUrl) {
+                result.posterUrl = Metadata.rememberPoster(url, poster)
+                NoodlePosters.headersFor(poster, url, headers)
+            } else headers
+        }
+        result.recommendations=withNoodlePosters(cards(result.recommendations.orEmpty(),prefetch=true))
         ImagePrefetch.warm(result.recommendations.orEmpty(),0)
         result
     }

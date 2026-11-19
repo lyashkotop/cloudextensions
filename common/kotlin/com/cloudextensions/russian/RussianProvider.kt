@@ -23,7 +23,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy {
     override val hasQuickSearch=false
     override val mainPage get()=mainPageOf(*spec.sections.filter { ContentPolicy.accepts(it.name) }.map { it.path to it.name }.toTypedArray())
     private val homeCursors=Collections.synchronizedMap(BoundedMap<String,PageRequest>(256))
-    private val homeFingerprints=Collections.synchronizedMap(BoundedMap<String,Set<String>>(256))
+    private val homeFingerprints=Collections.synchronizedMap(BoundedMap<Pair<String,Int>,Set<String>>(256))
     private val searches=Collections.synchronizedMap(BoundedMap<String,SearchState>(24))
     private class Branch(val term: String) {
         val cursors=mutableMapOf<Int,PageRequest>()
@@ -59,11 +59,21 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy {
         val document=page(route)
         val cards=Metadata.cards(document,spec)
         val fingerprint=cards.map { videoKey(it.url) }.toSet()
-        val repeats=page>1 && fingerprint.isNotEmpty() && fingerprint==homeFingerprints["${request.data}:${page-1}"]
+        val (repeats, earlierCards) = synchronized(homeFingerprints) {
+            val previous = homeFingerprints[request.data to (page - 1)]
+            val earlier = if (spec.id == "TubeBDSM" && page > 1) {
+                homeFingerprints.entries.asSequence().filter { (key, _) ->
+                    key.first == request.data && key.second < page
+                }.flatMap { it.value.asSequence() }.toSet()
+            } else emptySet()
+            if (spec.id == "TubeBDSM" && page == 1) homeFingerprints.keys.removeAll { it.first == request.data }
+            homeFingerprints[request.data to page] = fingerprint
+            (page > 1 && fingerprint.isNotEmpty() && fingerprint == previous) to earlier
+        }
         val next=if(repeats)null else Pagination.next(document,route)?.takeUnless { it==route }
         if(next!=null)homeCursors["${request.data}:${page+1}"]=next else homeCursors.remove("${request.data}:${page+1}")
-        homeFingerprints[key]=fingerprint
-        return newHomePageResponse(HomePageList(request.name,if(repeats)emptyList() else cards.map(::response),true),next!=null)
+        val fresh = if (repeats) emptyList() else cards.filterNot { videoKey(it.url) in earlierCards }
+        return newHomePageResponse(HomePageList(request.name,fresh.map(::response),true),next!=null)
     }
     override suspend fun search(query: String): List<SearchResponse> = search(query,1).items
     override suspend fun quickSearch(query: String): List<SearchResponse> = search(query,1).items

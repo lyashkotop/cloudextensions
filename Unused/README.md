@@ -3,6 +3,8 @@
 Исходники сохранены по просьбе владельца; эта папка не участвует в сборке и plugins.json.
 
 - CosXPlay
+- ForcedCinema
+- Poebon
 - JAVHd
 - JavEnglish
 - JavMost

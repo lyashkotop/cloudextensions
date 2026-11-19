@@ -12,7 +12,7 @@ import org.jsoup.nodes.Element
 import org.json.JSONObject
 import org.json.JSONTokener
 
-class NoodleMagazineProvider : MainAPI(),SearchPolicy {
+class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
     override var mainUrl = "https://tyler-brown.com"
     override var name = "Noodle Magazine"
     override val hasMainPage = true
@@ -54,6 +54,8 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy {
         return newSearchResponseList(results, hasNext)
     }
 
+    override suspend fun posterPage(url: String): Document = document(url)
+
     override suspend fun fullTitle(url:String):String? = Metadata.detail(document(url),spec).title
 
     private suspend fun englishTags(page:Document):List<String> {
@@ -72,6 +74,7 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy {
     override suspend fun load(url: String): LoadResponse {
         val document=document(url)
         val metadata=Metadata.detail(document,spec)
+        rememberNoodlePosters(url, document)
         if(metadata.title.isBlank())throw ErrorLoadingException("Источник не предоставил название")
         val originalTags=document.select("#videoTagsBar a.vtag").map{it.text()}
         if(!ContentPolicy.accepts(metadata.title+" "+document.selectFirst("div.l_info h1")?.text().orEmpty(),originalTags))throw ErrorLoadingException("Видео скрыто фильтром категорий")

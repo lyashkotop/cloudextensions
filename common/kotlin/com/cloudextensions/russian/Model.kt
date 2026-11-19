@@ -34,7 +34,13 @@ internal fun absolute(base: String, value: String?): String? = try {
 internal fun videoKey(url: String): String = try {
     val u = URI(url)
     val path = u.rawPath.orEmpty().trimEnd('/')
+    val host = u.host.orEmpty().removePrefix("www.")
+    val outboundTubeBDSM = host == "tubebdsm.com" && path.startsWith("/out/")
     // Every migrated provider uses a path ID. Strip only tracking parameters; retain meaningful query IDs.
-    val query = u.rawQuery.orEmpty().split('&').filter { it.isNotBlank() && it.substringBefore('=') !in setOf("Li", "Lii", "Lt", "Sn", "utm_source", "utm_medium", "utm_campaign") }.joinToString("&")
-    "${u.host.orEmpty().removePrefix("www.")}$path" + if (query.isEmpty()) "" else "?$query"
+    val tracking = setOf("Li", "Lii", "Lt", "Sn", "utm_source", "utm_medium", "utm_campaign")
+    val query = u.rawQuery.orEmpty().split('&').filter { param ->
+        val key = param.substringBefore('=')
+        param.isNotBlank() && key !in tracking && !(outboundTubeBDSM && key in setOf("l", "c"))
+    }.joinToString("&")
+    "$host$path" + if (query.isEmpty()) "" else "?$query"
 } catch (_: Exception) { url.substringBefore('#') }

@@ -5,7 +5,7 @@
   "sha256": "70a5e4e5495bf97660d10f6c85685f57f03b46f18460fc0415724ff428461a90",
   "sourceUnmodified": false,
   "registration": "ReliableProvider wrapping the adapted source; query translation disabled via SearchPolicy.",
-  "adaptedSha256": "201fe2faf36ab5286ecb90fb6447bc7193bbc3a798130a26fcdd0d9bcdc310b3",
+  "adaptedSha256": "2b2b915b1b8123eee8e5df56ba060d245b9ee53a845be4a1ff43330d9dd85e18",
   "adaptations": [
     "poster source fallbacks and request headers",
     "real English video tags and duration",
