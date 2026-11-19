@@ -1,6 +1,7 @@
 package com.cloudextensions.russian
 
 import org.json.JSONObject
+import org.json.JSONArray
 import org.jsoup.nodes.Document
 import java.net.URI
 
@@ -13,21 +14,55 @@ object AggregatorPages {
         val current=try{URI(page.baseUri()).path.trimEnd('/')}catch(_:Exception){""}
         return item.takeIf{path.isNotBlank() && current==path}
     }
-    private fun tags(item:JSONObject):List<String> {
-        val array=item.optJSONArray("tags") ?: return emptyList()
-        return (0 until array.length()).mapNotNull{array.optJSONObject(it)?.optString("name")?.let(Metadata::tag)}.distinct()
+    private fun labels(value: Any?): List<String> = when (value) {
+        is JSONArray -> (0 until value.length()).flatMap { labels(value.opt(it)) }
+        is JSONObject -> labels(value.optString("name").ifBlank { value.optString("label") })
+        is String -> value.split(',').mapNotNull(Metadata::tag)
+        else -> emptyList()
+    }
+    private fun tags(item: JSONObject): List<String> =
+        (labels(item.opt("tags")) + labels(item.opt("categories"))).distinctBy { it.lowercase() }
+
+    private fun pageTags(page: Document): List<String> {
+        val host = URI(page.baseUri()).host.orEmpty().removePrefix("www.")
+        val selector = when (host) {
+            "m.viptube.com", "viptube.com" -> ".data_name .list a.selected"
+            "faphouse.com" -> ".video-info-details__categories a[href^=/c/]"
+            "pornezy.com", "fapvana.com", "pornvio.com" -> ".taxl a[href^=/tag/], .taxl a.tx-c"
+            "reflectivedesire.com" -> ".video-tags .video-tags-list a"
+            "fapcat.com" -> ".block-details .item a[href*=/tags/], .block-details .item a[href*=/categories/]"
+            "vrporn.com" -> ".list.mt2-6 a[href^=/tag/]"
+            "lujuriax.com" -> ".xv-tags-box a"
+            else -> ".VideoDetailArea .VideoQuickLinks a[href*=/category/], .VideoDetailArea .VideoQuickLinks a[href*=/tag/]"
+        }
+        val visible = page.select(selector).mapNotNull { Metadata.tag(it.text()) }
+        if (host != "xhamster.com") return visible.ifEmpty {
+            page.select("meta[property=video:tag], meta[name=video:tag], meta[property=og:video:tag]")
+                .flatMap { labels(it.attr("content")) }
+        }
+
+        val state = EmbeddedPlayers.initials(page) ?: return visible
+        val component = state.optJSONObject("videoTagsComponent") ?: return visible
+        val id = state.optJSONObject("videoEntity")?.optString("id").orEmpty()
+        if (id.isBlank() || component.optString("videoId") != id) return visible
+        val items = component.optJSONArray("tags") ?: return visible
+        return (0 until items.length()).mapNotNull { index ->
+            val item = items.optJSONObject(index) ?: return@mapNotNull null
+            if (!item.optBoolean("isTag") && !item.optBoolean("isCategory")) return@mapNotNull null
+            Metadata.tag(item.optString("name"))
+        }
     }
     fun detail(page:Document,spec:SiteSpec):VideoDetail {
         val base=Metadata.detail(page,spec.copy(descriptionSelector=".VideoDescription, .video-desc, .vp-description"))
         val item=video(page)
+        val tags = (item?.let(::tags).orEmpty() + pageTags(page) + base.tags.flatMap(::labels)).distinctBy { it.lowercase() }
         if(item==null) {
-            val extra=page.select(".VideoDetailArea .VideoQuickLinks a[href*=/category/], .VideoDetailArea .VideoQuickLinks a[href*=/tag/]").mapNotNull{Metadata.tag(it.text())}.distinct()
-            return base.copy(tags=base.tags.ifEmpty{extra})
+            return base.copy(tags = tags)
         }
         val meta=item.optJSONObject("metadata")
         val duration=Metadata.timing(meta?.optString("duration")).ifBlank{Metadata.timing(item.optString("duration"))}
         return base.copy(
-            tags=tags(item).ifEmpty{base.tags},
+            tags=tags,
             duration=duration.ifBlank{base.duration},
             description=Metadata.description(item.optString("description"),base.title),
             poster=Metadata.choosePoster(page.baseUri(),base.poster,item.optString("poster"))

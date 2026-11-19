@@ -8,7 +8,7 @@ import org.jsoup.nodes.Document
 
 /** Player data belongs to the requested source, never to advertisements or another feed item. */
 object EmbeddedPlayers {
-    private fun initials(page:Document):JSONObject? {
+    internal fun initials(page:Document):JSONObject? {
         for(script in page.select("script")) {
             val match=Regex("window\\.initials\\s*=\\s*").find(script.data()) ?: continue
             return try{JSONTokener(script.data().substring(match.range.last+1)).nextValue() as? JSONObject}catch(_:Exception){null}
