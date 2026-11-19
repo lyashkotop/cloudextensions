@@ -48,9 +48,6 @@ object Metadata {
     fun savedPoster(url:String):String? = posters[videoKey(url)]?.takeIf { System.nanoTime()-(posterTimes[videoKey(url)]?:0L)<180_000_000_000L }
     fun choosePoster(url:String,vararg candidates:String?):String? = savedPoster(url) ?: candidates.firstNotNullOfOrNull { imageUrl(url,it) }?.also { rememberPoster(url,it) } ?: posters[videoKey(url)]
 
-    internal fun rememberDuration(url: String, clock: String) { durations[videoKey(url)] = clock }
-    internal fun savedDuration(url: String): String? = durations[videoKey(url)]
-
     fun clean(value: String?) = value.orEmpty().replace('\u00a0',' ').replace(whitespace," ").trim()
     private fun value(e: Element?): String = e?.let { listOf(it.attr("content"), it.attr("datetime"), it.text()).firstOrNull(String::isNotBlank) }.orEmpty()
     fun title(url: String, candidates: List<String>): String {

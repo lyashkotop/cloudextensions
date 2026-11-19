@@ -146,7 +146,6 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         val result=savedReview(url)?.detail ?: source.load(url) ?: throw ErrorLoadingException("Источник не вернул карточку")
         if(!ContentPolicy.accepts(result.name,result.tags.orEmpty()))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         result.plot=Metadata.description(result.plot,result.name)
-        result.showShortDuration()
         result.tags=result.tags.orEmpty().mapNotNull(Metadata::tag).distinctBy{it.lowercase()}
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
         if(result is MovieLoadResponse) {
