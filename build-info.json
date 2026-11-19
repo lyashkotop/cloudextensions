@@ -1,6 +1,6 @@
 {
-  "version": 121,
-  "sourceCommit": "3ebf25dcae3fec9bebd1f78b2d9c19bd8ac49d4e",
+  "version": 122,
+  "sourceCommit": "9a8d981a1c5c238ef944807277697ec63ad09b90",
   "packageLayout": "versioned",
   "plugins": 31,
   "rebuilt": [
@@ -12,9 +12,9 @@
     "Semyana",
     "Strip2",
     "Vpoisk",
-    "Ro85",
     "JavGuru",
     "MissAV",
+    "Ro85",
     "BDSMStreak",
     "BDSMX",
     "Beeg",
@@ -36,7 +36,7 @@
     "Xnxx",
     "XRares"
   ],
-  "dexClasses": 5350,
+  "dexClasses": 5375,
   "entryRegistrationsValidated": 31,
   "kotlinProviders": 31
 }
