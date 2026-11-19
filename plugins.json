@@ -160,6 +160,26 @@
     "fileHash": "sha256-f74415c7a14c16d370cbaaecc4af74128f8510f1fbadf5a20288a7c0230bbc8c"
   },
   {
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/Japanese/Ro85.cs3",
+    "status": 1,
+    "version": 111,
+    "apiVersion": 1,
+    "name": "2 · JA · 85RO",
+    "internalName": "Ro85",
+    "authors": [
+      "lyashkotop"
+    ],
+    "description": "85ro.com — Japanese catalogue, search and KVS playback.",
+    "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
+    "tvTypes": [
+      "NSFW"
+    ],
+    "language": "ja",
+    "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Ro85.png",
+    "fileSize": 115070,
+    "fileHash": "sha256-76b4daa82bc934773837ac83cf20c590a54bd1226e131dfbe3e9d689283e019f"
+  },
+  {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/Japanese/JavGuru.cs3",
     "status": 1,
     "version": 110,
