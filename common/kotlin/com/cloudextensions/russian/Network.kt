@@ -71,7 +71,11 @@ object Network {
         pageUnbounded(request,referer)
     }
     private suspend fun pageUnbounded(request: PageRequest, referer: String): Document {
-        fun cached() = cache[request]?.takeIf { System.nanoTime()-it.first < TimeUnit.SECONDS.toNanos(30) }?.second
+        val revalidate = request.headers.any { (key, value) ->
+            key.equals("Cache-Control", true) && value.split(',').any { it.trim().equals("no-cache", true) }
+        }
+        fun cached() = if (revalidate) null else
+            cache[request]?.takeIf { System.nanoTime()-it.first < TimeUnit.SECONDS.toNanos(30) }?.second
         cached()?.let { return it }
         val gate = locks.compute(request) { _, pending -> pending?.also { it.users++ } ?: PageGate() }!!
         return try { gate.mutex.withLock {
@@ -113,7 +117,7 @@ object Network {
                 }
                 if(refresh)document.setBaseUri(request.url)
                 Metadata.alias(request.url,document.baseUri())
-                cache[request]=System.nanoTime() to document
+                if (!revalidate) cache[request]=System.nanoTime() to document
                 document
             }
         }} finally {
