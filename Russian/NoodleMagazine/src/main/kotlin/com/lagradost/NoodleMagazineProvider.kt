@@ -5,7 +5,6 @@ import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import java.net.URLEncoder
-import java.util.Collections
 import kotlinx.coroutines.CancellationException
 import okhttp3.Headers
 import okhttp3.Interceptor
@@ -27,22 +26,20 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         "blonde" to "Blonde","milf" to "MILF","jav" to "JAV"
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage="ru")
-    private val history = Collections.synchronizedMap(
-        object : LinkedHashMap<String, MutableMap<Int, Set<String>>>(16, .75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, MutableMap<Int, Set<String>>>?) =
-                size > 24
-        }
-    )
+    private val homePages = NoodleCatalogue()
+    private val searchPages = NoodleCatalogue()
     private fun route(query:String,page:Int)=PageRequest("$mainUrl/video/"+URLEncoder.encode(query,"UTF-8").replace("+","%20")+"?p="+(page-1),allowNotFound=true)
     private suspend fun document(request:PageRequest)=Network.page(request.copy(headers=mapOf("Cookie" to "ui_lang=ru","Accept-Language" to "ru-RU,ru;q=0.9")),"$mainUrl/")
     private fun response(card:VideoCard):SearchResponse=newMovieSearchResponse(card.title,card.url,TvType.NSFW){posterUrl=card.poster;posterHeaders=Network.headers("$mainUrl/")}
     private suspend fun results(query:String,page:Int):List<SearchResponse>{val request=route(query,page);return Metadata.searchCards(document(request),spec,request).map(::response)}
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse {
         if(page<1)return newHomePageResponse(request.name,emptyList(),false)
-        val cards=if(request.data.startsWith("/")) {
-            val endpoint=mainUrl+request.data+(if(request.data.contains('?'))"&" else "?")+"p="+(page-1)
-            Metadata.cards(document(PageRequest(endpoint)),spec).map(::response)
-        }else results(request.data,page)
+        val cards = homePages.page(request.data, page) {
+            if (request.data.startsWith("/")) {
+                val endpoint = mainUrl + request.data + (if (request.data.contains('?')) "&" else "?") + "p=" + (page - 1)
+                Metadata.cards(document(PageRequest(endpoint)), spec).map(::response)
+            } else results(request.data, page)
+        }
         return newHomePageResponse(request.name,cards,cards.isNotEmpty())
     }
     override suspend fun search(query:String):List<SearchResponse> = search(query,1).items
@@ -50,16 +47,8 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     override suspend fun search(query:String,page:Int):SearchResponseList {
         val input=Metadata.clean(query)
         if(input.isBlank()||page<1)return newSearchResponseList(emptyList(),false)
-        if(page==1)synchronized(history){history[input]=mutableMapOf()}
-        val merged=results(input,page).distinctBy{it.url}
-        val fresh = synchronized(history) {
-            val pages = history.getOrPut(input) { mutableMapOf() }
-            val previous = pages.entries.asSequence().filter { it.key < page }.flatMap { it.value.asSequence() }.toSet()
-            merged.filter { it.url !in previous }.also { items ->
-                pages[page] = items.mapTo(mutableSetOf()) { it.url }
-            }
-        }
-        return newSearchResponseList(fresh,merged.isNotEmpty()&&(page==1||fresh.isNotEmpty()))
+        val fresh = searchPages.page(input, page) { results(input, page) }
+        return newSearchResponseList(fresh, fresh.isNotEmpty())
     }
     override suspend fun posterPage(url: String): Document = document(PageRequest(url))
 
@@ -69,9 +58,9 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         rememberNoodlePosters(url, page)
         if(detail.title.isBlank())throw ErrorLoadingException("Video title is missing")
         if(!ContentPolicy.accepts(detail.title,detail.tags))throw ErrorLoadingException("Video hidden by category filter")
-        var related=Metadata.cards(page,spec.copy(cards="div.item")).filter{it.url!=url}.map(::response)
+        var related=NoodleCatalogue.distinct(Metadata.cards(page,spec.copy(cards="div.item")).map(::response), url)
         if(related.isEmpty())detail.tags.firstOrNull{ContentPolicy.accepts(it)}?.let{tag->
-            try{related=RequestLimits.optional { results(tag,1) }.orEmpty().filter{it.url!=url}}catch(e:CancellationException){throw e}catch(_:Exception){}
+            try{related=NoodleCatalogue.distinct(RequestLimits.optional { results(tag, 1) }.orEmpty(), url)}catch(e:CancellationException){throw e}catch(_:Exception){}
         }
         return newMovieLoadResponse(detail.title,url,TvType.NSFW,url){
             posterUrl=detail.poster;posterHeaders=Network.headers("$mainUrl/");plot=Metadata.plot(detail);tags=detail.tags;recommendations=related

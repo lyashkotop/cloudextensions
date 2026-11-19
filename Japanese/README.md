@@ -2,7 +2,6 @@
 
 Активные модули:
 
-- [85RO](Ro85/)
 - [JavGuru](JavGuru/)
 - [MissAV](MissAV/)
 

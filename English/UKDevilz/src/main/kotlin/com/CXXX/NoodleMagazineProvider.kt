@@ -22,6 +22,8 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
         "blonde" to "Blonde", "milf" to "MILF", "jav" to "JAV",
         "hentai" to "Hentai", "lesbian" to "Lesbian"
     )
+    private val homePages = NoodleCatalogue()
+    private val searchPages = NoodleCatalogue()
     private val spec get()=SiteSpec("UKDevilz",name,mainUrl,"div.item","a[href]","div.i_info div.title",emptyList(),
         tagSelector="#videoTagsBar a.vtag",titleLanguage="en",detailTitleSelector="div.l_info h1")
     private suspend fun document(url:String):Document = app.get(url,headers=mapOf("Cookie" to "ui_lang=en","Accept-Language" to "en-US,en;q=0.9")).document
@@ -29,9 +31,10 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val curpage = page - 1
         val link = "$mainUrl/video/${request.data}?p=$curpage"
-        val document = document(link)
-        val home = document.select("div.item").mapNotNull { it.toSearchResult() }
-        return newHomePageResponse(request.name, home)
+        val home = homePages.page(request.data, page) {
+            document(link).select("div.item").mapNotNull { it.toSearchResult() }
+        }
+        return newHomePageResponse(request.name, home, home.isNotEmpty())
     }
 
     private fun Element.toSearchResult(): MovieSearchResponse? {
@@ -45,10 +48,10 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
     }
 
     override suspend fun search(query: String, page: Int): SearchResponseList? {
-        val document = document("$mainUrl/video/$query?p=$page")
-        val results = document.select("div.item").mapNotNull { it.toSearchResult() }
-        val hasNext = if(results.isEmpty()) false else true
-        return newSearchResponseList(results, hasNext)
+        val results = searchPages.page(query, page) {
+            document("$mainUrl/video/$query?p=$page").select("div.item").mapNotNull { it.toSearchResult() }
+        }
+        return newSearchResponseList(results, results.isNotEmpty())
     }
 
     override suspend fun posterPage(url: String): Document = document(url)
@@ -77,7 +80,7 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
         val originalTags=document.select("#videoTagsBar a.vtag").map{it.text()}
         if(!ContentPolicy.accepts(metadata.title+" "+document.selectFirst("div.l_info h1")?.text().orEmpty(),originalTags))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         val categories=englishTags(document)
-        val recommendations=document.select("div.item").mapNotNull{it.toSearchResult()}
+        val recommendations = NoodleCatalogue.distinct(document.select("div.item").mapNotNull { it.toSearchResult() }, url)
         return newMovieLoadResponse(metadata.title,url,TvType.NSFW,url) {
             posterUrl=metadata.poster
             posterHeaders=Network.imageHeaders(metadata.poster,url)

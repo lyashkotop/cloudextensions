@@ -26,7 +26,7 @@ def previous_versions(worktree, release):
         if existing.is_file() and existing.read_bytes() != current.read_bytes():
             raise ValueError(f'Package version already exists with different contents: {relative}')
         old = sorted(
-            (path for path in (worktree / relative.parent.parent).glob(f'*/{current.name}')
+            (path for path in (worktree / 'packages').glob(f'*/*/{current.name}')
              if path.parent.name.isdecimal() and 0 < int(path.parent.name) < int(version)),
             key=lambda path: int(path.parent.name), reverse=True,
         )
