@@ -108,7 +108,7 @@ internal object NoodlePosters {
         val declared = saved ?: RequestLimits.optional(1100) { remember(url, source.posterPage(url)) }
         verified(declared?.images.orEmpty())?.let { return it }
         if (slowOriginal == null && declared?.track != null && ImagePrefetch.cacheDirectory() != null) {
-            val fallback = RequestLimits.optional(1800) {
+            val fallback = RequestLimits.optional(4000) {
                 val text = Network.page(PageRequest(declared.track), url).wholeText()
                 val frames = StoryboardPosters.frames(text, declared.track)
                 for (frame in frames) {
