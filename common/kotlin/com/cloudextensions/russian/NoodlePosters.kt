@@ -56,18 +56,26 @@ internal object NoodlePosters {
     suspend fun resolve(
         source: NoodlePosterSource, url: String, poster: String?, headers: Map<String, String>
     ): String? {
-        val tried = mutableSetOf<String>()
-        suspend fun verify(candidate: String): String? {
-            for (image in listOfNotNull(originalImage(candidate), candidate)) {
-                val imageHeaders = if (image == poster) headers else Network.replacementImageHeaders(image, url, headers)
-                if (tried.add(image) && PosterRequests.available(image, imageHeaders, if (image == candidate) 1100 else 2200)) return image
-            }
-            return null
-        }
-        if (poster != null) verify(poster)?.let { return it }
-        val candidates = alternatives[videoKey(url)]?.takeIf {
+        val saved = alternatives[videoKey(url)]?.takeIf {
             System.nanoTime() - it.first < TimeUnit.MINUTES.toNanos(2)
-        }?.second ?: RequestLimits.optional(1500) { remember(url, source.posterPage(url)) }.orEmpty()
+        }?.second
+        val tried = mutableSetOf<String>()
+        suspend fun verifyOriginal(image: String): String? {
+            if (!tried.add(image)) return null
+            val imageHeaders = Network.replacementImageHeaders(image, url, headers)
+            // The page declares this exact image. A slow probe should not prevent Coil from loading it.
+            return image.takeUnless { PosterRequests.check(image, imageHeaders, 1200) == false }
+        }
+        suspend fun verify(candidate: String): String? {
+            originalImage(candidate)?.let { verifyOriginal(it) }?.let { return it }
+            val imageHeaders = if (candidate == poster) headers else Network.replacementImageHeaders(candidate, url, headers)
+            return candidate.takeIf { tried.add(it) && PosterRequests.available(it, imageHeaders, 1100) }
+        }
+        // Keep the listing's thumbnail size when it already declares the original image.
+        val preferred = poster?.let(::originalImage) ?: saved?.firstNotNullOfOrNull(::originalImage)
+        preferred?.let { verifyOriginal(it) }?.let { return it }
+        if (poster != null) verify(poster)?.let { return it }
+        val candidates = saved ?: RequestLimits.optional(1500) { remember(url, source.posterPage(url)) }.orEmpty()
         return candidates.firstNotNullOfOrNull { verify(it) } ?: poster
     }
 }
