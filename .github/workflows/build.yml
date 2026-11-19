@@ -46,12 +46,16 @@ jobs:
           key: cloudextensions-tools-${{ runner.os }}-${{ hashFiles('common/tools/toolchain.json') }}
       - name: Fetch and verify build tools
         run: python common/tools/fetch_tools.py --directory .tools
-      - name: Compile, check and package all providers
+      - name: Compile and verify provider packages
         env:
           RUN_NUMBER: ${{ github.run_number }}
         run: |
           python -c 'import json, os; from pathlib import Path; c=json.loads(Path("repository.json").read_text()); Path(".release-version").write_text(str(c["versionBase"]+int(os.environ["RUN_NUMBER"])))'
-          python scripts/build_repository.py --version "$(cat .release-version)"
+          reuse=()
+          if git fetch --unshallow --no-tags origin main && git fetch --depth=1 --no-tags origin +refs/heads/builds:refs/remotes/origin/builds; then
+            reuse=(--reuse-from refs/remotes/origin/builds)
+          fi
+          python scripts/build_repository.py --version "$(cat .release-version)" "${reuse[@]}"
       - name: Publish builds branch
         if: github.event_name != 'pull_request'
         run: python scripts/publish_builds.py

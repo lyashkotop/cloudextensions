@@ -24,11 +24,15 @@ def main():
     args=parser.parse_args()
     config=json.loads((Path(__file__).resolve().parents[1]/'repository.json').read_text())
     base='https://raw.githubusercontent.com/'+config['repository']+'/'+config['buildsBranch']+'/'
+    info=json.loads(get(base+'build-info.json?verify='+str(args.version)))
+    assert info['version']==args.version
     items=json.loads(get(base+'plugins.json?verify='+str(args.version)))
     expected={m['id']:m for m in modules()}
     assert len(items)==len(expected) and {i['internalName'] for i in items}==set(expected)
     def verify(item):
-        assert item['version']==args.version
+        assert 0 < item['version'] <= args.version
+        if item['internalName'] in info.get('rebuilt', expected):
+            assert item['version']==args.version
         raw=get(item['url']+'?verify='+str(args.version))
         assert len(raw)==item['fileSize']
         assert 'sha256-'+hashlib.sha256(raw).hexdigest()==item['fileHash']
@@ -36,10 +40,10 @@ def main():
             assert archive.testzip() is None
             manifest=json.loads(archive.read('manifest.json'))
             module=expected[item['internalName']]
-            assert manifest['version']==args.version
+            assert manifest['version']==item['version']
             assert manifest['pluginClassName']==module['entryClass']
             Dex(archive.read('classes.dex')).validate_entry(module)
-        return {'id':item['internalName'],'bytes':len(raw),'version':args.version,'hashVerified':True,'entryVerified':True}
+        return {'id':item['internalName'],'bytes':len(raw),'version':item['version'],'hashVerified':True,'entryVerified':True}
     with ThreadPoolExecutor(max_workers=6) as pool:
         rows=list(pool.map(verify,items))
     args.output.parent.mkdir(parents=True,exist_ok=True)
