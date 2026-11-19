@@ -1,6 +1,6 @@
 {
-  "version": 107,
-  "sourceCommit": "b547a77b5518195070fcd9bf79964a3f4d84e602",
+  "version": 108,
+  "sourceCommit": "81164627f05072463429d7865f6008f1339a65b8",
   "plugins": 30,
   "rebuilt": [
     "Ebalka",
@@ -34,7 +34,7 @@
     "Xnxx",
     "XRares"
   ],
-  "dexClasses": 4790,
+  "dexClasses": 4235,
   "entryRegistrationsValidated": 30,
   "kotlinProviders": 30
 }
