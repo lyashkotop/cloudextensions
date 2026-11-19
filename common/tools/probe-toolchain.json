@@ -1,0 +1,52 @@
+[
+  {
+    "file": "okhttp5-runtime.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/squareup/okhttp3/okhttp-jvm/5.0.0/okhttp-jvm-5.0.0.jar",
+    "sha256": "4d6ff6aea0fc7c6b8182d26340216040af0e2186e317305d899f8d324faa8a4a"
+  },
+  {
+    "file": "okio-runtime.jar",
+    "url": "https://repo.maven.apache.org/maven2/com/squareup/okio/okio-jvm/3.15.0/okio-jvm-3.15.0.jar",
+    "sha256": "483dc383b1049d220892322a0d6a4308425f09bb05b48c43d4eaa9ff82b1cd16"
+  },
+  {
+    "file": "kotlinx-serialization-core-jvm.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-core-jvm/1.8.0/kotlinx-serialization-core-jvm-1.8.0.jar",
+    "sha256": "d3c94e9d829bba6e0c4cd3ae478a40846dd49d5475d6707877be853976afe416"
+  },
+  {
+    "file": "kotlinx-serialization-json-jvm.jar",
+    "url": "https://repo.maven.apache.org/maven2/org/jetbrains/kotlinx/kotlinx-serialization-json-jvm/1.8.0/kotlinx-serialization-json-jvm-1.8.0.jar",
+    "sha256": "7b7c445880cef94dc464f4733da1b33b94bee78805041ea08ae06e8507e4620e"
+  },
+  {
+    "file": "cryptography-core.jar",
+    "url": "https://repo.maven.apache.org/maven2/dev/whyoleg/cryptography/cryptography-core-jvm/0.6.0/cryptography-core-jvm-0.6.0.jar",
+    "sha256": "d548cfcef63d76043cf98e33f0804cc9120fe48f31e3f83289ed5b32c165f52c"
+  },
+  {
+    "file": "cryptography-provider-base.jar",
+    "url": "https://repo.maven.apache.org/maven2/dev/whyoleg/cryptography/cryptography-provider-base-jvm/0.6.0/cryptography-provider-base-jvm-0.6.0.jar",
+    "sha256": "67b2e74b2d96079887e0af15c50d54ccfd8dd2c1c37d3eb44c0a0628bd57f3ce"
+  },
+  {
+    "file": "cryptography-provider-jdk.jar",
+    "url": "https://repo.maven.apache.org/maven2/dev/whyoleg/cryptography/cryptography-provider-jdk-jvm/0.6.0/cryptography-provider-jdk-jvm-0.6.0.jar",
+    "sha256": "c843acb190edac1e2c0ea24f1b0c6d9899cf52f1fada8c07be91c9d48e014f51"
+  },
+  {
+    "file": "cryptography-provider-optimal.jar",
+    "url": "https://repo.maven.apache.org/maven2/dev/whyoleg/cryptography/cryptography-provider-optimal-jvm/0.6.0/cryptography-provider-optimal-jvm-0.6.0.jar",
+    "sha256": "c056e7770c0ce5bd53c43d1a988f04593e00acd4842ea72b46f79cf6f2458745"
+  },
+  {
+    "file": "cryptography-random.jar",
+    "url": "https://repo.maven.apache.org/maven2/dev/whyoleg/cryptography/cryptography-random-jvm/0.6.0/cryptography-random-jvm-0.6.0.jar",
+    "sha256": "b8a5b8ba483d6ac9a179397e3b97ea8d9d5074abac00093d0c2246ee18731401"
+  },
+  {
+    "file": "cryptography-bigint.jar",
+    "url": "https://repo.maven.apache.org/maven2/dev/whyoleg/cryptography/cryptography-bigint-jvm/0.6.0/cryptography-bigint-jvm-0.6.0.jar",
+    "sha256": "a261719def5aff7e04b1b6d3970511bd21b2bccb8f3ee9c427e4f302cf46d625"
+  }
+]

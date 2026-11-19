@@ -8,7 +8,7 @@ import io
 import json
 import urllib.request
 import zipfile
-from build_repository import Dex, modules
+from build_repository import Dex, modules, package_path
 
 
 def get(url):
@@ -33,13 +33,17 @@ def main():
         assert 0 < item['version'] <= args.version
         if item['internalName'] in info.get('rebuilt', expected):
             assert item['version']==args.version
-        raw=get(item['url']+'?verify='+str(args.version))
-        assert len(raw)==item['fileSize']
-        assert 'sha256-'+hashlib.sha256(raw).hexdigest()==item['fileHash']
+        module=expected[item['internalName']]
+        expected_url=base+package_path(module,item['version']).as_posix()
+        if info.get('packageLayout') != 'versioned':
+            expected_url=base+module['category']+'/'+module['id']+'.cs3'
+        assert item['url']==expected_url, item['internalName']
+        raw=get(expected_url if info.get('packageLayout') == 'versioned' else expected_url+'?verify='+str(args.version))
+        assert len(raw)==item['fileSize'], item['internalName']
+        assert 'sha256-'+hashlib.sha256(raw).hexdigest()==item['fileHash'], item['internalName']
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
             assert archive.testzip() is None
             manifest=json.loads(archive.read('manifest.json'))
-            module=expected[item['internalName']]
             assert manifest['version']==item['version']
             assert manifest['pluginClassName']==module['entryClass']
             Dex(archive.read('classes.dex')).validate_entry(module)

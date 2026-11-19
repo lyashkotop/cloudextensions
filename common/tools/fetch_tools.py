@@ -43,9 +43,10 @@ def main():
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--directory', type=Path, default=root / '.tools')
+    parser.add_argument('--manifest', type=Path, default=root / 'tools/toolchain.json')
     directory = parser.parse_args().directory
     directory.mkdir(parents=True, exist_ok=True)
-    for tool in json.loads((root / 'tools/toolchain.json').read_text()):
+    for tool in json.loads(args.manifest.read_text()):
         target = directory / tool['file']
         if target.is_file() and hashlib.sha256(target.read_bytes()).hexdigest() == tool['sha256']:
             continue

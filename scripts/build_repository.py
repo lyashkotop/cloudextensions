@@ -142,6 +142,10 @@ def package(path, manifest, dex):
             raise ValueError('Invalid package: ' + str(path))
 
 
+def package_path(module, version):
+    return Path('packages', module['category'], str(version), f"{module['id']}.cs3")
+
+
 def previous_packages(ref, modules, version):
     """Return verified unchanged artifacts from one published Git snapshot."""
     def git(*args):
@@ -156,8 +160,8 @@ def previous_packages(ref, modules, version):
         if not re.fullmatch(r'[0-9a-f]{40}', base):
             return {}
         git('merge-base', '--is-ancestor', base, 'HEAD')
-        if git('diff', '--name-only', base, 'HEAD', '--', 'common/', 'scripts/',
-               '.github/workflows/build.yml', 'repository.json'):
+        if git('diff', '--name-only', base, 'HEAD', '--', 'common/kotlin/', 'common/tools/toolchain.json',
+               'scripts/kotlin_build.py', 'scripts/build_repository.py', 'repository.json'):
             return {}
         changed = set(git('diff', '--name-only', '-z', '--no-renames', base, 'HEAD').decode().split('\0'))
         entries = {item['internalName']: item for item in json.loads(git('show', revision + ':plugins.json'))}
@@ -220,11 +224,17 @@ def main():
     if output == ROOT or ROOT in output.parents and output.name in CATEGORIES:
         raise ValueError('Output cannot overwrite source directories')
     output.mkdir(parents=True, exist_ok=True)
+    reused = previous_packages(args.reuse_from, selected, version) if args.reuse_from else {}
     expected = {m['category'] + '/' + m['id'] + '.cs3' for m in selected}
     for old in output.glob('*/*.cs3'):
         if old.relative_to(output).as_posix() not in expected:
             old.unlink()
-    reused = previous_packages(args.reuse_from, selected, version) if args.reuse_from else {}
+    expected_versioned = {
+        package_path(m, reused[m['id']][2] if m['id'] in reused else version) for m in selected
+    }
+    for old in (output / 'packages').glob('*/*/*.cs3'):
+        if old.relative_to(output) not in expected_versioned:
+            old.unlink()
     print(f'Compiling {len(selected) - len(reused)} of {len(selected)} providers, reusing {len(reused)} verified packages', flush=True)
     with tempfile.TemporaryDirectory(prefix='.repository-build-', dir=ROOT) as name:
         temporary = Path(name)
@@ -256,7 +266,10 @@ def main():
                 artifact.write_bytes(reused[module['id']][0])
             else:
                 package(artifact, manifest, module_data)
-            index.append({'url': f'https://raw.githubusercontent.com/{repository}/{config["buildsBranch"]}/{relative}',
+            versioned = package_path(module, artifact_version)
+            (output / versioned).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(artifact, output / versioned)
+            index.append({'url': f'https://raw.githubusercontent.com/{repository}/{config["buildsBranch"]}/{versioned.as_posix()}',
                           'status': module.get('status', 1), 'version': artifact_version, 'apiVersion': 1,
                           'name': extension_name(module), 'internalName': module['id'], 'authors': config['authors'],
                           'description': module['description'], 'repositoryUrl': 'https://github.com/' + repository,
@@ -264,11 +277,11 @@ def main():
                           'fileSize': artifact.stat().st_size, 'fileHash': 'sha256-' + hashlib.sha256(artifact.read_bytes()).hexdigest()})
         (output / 'plugins.json').write_text(json.dumps(index, ensure_ascii=False, indent=2) + '\n')
         shutil.copyfile(ROOT / 'repo.json', output / 'repo.json')
-        (output / 'build-info.json').write_text(json.dumps({'version': version, 'sourceCommit': os.environ.get('GITHUB_SHA', 'local'), 'plugins': len(index), 'rebuilt': [m['id'] for m in selected if m['id'] not in reused], 'dexClasses': sum(len(Dex(raw).classes) for raw in native_results.values()), 'entryRegistrationsValidated': len(selected), 'kotlinProviders': sum(m.get('runtime') == 'kotlin' for m in selected)}, indent=2) + '\n')
+        (output / 'build-info.json').write_text(json.dumps({'version': version, 'sourceCommit': os.environ.get('GITHUB_SHA', 'local'), 'packageLayout': 'versioned', 'plugins': len(index), 'rebuilt': [m['id'] for m in selected if m['id'] not in reused], 'dexClasses': sum(len(Dex(raw).classes) for raw in native_results.values()), 'entryRegistrationsValidated': len(selected), 'kotlinProviders': sum(m.get('runtime') == 'kotlin' for m in selected)}, indent=2) + '\n')
         (output / 'README.md').write_text('# Generated CloudStream builds\n\nSource: https://github.com/' + repository + '\n\nAdd this URL in CloudStream:\n\nhttps://raw.githubusercontent.com/' + repository + '/' + config['sourceBranch'] + '/repo.json\n\nGenerated files are replaced only by a successful build. Site availability is not tested by CI.\n')
     # Validate the consumer-visible index against every real output file.
     for module, item in zip(selected, index):
-        artifact = output / module['category'] / (module['id'] + '.cs3')
+        artifact = output / package_path(module, item['version'])
         with zipfile.ZipFile(artifact) as z:
             assert json.loads(z.read('manifest.json'))['version'] == item['version']
         assert item['fileSize'] == artifact.stat().st_size

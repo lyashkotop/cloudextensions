@@ -14,6 +14,27 @@ def git(*args, cwd=ROOT, capture=False):
     return subprocess.run(['git', *args], cwd=cwd, check=True, text=True, capture_output=capture).stdout
 
 
+def previous_versions(worktree, release):
+    """Keep URLs for the two recent package versions that cached indices might still reference."""
+    saved = {}
+    for current in (release / 'packages').glob('*/*/*.cs3'):
+        relative = current.relative_to(release)
+        version = current.parent.name
+        if not version.isdecimal():
+            raise ValueError(f'Invalid package version: {current.name}')
+        existing = worktree / relative
+        if existing.is_file() and existing.read_bytes() != current.read_bytes():
+            raise ValueError(f'Package version already exists with different contents: {relative}')
+        old = sorted(
+            (path for path in (worktree / relative.parent.parent).glob(f'*/{current.name}')
+             if path.parent.name.isdecimal() and 0 < int(path.parent.name) < int(version)),
+            key=lambda path: int(path.parent.name), reverse=True,
+        )
+        for path in old[:2]:
+            saved[path.relative_to(worktree)] = path.read_bytes()
+    return saved
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--release', type=Path, default=ROOT / '.release')
@@ -39,12 +60,20 @@ def main():
             attached = True
             if not remote:
                 git('switch', '--orphan', 'publish-builds', cwd=worktree)
+            old_info = worktree / 'build-info.json'
+            if remote and old_info.is_file() and json.loads(old_info.read_text())['version'] > info['version']:
+                raise ValueError('A newer release is already published')
+            retained = previous_versions(worktree, release)
             git('rm', '-r', '-f', '--ignore-unmatch', '.', cwd=worktree)
             for source in release.rglob('*'):
                 if source.is_file():
                     target = worktree / source.relative_to(release)
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(source, target)
+            for path, contents in retained.items():
+                target = worktree / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(contents)
             git('add', '--all', cwd=worktree)
             changes = subprocess.run(['git', 'diff', '--cached', '--quiet'], cwd=worktree)
             if changes.returncode == 0:
