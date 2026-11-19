@@ -84,4 +84,6 @@ class AdaptedProvider(private val source: MainAPI): MainAPI() {
         return seen.isNotEmpty()
     }
     override fun getVideoInterceptor(extractorLink:ExtractorLink):Interceptor? = source.getVideoInterceptor(extractorLink)
+
+    internal val detailTagSource: DetailTagSource? get() = source as? DetailTagSource
 }

@@ -40,7 +40,7 @@ import org.jsoup.nodes.Element
  *   The metadata API (api-search.xv-cdn.net/id/<id>/) is now used ONLY for metadata, never as a
  *   playable source, and a preview is clearly labelled as such if nothing better is found.
  */
-class BeegProvider : MainAPI() {
+class BeegProvider : MainAPI(), DetailTagSource {
     override var mainUrl = "https://beeg.porn"
     override var name = "Beeg.porn"
     override var lang = "en"
@@ -154,10 +154,17 @@ class BeegProvider : MainAPI() {
 
     // ── Detail ───────────────────────────────────────────────────────────────
 
+    private val detailSpec get() = SiteSpec("Beeg", name, mainUrl, "span.item", "a[href]", ".title", emptyList())
+
+    override suspend fun missingTags(url: String): List<String> {
+        val embed = Regex("[?&]e=([A-Za-z0-9]+)").find(url)?.groupValues?.get(1) ?: return emptyList()
+        return DetailEnrichment.xvideosTags(embed, detailSpec, budget = 5500)
+    }
+
     override suspend fun load(url: String): LoadResponse = coroutineScope {
         val id=Regex("/(?:xid/|play/\\d+-)(\\d+)").find(url)?.groupValues?.get(1)
         val encode=Regex("[?&]e=([A-Za-z0-9]+)").find(url)?.groupValues?.get(1).orEmpty()
-        val spec = SiteSpec("Beeg", name, mainUrl, "span.item", "a[href]", ".title", emptyList())
+        val spec = detailSpec
         val originalTags = encode.takeIf(String::isNotBlank)?.let { embed ->
             async { DetailEnrichment.xvideosTags(embed, spec, budget = 3000) }
         }

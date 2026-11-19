@@ -41,7 +41,7 @@ def probe(module, libraries, classes):
     ]
     status = 'probe_error'
     try:
-        process = subprocess.run(command, capture_output=True, timeout=110)
+        process = subprocess.run(command, capture_output=True, timeout=155)
         log = process.stdout
         if process.returncode == 0:
             status = 'complete'
@@ -50,8 +50,16 @@ def probe(module, libraries, classes):
         status = 'timeout'
     prefix = 'SITE_HEALTH '
     rows = [json.loads(line.removeprefix(prefix)) for line in log.decode(errors='replace').splitlines() if line.startswith(prefix)]
-    report = {'provider': module['id'], 'status': status, 'checks': {row['stage']: row for row in rows}}
-    print(module['id'], ' '.join(f"{row['stage']}={row['status']}" for row in rows) or status, flush=True)
+    checks = {row['stage']: row for row in rows if 'sample' not in row}
+    samples = {}
+    for row in rows:
+        if 'sample' in row:
+            samples.setdefault(row['sample'], {})[row['stage']] = row
+    report = {'provider': module['id'], 'status': status, 'checks': checks,
+              'samples': [{'number': number, 'checks': samples[number]} for number in sorted(samples)]}
+    completed = [sample['video']['status'] for sample in samples.values() if 'video' in sample]
+    print(module['id'], ' '.join(f'{name}={row["status"]}' for name, row in checks.items()) or status,
+          'video samples:', ','.join(completed) or 'none', flush=True)
     return report
 
 
@@ -59,23 +67,26 @@ def summary(report):
     lines = [
         '## CloudStream source check', '',
         'JVM SDK probes check HTTP responses and file signatures. A sample requiring Android WebView is marked accordingly.',
-        'A single report is a snapshot of the runner’s network access.', '',
+        'When two distinct cards are available, results are shown separately for both samples.', '',
         '| Source | ' + ' | '.join(STAGES.values()) + ' |',
         '| ' + ' | '.join(['---'] * (len(STAGES) + 1)) + ' |',
     ]
     for site in report['providers']:
         checks = []
         for stage in STAGES:
-            check = site['checks'].get(stage)
-            if not check:
-                checks.append('—')
-                continue
-            status = check['status'].replace('_', ' ')
-            if check.get('http') is not None:
-                status += f" ({check['http']})"
-            checks.append(status)
+            rows = [site['checks'][stage]] if stage in site['checks'] else [
+                sample['checks'].get(stage) for sample in site['samples']
+            ]
+            checks.append(' / '.join(format_status(row) for row in rows) or '—')
         lines.append('| ' + ' | '.join([site['provider'], *checks]) + ' |')
     return '\n'.join(lines) + '\n'
+
+
+def format_status(check):
+    if not check:
+        return '—'
+    status = check['status'].replace('_', ' ')
+    return status if check.get('http') is None else f"{status} ({check['http']})"
 
 
 def main():

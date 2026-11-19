@@ -253,7 +253,7 @@ object Playback {
         return emitted.isNotEmpty()
     }
 
-    private fun mediaError(status: Int): ErrorLoadingException {
+    internal fun mediaError(status: Int): ErrorLoadingException {
         val detail = when (status) {
             401, 403 -> "Сервер ограничил доступ к видео"
             404, 410 -> "Файл видео удалён или недоступен"

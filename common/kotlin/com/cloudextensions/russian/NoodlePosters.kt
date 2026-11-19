@@ -2,10 +2,13 @@ package com.cloudextensions.russian
 
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 import org.jsoup.nodes.Document
 import java.net.URI
 import java.util.Collections
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 interface NoodlePosterSource : PosterSource {
     override suspend fun resolvePoster(url: String, poster: String?, headers: Map<String, String>): String? =
@@ -23,6 +26,7 @@ internal object NoodlePosters {
     private val alternatives = Collections.synchronizedMap(BoundedMap<String, Pair<Long, List<String>>>(256))
     // The image proxy includes the upstream image host and path in the preview URL.
     private val wrappedPreview = Regex("""^/preview/[^/]+/[^/]+/[0-9]+/(sun[0-9]+(?:-[0-9]+)?\.vkuserphoto\.ru|i\.mycdn\.me)(/[^/].*)$""")
+    private val playlistAssignment = Regex("""\bwindow\.playlist\s*=\s*""")
 
     private fun originalImage(poster: String): String? {
         val uri = try { URI(poster) } catch (_: java.net.URISyntaxException) { return null }
@@ -46,6 +50,15 @@ internal object NoodlePosters {
             }
         } + page.select("meta[property=og:image], meta[property=og:image:secure_url], meta[name=twitter:image], link[rel=image_src], video[poster]").map {
             it.attr("content").ifBlank { it.attr("href").ifBlank { it.attr("poster") } }
+        } + page.select("script").mapNotNull { script ->
+            val js = script.data()
+            val assignment = playlistAssignment.find(js) ?: return@mapNotNull null
+            val playlist = try {
+                JSONTokener(js.substring(assignment.range.last + 1)).nextValue() as? JSONObject
+            } catch (_: org.json.JSONException) {
+                null
+            }
+            playlist?.optString("image")
         }
         val base = page.baseUri().ifBlank { url }
         return images.mapNotNull { Metadata.imageUrl(base, it) }.distinct().also {
@@ -60,22 +73,36 @@ internal object NoodlePosters {
             System.nanoTime() - it.first < TimeUnit.MINUTES.toNanos(2)
         }?.second
         val tried = mutableSetOf<String>()
-        suspend fun verifyOriginal(image: String): String? {
-            if (!tried.add(image)) return null
-            val imageHeaders = Network.replacementImageHeaders(image, url, headers)
-            // The page declares this exact image. A slow probe should not prevent Coil from loading it.
-            return image.takeUnless { PosterRequests.check(image, imageHeaders, 1200) == false }
+        var slowOriginal: String? = null
+        suspend fun verified(candidates: List<String>): String? = coroutineScope {
+            val checks = candidates.flatMap { listOfNotNull(originalImage(it), it) }
+                .distinct().filterNot(tried::contains).take(4).map { image ->
+                    tried += image
+                    async {
+                        val requestHeaders = if (image == poster) headers else Network.replacementImageHeaders(image, url, headers)
+                        image to PosterRequests.check(image, requestHeaders, 1200)
+                    }
+                }
+            try {
+                for (check in checks) {
+                    val (image, available) = check.await()
+                    if (available == true) return@coroutineScope image
+                    if (available == null && candidates.any { originalImage(it) == image }) {
+                        if (slowOriginal == null) slowOriginal = image
+                    }
+                }
+                null
+            } finally {
+                checks.forEach { it.cancel() }
+            }
         }
-        suspend fun verify(candidate: String): String? {
-            originalImage(candidate)?.let { verifyOriginal(it) }?.let { return it }
-            val imageHeaders = if (candidate == poster) headers else Network.replacementImageHeaders(candidate, url, headers)
-            return candidate.takeIf { tried.add(it) && PosterRequests.available(it, imageHeaders, 1100) }
+        // Keep the listing size when it works. Check the alternatives together so a slow CDN
+        // cannot consume the entire budget before a valid cover is tried.
+        verified(listOfNotNull(poster) + saved.orEmpty())?.let { return it }
+        if (saved == null && slowOriginal == null) {
+            val declared = RequestLimits.optional(1100) { remember(url, source.posterPage(url)) }.orEmpty()
+            verified(declared)?.let { return it }
         }
-        // Keep the listing's thumbnail size when it already declares the original image.
-        val preferred = poster?.let(::originalImage) ?: saved?.firstNotNullOfOrNull(::originalImage)
-        preferred?.let { verifyOriginal(it) }?.let { return it }
-        if (poster != null) verify(poster)?.let { return it }
-        val candidates = saved ?: RequestLimits.optional(1500) { remember(url, source.posterPage(url)) }.orEmpty()
-        return candidates.firstNotNullOfOrNull { verify(it) } ?: poster
+        return slowOriginal ?: poster
     }
 }

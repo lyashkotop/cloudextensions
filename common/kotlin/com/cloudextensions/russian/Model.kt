@@ -13,6 +13,10 @@ internal interface SearchMetadataSource {
     suspend fun searchMetadata(url: String): VideoDetail
 }
 
+interface DetailTagSource {
+    suspend fun missingTags(url: String): List<String>
+}
+
 /** Only application code is packaged; CloudStream, Kotlin and HTTP libraries come from the host. */
 data class Section(val name: String, val path: String)
 data class SiteSpec(

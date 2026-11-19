@@ -2,9 +2,10 @@ package com.cloudextensions.russian
 
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.utils.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.net.URI
+import java.util.concurrent.TimeUnit
+import okhttp3.Interceptor
+import okhttp3.Request
 
 /** CloudStream appends the quality itself: numeric streams must have an empty name. */
 object QualityLinks {
@@ -12,6 +13,8 @@ object QualityLinks {
     fun allowed(quality:Int)=quality<=MAX_HEIGHT
     data class Master(val streams:List<Variant>,val hasHigher:Boolean)
     data class Variant(val url:String,val height:Int,val codecPreference:Int=0)
+    internal data class Selection(val links: List<ExtractorLink>, val rejectedStatus: Int? = null)
+    private data class ManifestCheck(val manifest: Master? = null, val rejectedStatus: Int? = null)
     fun variants(base:String,text:String):List<Variant> {
         if(!text.trimStart().startsWith("#EXTM3U"))return emptyList()
         // A child playlist alone cannot preserve externally declared audio/subtitle groups.
@@ -44,25 +47,38 @@ object QualityLinks {
         Regex("(?i)(?:^|[ (])low(?:[ )]|$)").containsMatchIn(name)->"Низкое"
         else->"Оригинал"
     }
-    private suspend fun master(link:ExtractorLink):Master? = RequestLimits.optional(2500) {
-        withContext(Dispatchers.IO) {
-            val request=okhttp3.Request.Builder().url(link.url).header("Referer",link.referer)
-            link.headers.forEach{(k,v)->request.header(k,v)}
-            app.baseClient.newBuilder().callTimeout(2,java.util.concurrent.TimeUnit.SECONDS).build().newCall(request.build()).execute().use { response ->
-                if(!response.isSuccessful)return@use null
-                val source=response.body?.source() ?: return@use null
-                source.request(262_145)
-                if(source.buffer.size>262_144)return@use null
-                val text=source.readUtf8()
-                Master(variants(response.request.url.toString(),text),Regex("RESOLUTION=(\\d+)x(\\d+)",RegexOption.IGNORE_CASE).findAll(text).any{minOf(it.groupValues[1].toIntOrNull() ?: 0,it.groupValues[2].toIntOrNull() ?: 0)>MAX_HEIGHT})
+    private suspend fun checkManifest(link: ExtractorLink, interceptor: Interceptor?): ManifestCheck? =
+        RequestLimits.optional(2500) {
+            val request = Request.Builder().url(link.url).header("Referer", link.referer)
+            link.headers.forEach { (key, value) -> request.header(key, value) }
+            val client = app.baseClient.newBuilder().callTimeout(2, TimeUnit.SECONDS)
+            if (interceptor != null) client.addInterceptor(interceptor)
+            Network.read(request.build(), client.build()) { response ->
+                if (!response.isSuccessful) {
+                    return@read if (response.code in setOf(404, 410)) ManifestCheck(rejectedStatus = response.code) else null
+                }
+                val body = response.body?.source() ?: return@read ManifestCheck(rejectedStatus = 415)
+                body.request(262_145)
+                if (body.buffer.size > 262_144) return@read null
+                val text = body.readUtf8().trimStart('\uFEFF').trimStart()
+                if (!text.startsWith("#EXTM3U")) return@read ManifestCheck(rejectedStatus = 415)
+                ManifestCheck(Master(
+                    variants(response.request.url.toString(), text),
+                    Regex("RESOLUTION=(\\d+)x(\\d+)", RegexOption.IGNORE_CASE).findAll(text).any {
+                        minOf(it.groupValues[1].toIntOrNull() ?: 0, it.groupValues[2].toIntOrNull() ?: 0) > MAX_HEIGHT
+                    },
+                ))
             }
         }
-    }
 
-    suspend fun choices(link:ExtractorLink):List<ExtractorLink> {
-        if(!allowed(link.quality) && !link.isM3u8)return emptyList()
+    suspend fun choices(link: ExtractorLink): List<ExtractorLink> = select(link, null).links
+
+    internal suspend fun select(link: ExtractorLink, interceptor: Interceptor?): Selection {
+        if(!allowed(link.quality) && !link.isM3u8)return Selection(emptyList())
         val readableHls=link.isM3u8 && link !is ExtractorLinkPlayList
-        val manifest=if(readableHls)master(link) else null
+        val check = if (readableHls) checkManifest(link, interceptor) else null
+        if (check?.rejectedStatus != null) return Selection(emptyList(), check.rejectedStatus)
+        val manifest = check?.manifest
         val streams=manifest?.streams.orEmpty().filter{allowed(it.height)}
         val quality=if(link.isM3u8 && link.quality==Qualities.Unknown.value)0 else link.quality
         val result=mutableListOf<ExtractorLink>()
@@ -70,7 +86,7 @@ object QualityLinks {
         if(allowed(link.quality) && manifest?.hasHigher!=true)result+=rename(link,link.url,quality)
         if(link !is DrmExtractorLink)for(variant in streams)result+=rename(link,variant.url,variant.height)
 
-        return result
+        return Selection(result)
     }
 
     @OptIn(kotlin.uuid.ExperimentalUuidApi::class)

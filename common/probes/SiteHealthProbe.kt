@@ -2,6 +2,7 @@ package com.cloudextensions.probes
 
 import android.content.Context
 import com.lagradost.cloudstream3.APIHolder
+import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.MovieLoadResponse
 import com.lagradost.cloudstream3.SearchResponse
@@ -12,7 +13,11 @@ import java.io.IOException
 import java.util.Collections
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import okhttp3.Interceptor
@@ -47,9 +52,10 @@ private fun failure(error: Throwable): Pair<String, Int?> {
     }
 }
 
-private fun report(stage: String, status: String, started: Long = System.nanoTime(), fields: Map<String, Any?> = emptyMap()) {
+private fun report(stage: String, status: String, started: Long = System.nanoTime(), fields: Map<String, Any?> = emptyMap(), sample: Int? = null) {
     val row = JSONObject(fields).put("stage", stage).put("status", status)
         .put("ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started))
+    if (sample != null) row.put("sample", sample)
     println("SITE_HEALTH " + row.toString())
 }
 
@@ -57,17 +63,18 @@ private suspend fun <T> stage(
     name: String,
     milliseconds: Long,
     fields: (T) -> Map<String, Any?> = { emptyMap() },
+    sample: Int? = null,
     check: suspend () -> T,
 ): T? {
     val started = System.nanoTime()
     return try {
         val result = withTimeout(milliseconds) { check() }
-        report(name, "ok", started, fields(result))
+        report(name, "ok", started, fields(result), sample)
         result
     } catch (e: Throwable) {
         if (e is CancellationException && e !is TimeoutCancellationException) throw e
         val (status, code) = failure(e)
-        report(name, status, started, mapOf("http" to code, "errorType" to e.javaClass.simpleName))
+        report(name, status, started, mapOf("http" to code, "errorType" to e.javaClass.simpleName), sample)
         null
     }
 }
@@ -99,7 +106,7 @@ private fun bytes(
         val valid = if (media) {
             text.startsWith("#EXTM3U") || text.startsWith("<MPD") || "<MPD " in text ||
                 hex.drop(8).startsWith("66747970") || hex.startsWith("1a45dfa3") ||
-                hex.startsWith("464c56") || hex.startsWith("000001ba") || hex.startsWith("47")
+                hex.startsWith("464c56") || hex.startsWith("000001ba")
         } else {
             hex.startsWith("ffd8ff") || hex.startsWith("89504e470d0a1a0a") || text.startsWith("GIF8") ||
                 (text.startsWith("RIFF") && text.drop(8).startsWith("WEBP")) || hex.drop(8).startsWith("66747970617669")
@@ -140,48 +147,60 @@ fun main(args: Array<String>) {
                 next
             }
         } else report("next_page", "not_applicable")
-        val sample = (search?.items.orEmpty() + home.orEmpty()).firstOrNull { !unsuitableSample.containsMatchIn(it.name) }
-            ?: run {
-                report("listing_cover", "no_sample")
-                report("detail", "no_sample")
-                return@runBlocking
-            }
-        stage("listing_cover", 6000, { mapOf("http" to it) }) {
-            val url = sample.posterUrl ?: throw CheckFailure("missing")
-            bytes(url, sample.posterHeaders.orEmpty(), media = false)
+        val searchCards = search?.items.orEmpty()
+        val homeCards = home.orEmpty()
+        val first = (searchCards + homeCards).firstOrNull { !unsuitableSample.containsMatchIn(it.name) }
+        val second = (homeCards + searchCards).firstOrNull {
+            it.url != first?.url && !unsuitableSample.containsMatchIn(it.name)
         }
-        val detail = stage("detail", 23_000) {
-            api.load(sample.url)?.takeIf { it.name.isNotBlank() } ?: throw CheckFailure("empty")
-        } ?: return@runBlocking
-        val tags = detail.tags.orEmpty()
-        report("tags", if (tags.isEmpty()) "missing" else "ok", fields = mapOf("count" to tags.size))
-        report("recommendations", if (detail.recommendations.isNullOrEmpty()) "missing" else "ok",
-            fields = mapOf("count" to detail.recommendations.orEmpty().size))
-        stage("detail_cover", 6000, { mapOf("http" to it) }) {
-            val url = detail.posterUrl ?: throw CheckFailure("missing")
-            bytes(url, (detail as? MovieLoadResponse)?.posterHeaders.orEmpty(), media = false)
-        }
-        if (unsuitableSample.containsMatchIn((listOf(detail.name, detail.plot.orEmpty()) + tags).joinToString(" "))) {
-            report("video", "no_sample")
+        val samples = listOfNotNull(first, second).distinctBy { it.url }
+        if (samples.isEmpty()) {
+            report("listing_cover", "no_sample")
+            report("detail", "no_sample")
             return@runBlocking
         }
-        stage("video", 46_000, { mapOf("http" to it.first, "links" to it.second) }) {
-            val links = Collections.synchronizedList(mutableListOf<ExtractorLink>())
-            api.loadLinks((detail as? MovieLoadResponse)?.dataUrl ?: sample.url, false, {}, links::add)
-            if (links.isEmpty()) throw CheckFailure("no_stream")
-            val fullLinks = links.filterNot { it.name.contains("preview", true) || it.name.contains("превью", true) }
-            if (fullLinks.isEmpty()) throw CheckFailure("preview_only")
-            var last: IOException? = null
-            for (link in fullLinks.distinctBy { it.url }.take(3)) {
-                try {
-                    val status = bytes(link.url, mapOf("Referer" to link.referer) + link.headers, media = true, api.getVideoInterceptor(link))
-                    return@stage status to fullLinks.size
-                } catch (e: IOException) {
-                    last = e
-                }
-            }
-            throw last ?: CheckFailure("no_stream")
+        coroutineScope {
+            samples.mapIndexed { index, sample -> async(Dispatchers.IO) { inspectSample(api, sample, index + 1) } }.awaitAll()
         }
     }
     kotlin.system.exitProcess(0)
+}
+
+private suspend fun inspectSample(api: MainAPI, sample: SearchResponse, number: Int) {
+    stage("listing_cover", 6000, { mapOf("http" to it) }, sample = number) {
+        val url = sample.posterUrl ?: throw CheckFailure("missing")
+        bytes(url, sample.posterHeaders.orEmpty(), media = false)
+    }
+    val detail = stage("detail", 23_000, sample = number) {
+        api.load(sample.url)?.takeIf { it.name.isNotBlank() } ?: throw CheckFailure("empty")
+    } ?: return
+    val tags = detail.tags.orEmpty()
+    report("tags", if (tags.isEmpty()) "missing" else "ok", fields = mapOf("count" to tags.size), sample = number)
+    report("recommendations", if (detail.recommendations.isNullOrEmpty()) "missing" else "ok",
+        fields = mapOf("count" to detail.recommendations.orEmpty().size), sample = number)
+    stage("detail_cover", 6000, { mapOf("http" to it) }, sample = number) {
+        val url = detail.posterUrl ?: throw CheckFailure("missing")
+        bytes(url, (detail as? MovieLoadResponse)?.posterHeaders.orEmpty(), media = false)
+    }
+    if (unsuitableSample.containsMatchIn((listOf(detail.name, detail.plot.orEmpty()) + tags).joinToString(" "))) {
+        report("video", "no_sample", sample = number)
+        return
+    }
+    stage("video", 46_000, { mapOf("http" to it.first, "links" to it.second) }, sample = number) {
+        val links = Collections.synchronizedList(mutableListOf<ExtractorLink>())
+        api.loadLinks((detail as? MovieLoadResponse)?.dataUrl ?: sample.url, false, {}, links::add)
+        if (links.isEmpty()) throw CheckFailure("no_stream")
+        val fullLinks = links.filterNot { it.name.contains("preview", true) || it.name.contains("превью", true) }
+        if (fullLinks.isEmpty()) throw CheckFailure("preview_only")
+        var last: IOException? = null
+        for (link in fullLinks.distinctBy { it.url }.take(3)) {
+            try {
+                val status = bytes(link.url, mapOf("Referer" to link.referer) + link.headers, media = true, api.getVideoInterceptor(link))
+                return@stage status to fullLinks.size
+            } catch (e: IOException) {
+                last = e
+            }
+        }
+        throw last ?: CheckFailure("no_stream")
+    }
 }

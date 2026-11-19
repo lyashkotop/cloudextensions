@@ -139,18 +139,20 @@ class JavGuru : MainAPI() {
         return "$mainUrl/searcho/?${rtype}r=${token.reversed()}"
     }
 
-    private fun extractPackedHls(body: String, embedUrl: String): String? {
+    private fun extractPackedHls(body: String, embedUrl: String): List<String> {
         val unpacker = JsUnpacker(body)
         val unpacked = if (unpacker.detect()) unpacker.unpack() ?: body else body
-        val hls4 = Regex(""""hls4"\s*:\s*"([^"]+)"""").find(unpacked)?.groupValues?.get(1)
-        val hls2 = Regex(""""hls2"\s*:\s*"(https[^"]+)"""").find(unpacked)?.groupValues?.get(1)
-        return when {
-            hls4 != null -> URI(embedUrl).resolve(hls4).toString().takeIf { it.startsWith("https://") || it.startsWith("http://") }
-            else -> hls2
-        }
+        val addresses = hlsFields.findAll(unpacked).groupBy({ it.groupValues[1] }, { it.groupValues[3] })
+        val base = URI(embedUrl)
+        return listOf("hls4", "hls2", "hls3", "hls").flatMap { addresses[it].orEmpty() }
+            .mapNotNull { raw ->
+                val address = runCatching { base.resolve(raw.replace("\\/", "/")) }.getOrNull()
+                address?.toString()?.takeIf { address.scheme in setOf("https", "http") && address.host != null }
+            }.distinct().take(3)
     }
 
-    private data class Player(val number: Int, val url: String, val referer: String, val external: Boolean)
+    private val hlsFields = Regex("""\b(hls[234]?)['"]?\s*:\s*(['"])([^'"\s]+)\2""")
+    private data class Player(val number: Int, val urls: List<String>, val referer: String, val external: Boolean)
 
     override suspend fun loadLinks(
         data: String,
@@ -177,9 +179,9 @@ class JavGuru : MainAPI() {
                             embed.okhttpResponse.use {
                                 val host = URI(embed.url).host.orEmpty().removePrefix("www.")
                                 if (host == "vide0.net") {
-                                    Player(index + 1, embed.url, "$mainUrl/", external = true)
+                                    Player(index + 1, listOf(embed.url), "$mainUrl/", external = true)
                                 } else {
-                                    val hls = extractPackedHls(embed.text, embed.url) ?: return@use null
+                                    val hls = extractPackedHls(embed.text, embed.url).takeIf { it.isNotEmpty() } ?: return@use null
                                     Player(index + 1, hls, embed.url, external = false)
                                 }
                             }
@@ -190,21 +192,25 @@ class JavGuru : MainAPI() {
         }
 
         var found = false
+        val emitted = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+        fun emit(link: ExtractorLink) { if (emitted.add(link.url)) callback(link) }
         for (player in players) {
             if (player.external) {
                 val loaded = try {
                     RequestLimits.optional(5000) {
-                        loadExtractor(player.url, player.referer, subtitleCallback, callback)
+                        loadExtractor(player.urls.single(), player.referer, subtitleCallback, ::emit)
                     }
                 } catch (_: LinkageError) {
                     false
                 }
                 found = loaded == true || found
             } else {
-                callback(newExtractorLink(name, "Server ${player.number}", player.url, ExtractorLinkType.M3U8) {
-                    referer = player.referer
-                    quality = Qualities.Unknown.value
-                })
+                for (url in player.urls) {
+                    emit(newExtractorLink(name, "Server ${player.number}", url, ExtractorLinkType.M3U8) {
+                        referer = player.referer
+                        quality = Qualities.Unknown.value
+                    })
+                }
                 found = true
             }
         }

@@ -35,15 +35,14 @@ internal object MediaRequests {
         val body = response.body?.source() ?: return Result(415, url, mime)
         body.request(32)
         val prefix = body.buffer.readByteString(minOf(32L, body.buffer.size))
-        val text = prefix.utf8().trimStart()
+        val text = prefix.utf8().trimStart('\uFEFF').trimStart()
         val hex = prefix.hex()
         val format = when {
             text.startsWith("#EXTM3U") -> "application/vnd.apple.mpegurl"
             text.startsWith("<MPD") || text.startsWith("<?xml") && url.substringBefore('?').endsWith(".mpd") ->
                 "application/dash+xml"
             hex.drop(8).startsWith("66747970") || hex.startsWith("1a45dfa3") ||
-                hex.startsWith("464c56") || hex.startsWith("000001ba") ||
-                hex.startsWith("47") && hex.length >= 32 -> "video/unknown"
+                hex.startsWith("464c56") || hex.startsWith("000001ba") -> "video/unknown"
             else -> return Result(415, url, mime)
         }
         return Result(response.code, url, format)

@@ -183,12 +183,19 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         synchronized(searchHistory){searchHistory.getOrPut(query){mutableMapOf()}[page]=fresh.map{videoKey(it.url)}.toSet()}
         searchPage(fresh, page, responses.any { it.hasNext })
     }
-    override suspend fun load(url:String):LoadResponse = RequestLimits.required("Карточка") {
+    override suspend fun load(url: String): LoadResponse = RequestLimits.required("Карточка") { loadCard(url) }
+
+    private suspend fun loadCard(url: String): LoadResponse = coroutineScope {
         val result=savedReview(url)?.detail ?: source.load(url) ?: throw ErrorLoadingException("Источник не вернул карточку")
-        if(!ContentPolicy.accepts(result.name,result.tags.orEmpty()))throw ErrorLoadingException("Видео скрыто фильтром категорий")
+        if (!ContentPolicy.accepts(result.name, result.tags.orEmpty())) throw ErrorLoadingException("Видео скрыто фильтром категорий")
+        val tagsSource = (source as? DetailTagSource) ?: (source as? AdaptedProvider)?.detailTagSource
+        val missingTags = if (tagsSource != null && result.tags.isNullOrEmpty()) {
+            async { RequestLimits.optional(5700) { tagsSource.missingTags(url) }.orEmpty() }
+        } else null
         result.plot=Metadata.description(result.plot,result.name)
-        result.tags=result.tags.orEmpty().mapNotNull(Metadata::tag).distinctBy{it.lowercase()}
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
+        val initialRecommendations = result.recommendations.orEmpty()
+        val recommendations = async { withResolvedPosters(cards(initialRecommendations)) }
         if(result is MovieLoadResponse) {
             val headers = Network.imageHeaders(result.posterUrl, url) + result.posterHeaders.orEmpty()
             val provider = source as? PosterSource
@@ -199,23 +206,35 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 result.posterUrl = Metadata.rememberPoster(url, poster)
                 Network.replacementImageHeaders(poster, url, headers)
             } else headers
+            if (missingTags == null) ImagePrefetch.warm(result.posterUrl, result.posterHeaders.orEmpty())
         }
-        result.recommendations=withResolvedPosters(cards(result.recommendations.orEmpty()))
+        val tags = missingTags?.await() ?: result.tags.orEmpty()
+        if (missingTags != null) {
+            if (!ContentPolicy.accepts(result.name, tags)) throw ErrorLoadingException("Видео скрыто фильтром категорий")
+            if (result is MovieLoadResponse) ImagePrefetch.warm(result.posterUrl, result.posterHeaders.orEmpty())
+        }
+        result.tags = tags.mapNotNull(Metadata::tag).distinctBy { it.lowercase() }
+        result.recommendations = recommendations.await()
         ImagePrefetch.warm(result.recommendations.orEmpty())
         result
     }
     override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = RequestLimits.required("Плеер",45_000) {
         val emitted = java.util.concurrent.atomic.AtomicBoolean()
+        val rejected = java.util.concurrent.atomic.AtomicReference<Int>()
         coroutineScope {
             source.loadLinks(data, isCasting, subtitleCallback) { link ->
                 launch(start = CoroutineStart.UNDISPATCHED) {
-                    for (choice in QualityLinks.choices(link)) {
+                    val interceptor = if (link.isM3u8) source.getVideoInterceptor(link) else null
+                    val result = QualityLinks.select(link, interceptor)
+                    result.rejectedStatus?.let { rejected.compareAndSet(null, it) }
+                    for (choice in result.links) {
                         callback(choice)
                         emitted.set(true)
                     }
                 }
             }
         }
+        if (!emitted.get()) rejected.get()?.let { throw Playback.mediaError(it) }
         emitted.get()
     }
     override fun getVideoInterceptor(extractorLink:ExtractorLink):Interceptor?=source.getVideoInterceptor(extractorLink)

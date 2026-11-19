@@ -36,35 +36,42 @@ object ImagePrefetch {
         val ctx = context ?: return
         cards.asSequence().mapNotNull { card ->
             card.posterUrl?.takeIf(String::isNotBlank)?.let { Poster(it, card.posterHeaders.orEmpty().toMap()) }
-        }.distinct().take(12).forEach { poster ->
-            val started = System.nanoTime()
-            synchronized(scheduled) {
-                if (scheduled[poster]?.let { started - it < 300_000_000_000L } == true) return@forEach
-                scheduled[poster] = started
-            }
-            scope.launch {
-                try {
-                    val loaded = withTimeoutOrNull(5000) {
-                        permits.withPermit {
-                            val request = coil.enqueue(ctx, poster)
-                            try {
-                                val result = request.await()
-                                result != null && result.javaClass.simpleName != "ErrorResult"
-                            } finally {
-                                if (!request.isCompleted) request.cancel()
-                            }
+        }.distinct().take(12).forEach { warm(ctx, it) }
+    }
+
+    fun warm(url: String?, headers: Map<String, String>) {
+        val ctx = context ?: return
+        if (!url.isNullOrBlank()) warm(ctx, Poster(url, headers.toMap()))
+    }
+
+    private fun warm(ctx: Context, poster: Poster) {
+        val started = System.nanoTime()
+        synchronized(scheduled) {
+            if (scheduled[poster]?.let { started - it < 300_000_000_000L } == true) return
+            scheduled[poster] = started
+        }
+        scope.launch {
+            try {
+                val loaded = withTimeoutOrNull(5000) {
+                    permits.withPermit {
+                        val request = coil.enqueue(ctx, poster)
+                        try {
+                            val result = request.await()
+                            result != null && result.javaClass.simpleName != "ErrorResult"
+                        } finally {
+                            if (!request.isCompleted) request.cancel()
                         }
                     }
-                    if (loaded != true) forget(poster, started)
-                } catch (e: CancellationException) {
-                    forget(poster, started)
-                    throw e
-                } catch (e: Exception) {
-                    forget(poster, started)
-                    warn(e.javaClass.simpleName)
-                } catch (e: LinkageError) {
-                    warn(e.javaClass.simpleName)
                 }
+                if (loaded != true) forget(poster, started)
+            } catch (e: CancellationException) {
+                forget(poster, started)
+                throw e
+            } catch (e: Exception) {
+                forget(poster, started)
+                warn(e.javaClass.simpleName)
+            } catch (e: LinkageError) {
+                warn(e.javaClass.simpleName)
             }
         }
     }
