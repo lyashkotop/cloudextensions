@@ -110,6 +110,11 @@ object Playback {
         callback: (ExtractorLink) -> Unit, staticPlayerHost: String
     ): Boolean = resolveLinks(name, origin, pageUrl, subtitles, callback, false, staticPlayerHost)
     suspend fun confirmedLinks(name:String,origin:String,pageUrl:String,subtitles:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = resolveLinks(name,origin,pageUrl,subtitles,callback,true)
+
+    /** True for media, false for a confirmed failure, null when the request timed out. */
+    suspend fun checkDirectLink(link: ExtractorLink): Boolean? =
+        MediaRequests.probe(link.url, link.referer, link.headers)?.let { it.status in 200..299 }
+
     suspend fun linksFromPage(
         name: String, origin: String, pageUrl: String, page: Document, declared: List<Source>,
         subtitles: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit

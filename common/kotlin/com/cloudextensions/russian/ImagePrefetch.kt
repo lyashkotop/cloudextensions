@@ -32,6 +32,8 @@ object ImagePrefetch {
         context = value.applicationContext
     }
 
+    internal fun cacheDirectory() = context?.cacheDir
+
     fun warm(cards: List<SearchResponse>) {
         val ctx = context ?: return
         cards.asSequence().mapNotNull { card ->

@@ -6,6 +6,7 @@ import com.lagradost.cloudstream3.network.CloudflareKiller
 import java.net.URLEncoder
 import com.cloudextensions.russian.*
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
@@ -237,23 +238,18 @@ class BeegProvider : MainAPI(), DetailTagSource {
     ): Boolean {
         val videoId = Regex("""/xid/(\d+)/""").find(data)?.groupValues?.get(1)
             ?: Regex("""/play/\d+-(\d+)/""").find(data)?.groupValues?.get(1)
-        var encode = Regex("""[?&]e=([A-Za-z0-9]+)""").find(data)?.groupValues?.get(1)
+        val fromSearch = Regex("""[?&]e=([A-Za-z0-9]+)""").find(data)?.groupValues?.get(1)
+        val pending = mutableMapOf<String, ExtractorLink>()
 
         // 1. We already know the xvideos embed code (search results) — go straight to the player.
-        if (encode != null && playFromEmbedframe(encode, data, callback)) return true
+        if (fromSearch != null && playFromEmbedframe(fromSearch, data, pending, callback)) return true
 
         // 2. Otherwise look for the embed code on the page itself.
-        var pageHtml: String? = null
-        if (encode == null) {
-            pageHtml = runCatching { fetchPage(data) }.getOrNull()
-            if (pageHtml != null) encode = findEncode(pageHtml)
-        }
-
+        val pageHtml = if (fromSearch == null) RequestLimits.optional(5500) { fetchPage(data) } else null
+        val encode = fromSearch ?: pageHtml?.let(::findEncode)
         if (encode != null) {
-            // 2a. through beeg's own wrapper, which iframes the player (and carries a CDN token)
-            if (videoId != null && playFromWrapper(videoId, encode, data, callback)) return true
-            // 2b. plain player page again (cookie may have been refreshed by the wrapper call)
-            if (playFromEmbedframe(encode, data, callback)) return true
+            if (encode != fromSearch && playFromEmbedframe(encode, data, pending, callback)) return true
+            if (videoId != null && playFromWrapper(videoId, encode, data, pending, callback)) return true
         }
 
         // 3. The regular home catalogue can declare a different host in its player.
@@ -271,11 +267,17 @@ class BeegProvider : MainAPI(), DetailTagSource {
         if (videoId != null) {
             val resolved = findEncodeViaSearch(videoId, pageHtml, data)?.takeUnless { it == encode }
             if (resolved != null &&
-                (playFromEmbedframe(resolved, data, callback) || playFromWrapper(videoId, resolved, data, callback))
+                (playFromEmbedframe(resolved, data, pending, callback) ||
+                    playFromWrapper(videoId, resolved, data, pending, callback))
             ) return true
         }
 
-        // 4. Nothing playable: offer the preview, but say so instead of pretending it is the video.
+        if (pending.isNotEmpty()) {
+            pending.values.forEach(callback)
+            return true
+        }
+
+        // Expose the site's preview with its own label.
         val preview = videoId?.let { id ->
             runCatching {
                 app.get("$searchApiBase/id/$id/?format=ajax&e=${encode ?: ""}").text
@@ -299,16 +301,17 @@ class BeegProvider : MainAPI(), DetailTagSource {
     private suspend fun playFromEmbedframe(
         encode: String,
         referer: String,
+        pending: MutableMap<String, ExtractorLink>,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val html = runCatching {
+        val html = RequestLimits.optional(5500) {
             app.get(
                 "$xvideosBase/embedframe/$encode",
                 headers = mapOf("User-Agent" to ua),
                 referer = referer
             ).text
-        }.getOrNull() ?: return false
-        return emitPlayerSources(html, callback)
+        } ?: return false
+        return emitPlayerSources(html, pending, callback)
     }
 
     /** https://e.xv-cdn.net/?id=…&e=… → iframe to the proxied player → same config. */
@@ -316,16 +319,17 @@ class BeegProvider : MainAPI(), DetailTagSource {
         videoId: String,
         encode: String,
         referer: String,
+        pending: MutableMap<String, ExtractorLink>,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val wrapper = runCatching {
+        val wrapper = RequestLimits.optional(5500) {
             app.get(
                 "$embedBase/?id=$videoId&e=$encode",
                 headers = mapOf("User-Agent" to ua),
                 referer = referer,
                 interceptor = cfInterceptor
             ).text
-        }.getOrNull() ?: return false
+        } ?: return false
 
         val playerUrl = Regex("""<iframe[^>]+src=["']([^"']*embedframe[^"']*)["']""", RegexOption.IGNORE_CASE)
             .find(wrapper)?.groupValues?.get(1)?.replace("&amp;", "&")
@@ -333,61 +337,47 @@ class BeegProvider : MainAPI(), DetailTagSource {
                 .find(wrapper)?.groupValues?.get(1)?.replace("&amp;", "&")
 
         if (playerUrl != null) {
-            val html = runCatching {
+            val html = RequestLimits.optional(5500) {
                 app.get(
                     if (playerUrl.startsWith("http")) playerUrl else "$xvideosBase/embedframe/$encode",
                     headers = mapOf("User-Agent" to ua),
                     referer = referer
                 ).text
-            }.getOrNull()
-            if (html != null && emitPlayerSources(html, callback)) return true
+            }
+            if (html != null && emitPlayerSources(html, pending, callback)) return true
         }
 
         // The wrapper page itself sometimes carries the config inline.
-        return emitPlayerSources(wrapper, callback)
+        return emitPlayerSources(wrapper, pending, callback)
     }
 
     /** Reads html5player.setVideoHLS / setVideoUrlHigh / setVideoUrlLow out of the player page. */
-    private suspend fun emitPlayerSources(html: String, callback: (ExtractorLink) -> Unit): Boolean {
-        if (html.isBlank()) return false
+    private suspend fun emitPlayerSources(
+        html: String, pending: MutableMap<String, ExtractorLink>, callback: (ExtractorLink) -> Unit,
+    ): Boolean = coroutineScope {
+        if (html.isBlank()) return@coroutineScope false
         val referer = "$xvideosBase/"
 
-        val hls = Regex("""setVideoHLS\(['"]([^'"]+)['"]\)""").find(html)?.groupValues?.get(1)
-        val high = Regex("""setVideoUrlHigh\(['"]([^'"]+)['"]\)""").find(html)?.groupValues?.get(1)
-        val low = Regex("""setVideoUrlLow\(['"]([^'"]+)['"]\)""").find(html)?.groupValues?.get(1)
-
-        var found = false
-        if (!hls.isNullOrBlank()) {
-            callback.invoke(
-                newExtractorLink(name, "$name (HLS)", hls, ExtractorLinkType.M3U8) {
-                    this.referer = referer
-                    this.quality = Qualities.Unknown.value
-                    this.headers = mapOf("Referer" to referer, "User-Agent" to ua)
-                }
-            )
-            found = true
+        val variants = listOf(
+            Triple("HLS", ExtractorLinkType.M3U8, Qualities.Unknown),
+            Triple("UrlHigh", ExtractorLinkType.VIDEO, Qualities.P360),
+            Triple("UrlLow", ExtractorLinkType.VIDEO, Qualities.P240),
+        )
+        val links = variants.mapNotNull { (setter, type, streamQuality) ->
+            val url = Regex("""setVideo$setter\(['"]([^'"]+)['"]\)""").find(html)
+                ?.groupValues?.get(1)?.toHttpUrlOrNull()?.toString() ?: return@mapNotNull null
+            newExtractorLink(name, name, url, type) {
+                this.referer = referer
+                quality = streamQuality.value
+                headers = mapOf("User-Agent" to ua)
+            }
+        }.distinctBy { it.url }
+        val checked = links.map { link -> async { link to Playback.checkDirectLink(link) } }.awaitAll()
+        for ((link, available) in checked) {
+            if (available == null) pending[link.url] = link else pending.remove(link.url)
+            if (available == true) callback(link)
         }
-        if (!high.isNullOrBlank()) {
-            callback.invoke(
-                newExtractorLink(name, "$name (MP4 360p)", high, ExtractorLinkType.VIDEO) {
-                    this.referer = referer
-                    this.quality = Qualities.P360.value
-                    this.headers = mapOf("Referer" to referer, "User-Agent" to ua)
-                }
-            )
-            found = true
-        }
-        if (!low.isNullOrBlank()) {
-            callback.invoke(
-                newExtractorLink(name, "$name (MP4 240p)", low, ExtractorLinkType.VIDEO) {
-                    this.referer = referer
-                    this.quality = Qualities.P240.value
-                    this.headers = mapOf("Referer" to referer, "User-Agent" to ua)
-                }
-            )
-            found = true
-        }
-        return found
+        checked.any { it.second == true }
     }
 
     private fun findEncode(html: String): String? =

@@ -8,8 +8,11 @@ import java.util.Collections
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 interface NoodlePosterSource : PosterSource {
+    override val posterTimeoutMs: Long get() = 5300
+
     override suspend fun resolvePoster(url: String, poster: String?, headers: Map<String, String>): String? =
         NoodlePosters.resolve(this, url, poster, headers)
 
@@ -22,9 +25,10 @@ interface NoodlePosterSource : PosterSource {
 
 /** Both language variants use the same catalogue and detail image fields. */
 internal object NoodlePosters {
-    private val alternatives = Collections.synchronizedMap(BoundedMap<String, Pair<Long, List<String>>>(256))
+    data class Candidates(val images: List<String>, val track: String?)
+    private val alternatives = Collections.synchronizedMap(BoundedMap<String, Pair<Long, Candidates>>(256))
     // The image proxy includes the upstream image host and path in the preview URL.
-    private val wrappedPreview = Regex("""^/preview/[^/]+/[^/]+/[0-9]+/(sun[0-9]+(?:-[0-9]+)?\.vkuserphoto\.ru|i\.mycdn\.me)(/[^/].*)$""")
+    private val wrappedPreview = Regex("""^/preview/[^/]+/[^/]+/[0-9]+/(sun[0-9]+(?:-[0-9]+)?\.(?:vkuserphoto\.ru|userapi\.com)|i\.mycdn\.me)(/[^/].*)$""")
 
     private fun originalImage(poster: String): String? {
         val uri = try { URI(poster) } catch (_: java.net.URISyntaxException) { return null }
@@ -35,7 +39,8 @@ internal object NoodlePosters {
         return Metadata.imageUrl(poster, "https://$host$path$query")
     }
 
-    fun remember(url: String, page: Document): List<String> {
+    fun remember(url: String, page: Document): Candidates {
+        val playlists = NoodlePlayback.playlists(page)
         val thumbnail = Metadata.ownVideo(page)?.opt("thumbnailUrl")
         val structured = if (thumbnail is JSONArray) {
             (0 until thumbnail.length()).map { thumbnail.opt(it) }
@@ -48,9 +53,20 @@ internal object NoodlePosters {
             }
         } + page.select("meta[property=og:image], meta[property=og:image:secure_url], meta[name=twitter:image], link[rel=image_src], video[poster]").map {
             it.attr("content").ifBlank { it.attr("href").ifBlank { it.attr("poster") } }
-        } + NoodlePlayback.playlists(page).map { it.optString("image") }
+        } + playlists.map { it.optString("image") }
         val base = page.baseUri().ifBlank { url }
-        return images.mapNotNull { Metadata.imageUrl(base, it) }.distinct().also {
+        val baseHost = base.toHttpUrlOrNull()?.host
+        val track = playlists.firstNotNullOfOrNull playlist@{ playlist ->
+            val tracks = playlist.optJSONArray("tracks") ?: return@playlist null
+            (0 until tracks.length()).firstNotNullOfOrNull entry@{ index ->
+                val item = tracks.optJSONObject(index) ?: return@entry null
+                if (item.optString("kind") != "thumbnails") return@entry null
+                absolute(base, item.optString("file"))?.toHttpUrlOrNull()?.takeIf {
+                    it.host == baseHost && it.encodedPath.startsWith("/vtt/")
+                }?.toString()
+            }
+        }
+        return Candidates(images.mapNotNull { Metadata.imageUrl(base, it) }.distinct(), track).also {
             alternatives[videoKey(url)] = System.nanoTime() to it
         }
     }
@@ -58,6 +74,7 @@ internal object NoodlePosters {
     suspend fun resolve(
         source: NoodlePosterSource, url: String, poster: String?, headers: Map<String, String>
     ): String? {
+        StoryboardPosters.cached(url)?.let { return it }
         val saved = alternatives[videoKey(url)]?.takeIf {
             System.nanoTime() - it.first < TimeUnit.MINUTES.toNanos(2)
         }?.second
@@ -87,10 +104,22 @@ internal object NoodlePosters {
         }
         // Keep the listing size when it works. Check the alternatives together so a slow CDN
         // cannot consume the entire budget before a valid cover is tried.
-        verified(listOfNotNull(poster) + saved.orEmpty())?.let { return it }
-        if (saved == null) {
-            val declared = RequestLimits.optional(1100) { remember(url, source.posterPage(url)) }.orEmpty()
-            verified(declared)?.let { return it }
+        verified(listOfNotNull(poster) + saved?.images.orEmpty())?.let { return it }
+        val declared = saved ?: RequestLimits.optional(1100) { remember(url, source.posterPage(url)) }
+        verified(declared?.images.orEmpty())?.let { return it }
+        if (slowOriginal == null && declared?.track != null && ImagePrefetch.cacheDirectory() != null) {
+            val fallback = RequestLimits.optional(1800) {
+                val text = Network.page(PageRequest(declared.track), url).wholeText()
+                val frames = StoryboardPosters.frames(text, declared.track)
+                for (frame in frames) {
+                    val original = originalImage(frame.sheet) ?: continue
+                    val requestHeaders = Network.replacementImageHeaders(original, url, headers)
+                    val cached = StoryboardPosters.save(url, frame.copy(sheet = original), requestHeaders)
+                    if (cached != null) return@optional cached
+                }
+                null
+            }
+            if (fallback != null) return fallback
         }
         return slowOriginal ?: poster
     }

@@ -21,18 +21,24 @@ class SickJunkProvider: RussianProvider(SiteSpec(
 )) {
     override var lang = "en"
 
+    private val playerSelector = "video, iframe, embed, object, a[href$=.mp4], a[href$=.m3u8], [data-player-config]"
+
+    private fun editorial(document: Document): Boolean {
+        val article = document.selectFirst("article.type-post .entry-content") ?: return false
+        return article.selectFirst(playerSelector) == null && Playback.sources(document).isEmpty()
+    }
+
+    override suspend fun reviewMetadata(document: Document, detail: VideoDetail): VideoDetail {
+        if (editorial(document)) throw ErrorLoadingException("Статья SickJunk не содержит видеоплеера")
+        return detail
+    }
+
     override suspend fun loadLinks(
         data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,
     ): Boolean {
         val document = page(PageRequest(data))
-        val article = document.selectFirst("article.type-post .entry-content")
-        val streams = Playback.sources(document)
-        if (article != null && streams.isEmpty() &&
-            article.selectFirst("video, iframe, embed, object, a[href$=.mp4], a[href$=.m3u8], [data-player-config]") == null
-        ) {
-            throw ErrorLoadingException("Статья SickJunk не содержит видеоплеера")
-        }
-        return Playback.linksFromPage(name, mainUrl, data, document, streams, subtitleCallback, callback)
+        if (editorial(document)) throw ErrorLoadingException("Статья SickJunk не содержит видеоплеера")
+        return Playback.linksFromPage(name, mainUrl, data, document, emptyList(), subtitleCallback, callback)
     }
 
     override suspend fun related(document: Document, detail: VideoDetail, url: String): List<SearchResponse> {
