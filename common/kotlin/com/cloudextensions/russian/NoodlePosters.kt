@@ -10,6 +10,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.jsoup.nodes.Document
 import java.io.IOException
+import java.net.URI
 import java.util.Collections
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
@@ -27,6 +28,17 @@ internal object NoodlePosters {
     private val alternatives = Collections.synchronizedMap(BoundedMap<String, Pair<Long, List<String>>>(256))
     private data class ImageCheck(val url: String, val headers: Map<String, String>)
     private val working = Collections.synchronizedMap(BoundedMap<ImageCheck, Long>(512))
+    // The image proxy includes the upstream image host and path in the preview URL.
+    private val wrappedPreview = Regex("""^/preview/[^/]+/[^/]+/[0-9]+/(sun[0-9]+(?:-[0-9]+)?\.vkuserphoto\.ru|i\.mycdn\.me)(/[^/].*)$""")
+
+    private fun originalImage(poster: String): String? {
+        val uri = try { URI(poster) } catch (_: java.net.URISyntaxException) { return null }
+        if (uri.host != "img.pvvstream.pro") return null
+        val match = wrappedPreview.matchEntire(uri.rawPath.orEmpty()) ?: return null
+        val (host, path) = match.destructured
+        val query = uri.rawQuery?.let { "?$it" }.orEmpty()
+        return Metadata.imageUrl(poster, "https://$host$path$query")
+    }
 
     fun remember(url: String, page: Document): List<String> {
         val thumbnail = Metadata.ownVideo(page)?.opt("thumbnailUrl")
@@ -51,21 +63,29 @@ internal object NoodlePosters {
     suspend fun resolve(
         source: NoodlePosterSource, url: String, poster: String?, headers: Map<String, String>
     ): String? {
-        if (poster != null && available(poster, headers)) return poster
+        val tried = mutableSetOf<String>()
+        suspend fun verify(candidate: String): String? {
+            for (image in listOfNotNull(originalImage(candidate), candidate)) {
+                val imageHeaders = if (image == poster) headers else headersFor(image, url, headers)
+                if (tried.add(image) && available(image, imageHeaders, if (image == candidate) 1100 else 2200)) return image
+            }
+            return null
+        }
+        if (poster != null) verify(poster)?.let { return it }
         val candidates = alternatives[videoKey(url)]?.takeIf {
             System.nanoTime() - it.first < TimeUnit.MINUTES.toNanos(2)
         }?.second ?: RequestLimits.optional(1500) { remember(url, source.posterPage(url)) }.orEmpty()
-        return candidates.firstOrNull { it != poster && available(it, headersFor(it, url, headers)) } ?: poster
+        return candidates.firstNotNullOfOrNull { verify(it) } ?: poster
     }
 
     fun headersFor(poster: String, url: String, headers: Map<String, String>): Map<String, String> =
         headers.filterKeys { !it.equals("Cookie", ignoreCase = true) } +
             Network.imageHeaders(poster, headers["Referer"] ?: url)
 
-    private suspend fun available(url: String, headers: Map<String, String>): Boolean {
+    private suspend fun available(url: String, headers: Map<String, String>, timeoutMs: Long): Boolean {
         val key = ImageCheck(url, headers)
         if (working[key]?.let { System.nanoTime() - it < TimeUnit.MINUTES.toNanos(2) } == true) return true
-        val result = RequestLimits.optional(1100) {
+        val result = RequestLimits.optional(timeoutMs) {
             suspendCancellableCoroutine { continuation ->
                 val request = Request.Builder().url(url)
                 headers.forEach { (name, value) -> request.header(name, value) }
