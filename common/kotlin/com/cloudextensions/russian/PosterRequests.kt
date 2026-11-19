@@ -20,10 +20,6 @@ internal object PosterRequests {
     private data class ImageCheck(val url: String, val headers: Map<String, String>)
     private val working = Collections.synchronizedMap(BoundedMap<ImageCheck, Long>(512))
 
-    fun headersFor(poster: String, url: String, headers: Map<String, String>): Map<String, String> =
-        headers.filterKeys { !it.equals("Cookie", ignoreCase = true) } +
-            Network.imageHeaders(poster, headers["Referer"] ?: url)
-
     suspend fun available(url: String, headers: Map<String, String>, timeoutMs: Long): Boolean {
         val key = ImageCheck(url, headers)
         if (working[key]?.let { System.nanoTime() - it < TimeUnit.MINUTES.toNanos(2) } == true) return true

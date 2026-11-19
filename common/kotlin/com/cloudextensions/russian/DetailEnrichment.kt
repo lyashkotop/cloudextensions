@@ -23,7 +23,6 @@ object DetailEnrichment {
         poster=detail.poster ?: source.poster,year=detail.year ?: source.year
     )
     suspend fun complete(page:Document,spec:SiteSpec,detail:VideoDetail):VideoDetail {
-        if(spec.id!="TubeSafari")return detail
         val url=original(page) ?: return detail
         return try {
             val source=RequestLimits.optional(3000){Network.page(PageRequest(url),url)} ?: return detail

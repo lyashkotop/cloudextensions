@@ -28,7 +28,7 @@ object TubeSafariPosters {
             Network.page(PageRequest("https://www.xvideos.com/embedframe/$id"), url)
         } ?: return poster
         return embedPosterUrls(embed).firstOrNull { image ->
-            PosterRequests.available(image, PosterRequests.headersFor(image, url, headers), 2600)
+            PosterRequests.available(image, Network.replacementImageHeaders(image, url, headers), 2600)
         } ?: poster
     }
 }

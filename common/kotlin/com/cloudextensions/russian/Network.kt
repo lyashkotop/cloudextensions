@@ -60,6 +60,10 @@ object Network {
         }catch(_:Exception){}
         return result
     }
+    internal fun replacementImageHeaders(poster: String, url: String, headers: Map<String, String>): Map<String, String> =
+        headers.filterKeys { !it.equals("Cookie", ignoreCase = true) } +
+            imageHeaders(poster, headers["Referer"] ?: url)
+
     suspend fun page(request: PageRequest, referer: String): Document = RequestLimits.required("Страница",18_000) {
         pageUnbounded(request,referer)
     }

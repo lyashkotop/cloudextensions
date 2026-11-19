@@ -25,23 +25,39 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     override val hasDownloadSupport get()=source.hasDownloadSupport
     override val hasChromecastSupport get()=source.hasChromecastSupport
     override val vpnStatus get()=source.vpnStatus
-    private val titlePermits=Semaphore(4)
-    private suspend fun cards(items:List<SearchResponse>,resolveTitles:Boolean=true,prefetch:Boolean=false):List<SearchResponse> = coroutineScope {
-        val deadline=System.nanoTime()+3_000_000_000L
-        items.filter{ContentPolicy.accepts(it.name)}.map { card -> async { titlePermits.withPermit {
-        val image=Metadata.rememberPoster(card.url,card.posterUrl)
-        val full=if(resolveTitles && Regex("(?:…|\\.\\.\\.)$").containsMatchIn(card.name.trim())) {
-            RequestLimits.optional(minOf(2500L,((deadline-System.nanoTime())/1_000_000).coerceAtLeast(1))){
-                if(source is SearchPolicy)source.fullTitle(card.url) else {
-                    val page=Network.page(PageRequest(card.url),mainUrl)
-                    Metadata.detail(page,SiteSpec("title",name,mainUrl,".none","a","h1",emptyList())).title
-                }
-            }?.takeIf{it.isNotBlank()} ?: card.name
-        }else Metadata.title(card.url,listOf(card.name))
-        val ready=if(card is MovieSearchResponse)card.copy(name=full,posterUrl=image,posterHeaders=Network.imageHeaders(image,mainUrl.trimEnd('/')+"/")+card.posterHeaders.orEmpty()) else card
-        if(prefetch)ImagePrefetch.warm(listOf(ready),0)
-        ready
-    } } }.awaitAll() }
+    private val titlePermits = Semaphore(4)
+
+    private fun normalizeCard(
+        card: SearchResponse,
+        image: String? = Metadata.rememberPoster(card.url, card.posterUrl),
+        title: String = Metadata.title(card.url, listOf(card.name)),
+    ): SearchResponse {
+        if (card !is MovieSearchResponse) return card
+        val headers = Network.imageHeaders(image, mainUrl.trimEnd('/') + "/") + card.posterHeaders.orEmpty()
+        return card.copy(name = title, posterUrl = image, posterHeaders = headers)
+    }
+
+    private suspend fun expandTitle(card: SearchResponse, deadline: Long): String = titlePermits.withPermit {
+        val budget = minOf(2500L, ((deadline - System.nanoTime()) / 1_000_000).coerceAtLeast(1))
+        RequestLimits.optional(budget) {
+            if (source is SearchPolicy) source.fullTitle(card.url) else {
+                val page = Network.page(PageRequest(card.url), mainUrl)
+                Metadata.detail(page, SiteSpec("title", name, mainUrl, ".none", "a", "h1", emptyList())).title
+            }
+        }?.takeIf { it.isNotBlank() } ?: card.name
+    }
+
+    private suspend fun cards(items: List<SearchResponse>, prefetch: Boolean = false): List<SearchResponse> = coroutineScope {
+        val deadline = System.nanoTime() + 3_000_000_000L
+        items.filter { ContentPolicy.accepts(it.name) }.map { card -> async {
+            val ready = if (Metadata.isTruncatedTitle(card.name)) {
+                val image = Metadata.rememberPoster(card.url, card.posterUrl)
+                normalizeCard(card, image, expandTitle(card, deadline))
+            } else normalizeCard(card)
+            if (prefetch) ImagePrefetch.warm(listOf(ready), 0)
+            ready
+        } }.awaitAll()
+    }
     private val posterPermits = Semaphore(12)
     private suspend fun withResolvedPosters(items: List<SearchResponse>): List<SearchResponse> = coroutineScope {
         val provider = source as? PosterSource ?: return@coroutineScope items
@@ -53,7 +69,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
             }
             if (poster == null || poster == item.posterUrl) return@async item
             Metadata.rememberPoster(item.url, poster)
-            item.copy(posterUrl = poster, posterHeaders = PosterRequests.headersFor(poster, item.url, headers))
+            item.copy(posterUrl = poster, posterHeaders = Network.replacementImageHeaders(poster, item.url, headers))
         } }.awaitAll()
     }
     private data class Review(val allowed:Boolean,val detail:LoadResponse?,val title:String?=detail?.name)
@@ -64,7 +80,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         savedReview(card.url)?.let{return it}
         val result=RequestLimits.optional(budget){reviewPermits.withPermit {
             try {
-                if(source is RussianProvider){
+                if(source is SearchMetadataSource){
                     val meta=source.searchMetadata(card.url)
                     return@withPermit Review(ContentPolicy.accepts(meta.title,meta.tags),null,meta.title)
                 }
@@ -99,13 +115,16 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         if(accepted.size>=7)accepted+items.drop(cursor) else accepted
     }
     private suspend fun prepareSearch(items:List<SearchResponse>):List<SearchResponse> = coroutineScope {
-        val normalized=cards(items,resolveTitles=false)
-        // Resolve long titles while the first seven metadata checks and approved images load.
-        val expanded=async { cards(normalized) }
-        val reviewed=previewSearch(normalized)
-        val titles=expanded.await().associateBy{videoKey(it.url)}
+        val normalized = items.filter { ContentPolicy.accepts(it.name) }.map { normalizeCard(it) }
+        val expanded = async {
+            val deadline = System.nanoTime() + 3_000_000_000L
+            normalized.filter { Metadata.isTruncatedTitle(it.name) && ContentPolicy.accepts(it.name) }
+                .map { card -> async { videoKey(card.url) to expandTitle(card, deadline) } }.awaitAll().toMap()
+        }
+        val reviewed = previewSearch(normalized)
+        val titles = expanded.await()
         reviewed.map { card ->
-            val full=Metadata.title(card.url,listOf(card.name,titles[videoKey(card.url)]?.name.orEmpty()))
+            val full=Metadata.title(card.url,listOf(card.name,titles[videoKey(card.url)].orEmpty()))
             if(card is MovieSearchResponse)card.copy(name=full) else card
         }
     }
@@ -162,7 +181,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
             }
             result.posterHeaders = if (poster != null && poster != result.posterUrl) {
                 result.posterUrl = Metadata.rememberPoster(url, poster)
-                PosterRequests.headersFor(poster, url, headers)
+                Network.replacementImageHeaders(poster, url, headers)
             } else headers
         }
         result.recommendations=withResolvedPosters(cards(result.recommendations.orEmpty(),prefetch=true))

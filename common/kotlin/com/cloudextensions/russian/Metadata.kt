@@ -20,6 +20,10 @@ object Metadata {
     private val promo = Regex("(?iu)(?:смотрите (?:у нас|онлайн|бесплатно)|смотреть (?:онлайн|бесплатно)|бесплатные порно видео|watch (?:online|for free)|free porn videos|best porn site)")
     private val whitespace = Regex("\\s+")
     private val truncated = Regex("(?:…|\\.\\.\\.)$")
+    private val placeholderPath = Regex("(?i)/(?:flags?|logos?|avatars?|icons?)/|/(?:logo|favicon|spacer|blank|transparent|placeholder|loading)(?:[_.][^/]*)?$")
+    private val badgeClass = Regex("(?i)(?:flag|logo|avatar|icon|badge)")
+    private val thumbnailClass = Regex("(?i)(thumb|poster|video-img|card__image|widescreen)")
+    private val emptyMessage = Regex("(?iu)(?:ничего не найдено|ничего не нашлось|нет результатов|no (?:results|videos|matches|posts)(?: found)?|nothing found|0 результатов)")
     private val tagSelector = ".tags .tags-list a, .tags-list.single-vide a, .video-info #tab1 .tags-outer a, #video-info-tags li.vit-tag a, #video-info-tags li.vit-category a, .tag-list li a, .video-tags-list a.is-keyword, .video-taxonomy .tax-tags a, .video-taxonomy .tax-feature-tags a, .video-tags a, .video_tags a, #video-tags a, #tags a, .tagsbox a, #tab_video_info .item a[href*=/tag], #tab_video_info .item a[href*=/categor], .item_info a[href*=/tag/], .item_info a[href*=/category/], .video-info a[rel=tag], .video-info .tags a, .video-info .categories a, .video-details .tags a, .video-details .categories a, .video-links a[rel=tag], .video-taxonomy .tax-categories a, [itemprop=genre]"
     fun sourceValue(raw:String?):Boolean = !raw.isNullOrBlank() && raw.trim().lowercase(Locale.ROOT) !in setOf("null","undefined")
     fun description(raw:String?,title:String):String {
@@ -38,7 +42,7 @@ object Metadata {
     }
     fun imageUrl(base:String,raw:String?):String? = raw?.trim()?.takeUnless { it.isBlank() || it.lowercase(Locale.ROOT) in setOf("null","undefined","false") }?.let { absolute(base,it.replace("\\/","/").replace("&amp;","&")) }?.takeUnless {
         val path=java.net.URI(it).path.orEmpty().lowercase(Locale.ROOT)
-        path.endsWith(".svg") || path.endsWith("/null") || path.endsWith("/undefined") || Regex("(?i)/(?:flags?|logos?|avatars?|icons?)/|/(?:logo|favicon|spacer|blank|transparent|placeholder|loading)(?:[_.][^/]*)?$").containsMatchIn(path)
+        path.endsWith(".svg") || path.endsWith("/null") || path.endsWith("/undefined") || placeholderPath.containsMatchIn(path)
     }
     fun rememberPoster(url:String,raw:String?):String? {
         val valid=imageUrl(url,raw)
@@ -50,11 +54,13 @@ object Metadata {
 
     fun clean(value: String?) = value.orEmpty().replace('\u00a0',' ').replace(whitespace," ").trim()
     private fun value(e: Element?): String = e?.let { listOf(it.attr("content"), it.attr("datetime"), it.text()).firstOrNull(String::isNotBlank) }.orEmpty()
+    internal fun isTruncatedTitle(title: String): Boolean = truncated.containsMatchIn(title.trim())
+
     fun title(url: String, candidates: List<String>): String {
         val key = videoKey(url)
         val old = titles[key]?.takeIf(::sourceValue)
         val values = candidates.map(::clean).filter(::sourceValue)
-        fun stem(v:String)=v.replace(Regex("(?:…|\\.\\.\\.)$"),"").trim()
+        fun stem(v:String)=v.replace(truncated,"").trim()
         var chosen = values.firstOrNull { !truncated.containsMatchIn(it) } ?: values.firstOrNull().orEmpty()
         for(v in values)if(v.length>chosen.length && v.startsWith(stem(chosen),true))chosen=v
         if(!old.isNullOrBlank()) {
@@ -68,12 +74,12 @@ object Metadata {
         val images=if(element.tagName() in listOf("img","video"))listOf(element) else element.select("img,video[poster]").toList()
         // A flag/badge may precede the thumbnail inside the same video card.
         val ranked=images.filter { image ->
-            val badge=Regex("(?i)(?:flag|logo|avatar|icon|badge)").containsMatchIn(image.className()+" "+image.id())
+            val badge=badgeClass.containsMatchIn(image.className()+" "+image.id())
             val width=image.attr("width").toIntOrNull();val height=image.attr("height").toIntOrNull()
             !badge && !(width!=null && height!=null && width<96 && height<54)
         }.sortedByDescending { image ->
             val names=image.className()
-            (if(Regex("(?i)(thumb|poster|video-img|card__image|widescreen)").containsMatchIn(names))10 else 0) + (if(image.tagName()=="img")1 else 0)
+            (if(thumbnailClass.containsMatchIn(names))10 else 0) + (if(image.tagName()=="img")1 else 0)
         }
         for(image in ranked) {
             fun candidate(value:String?)=imageUrl(base,value)
@@ -125,11 +131,14 @@ object Metadata {
         if(requested.host.orEmpty().removePrefix("www.")=="thisvid.com" && requested.path.orEmpty().startsWith("/search/") && page.selectFirst("#list_videos_common_videos_list_items")==null)return true
         val redirected=request.data==null && java.net.URI(request.url).path.orEmpty().contains("search") && current.path.orEmpty().trim('/').isEmpty() && current.query.isNullOrBlank()
         return page.attr("data-response-code")=="404" || redirected || page.select("h1,h2,.empty,.no-results,.no-result,.nothing-found,.list-videos .message,.message").any {
-            Regex("(?iu)(?:ничего не найдено|ничего не нашлось|нет результатов|no (?:results|videos|matches|posts)(?: found)?|nothing found|0 результатов)").containsMatchIn(it.text())
+            emptyMessage.containsMatchIn(it.text())
         }
     }
-    fun searchCards(page: Document,spec: SiteSpec,request: PageRequest): List<VideoCard> {
-        if(emptySearch(page,request))return emptyList()
+    fun searchCards(page: Document, spec: SiteSpec, request: PageRequest): List<VideoCard> =
+        searchCards(page, spec, emptySearch(page, request))
+
+    internal fun searchCards(page: Document, spec: SiteSpec, empty: Boolean): List<VideoCard> {
+        if (empty) return emptyList()
         val searchSpec=if(spec.id=="ThisVid")spec.copy(cards="#list_videos_common_videos_list_items a.tumbpu:has(img)") else spec
         return cards(page,searchSpec)
     }

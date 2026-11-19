@@ -7,13 +7,8 @@ import java.net.URI
 
 /** Fields explicitly attached to the current video, never unrelated JSON feed entries. */
 object AggregatorPages {
-    private fun props(page:Document):JSONObject? = try{JSONObject(page.selectFirst("script#__NEXT_DATA__")?.data().orEmpty()).optJSONObject("props")?.optJSONObject("pageProps")}catch(_:Exception){null}
-    fun video(page:Document):JSONObject? {
-        val item=props(page)?.optJSONObject("firstVideo") ?: return null
-        val path=item.optString("basePath").trimEnd('/')
-        val current=try{URI(page.baseUri()).path.trimEnd('/')}catch(_:Exception){""}
-        return item.takeIf{path.isNotBlank() && current==path}
-    }
+    fun video(page: Document): JSONObject? = AggregatorVideo.video(page)
+
     private fun labels(value: Any?): List<String> = when (value) {
         is JSONArray -> (0 until value.length()).flatMap { labels(value.opt(it)) }
         is JSONObject -> labels(value.optString("name").ifBlank { value.optString("label") })
@@ -69,7 +64,7 @@ object AggregatorPages {
         )
     }
     fun related(page:Document,spec:SiteSpec):List<VideoCard> {
-        val data=props(page)?.optJSONObject("initialRelatedVideos")?.optJSONArray("data")
+        val data=AggregatorVideo.props(page)?.optJSONObject("initialRelatedVideos")?.optJSONArray("data")
         val result=mutableListOf<VideoCard>()
         if(video(page)!=null && data!=null)for(i in 0 until data.length()) {
             val item=data.optJSONObject(i) ?: continue

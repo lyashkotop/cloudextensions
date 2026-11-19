@@ -15,6 +15,8 @@ class TubeSafariProvider: RussianProvider(SiteSpec(
 )), PosterSource {
  override var lang="en"
  override val posterTimeoutMs = 5600L
+ override suspend fun enrichMetadata(document: Document, detail: VideoDetail): VideoDetail =
+  DetailEnrichment.complete(document, spec, detail)
  override fun readMetadata(document: Document): VideoDetail {
   val detail = super.readMetadata(document)
   if (detail.title.isNotBlank() || document.selectFirst("iframe#video2") == null) return detail

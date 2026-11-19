@@ -59,7 +59,7 @@ internal object NoodlePosters {
         val tried = mutableSetOf<String>()
         suspend fun verify(candidate: String): String? {
             for (image in listOfNotNull(originalImage(candidate), candidate)) {
-                val imageHeaders = if (image == poster) headers else PosterRequests.headersFor(image, url, headers)
+                val imageHeaders = if (image == poster) headers else Network.replacementImageHeaders(image, url, headers)
                 if (tried.add(image) && PosterRequests.available(image, imageHeaders, if (image == candidate) 1100 else 2200)) return image
             }
             return null

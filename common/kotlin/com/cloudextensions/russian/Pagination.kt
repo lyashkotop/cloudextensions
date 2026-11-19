@@ -71,10 +71,19 @@ object Pagination {
         }
         return null
     }
+    internal fun pathSearch(spec: SiteSpec, origin: String, query: String): PageRequest? {
+        val prefix = when {
+            spec.searchMode.startsWith("path:") -> spec.searchMode.removePrefix("path:")
+            spec.searchMode == "path" -> "/search/"
+            else -> return null
+        }
+        val encoded = URLEncoder.encode(query, "UTF-8").replace("+", "%20")
+        val suffix = if (spec.searchMode == "path") "/" else ""
+        return PageRequest(origin.trimEnd('/') + prefix + encoded + suffix)
+    }
+
     fun search(page: Document, spec: SiteSpec, origin: String, query: String): PageRequest {
-        val encoded=URLEncoder.encode(query,"UTF-8")
-        if(spec.searchMode.startsWith("path:"))return PageRequest(origin.trimEnd('/')+spec.searchMode.removePrefix("path:")+encoded.replace("+","%20"))
-        if(spec.searchMode=="path")return PageRequest(origin.trimEnd('/')+"/search/"+encoded.replace("+","%20")+"/")
+        pathSearch(spec, origin, query)?.let { return it }
         val form=page.select("form").firstOrNull { it.selectFirst("input[name=q],input[name=search],input[name=search_query],input[name=s],input[name=query],input[name=k],input[name=story],input[name='search_query[query]']")!=null }
         val input=form?.selectFirst("input[name=q],input[name=search],input[name=search_query],input[name=s],input[name=query],input[name=k],input[name=story],input[name='search_query[query]']")
         val values=form?.select("input[name]")?.filter { it.attr("type")!in listOf("button","reset") }?.associate { it.attr("name") to it.attr("value") }?.toMutableMap() ?: mutableMapOf()

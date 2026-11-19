@@ -13,7 +13,7 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
  override var lang="en"
  override suspend fun page(request:PageRequest):org.jsoup.nodes.Document {
   val document=super.page(request)
-  return RequestLimits.optional(4500){EmbeddedPlayers.abPage(document)} ?: document
+  return RequestLimits.optional(4500){AbxxxMetadata.enrich(document)} ?: document
  }
  private val interceptors=java.util.Collections.synchronizedMap(object:LinkedHashMap<String,Interceptor>(128,.75f,true){override fun removeEldestEntry(e:MutableMap.MutableEntry<String,Interceptor>?)=size>128})
  private fun native(url:String):MainAPI? = try {

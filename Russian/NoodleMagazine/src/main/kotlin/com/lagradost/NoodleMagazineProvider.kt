@@ -29,7 +29,12 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         "blonde" to "Blonde","milf" to "MILF","jav" to "JAV"
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage="ru")
-    private val history=Collections.synchronizedMap(object:LinkedHashMap<String,MutableMap<Int,List<SearchResponse>>>(16,.75f,true){override fun removeEldestEntry(eldest:MutableMap.MutableEntry<String,MutableMap<Int,List<SearchResponse>>>?)=size>24})
+    private val history = Collections.synchronizedMap(
+        object : LinkedHashMap<String, MutableMap<Int, Set<String>>>(16, .75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, MutableMap<Int, Set<String>>>?) =
+                size > 24
+        }
+    )
     private fun route(query:String,page:Int)=PageRequest("$mainUrl/video/"+URLEncoder.encode(query,"UTF-8").replace("+","%20")+"?p="+(page-1),allowNotFound=true)
     private suspend fun document(request:PageRequest)=Network.page(request.copy(headers=mapOf("Cookie" to "ui_lang=ru","Accept-Language" to "ru-RU,ru;q=0.9")),"$mainUrl/")
     private fun response(card:VideoCard):SearchResponse=newMovieSearchResponse(card.title,card.url,TvType.NSFW){posterUrl=card.poster;posterHeaders=Network.headers("$mainUrl/")}
@@ -49,10 +54,13 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         if(input.isBlank()||page<1)return newSearchResponseList(emptyList(),false)
         if(page==1)synchronized(history){history[input]=mutableMapOf()}
         val merged=results(input,page).distinctBy{it.url}
-        val pages=synchronized(history){history.getOrPut(input){mutableMapOf()}}
-        val previous=synchronized(pages){pages.filterKeys{it<page}.values.flatten().map{it.url}.toSet()}
-        val fresh=merged.filter{it.url !in previous}
-        synchronized(pages){pages[page]=fresh}
+        val fresh = synchronized(history) {
+            val pages = history.getOrPut(input) { mutableMapOf() }
+            val previous = pages.entries.asSequence().filter { it.key < page }.flatMap { it.value.asSequence() }.toSet()
+            merged.filter { it.url !in previous }.also { items ->
+                pages[page] = items.mapTo(mutableSetOf()) { it.url }
+            }
+        }
         return newSearchResponseList(fresh,merged.isNotEmpty()&&(page==1||fresh.isNotEmpty()))
     }
     override suspend fun posterPage(url: String): Document = document(PageRequest(url))

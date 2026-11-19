@@ -40,7 +40,7 @@ object Playback {
             if(playable(url))result+=Source(url,e.attr("label").ifBlank { e.attr("res") }.takeIf(String::isNotBlank))
         }
         // Modern Next.js players declare only this video's sources in pageProps.firstVideo.
-        AggregatorPages.video(page)?.let { video ->
+        AggregatorVideo.video(page)?.let { video ->
             val list=video.optJSONArray("sources")
             val entries=mutableListOf<JSONObject>()
             video.optJSONObject("source")?.let{entries+=it}
