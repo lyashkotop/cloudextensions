@@ -75,6 +75,10 @@ fun main(args:Array<String>) {
     verify(Metadata.timing("32 min")=="32:00","explicit minutes retain their unit")
     for(word in listOf("guy","lesbian","lesbians","лесби","лесбиянки","gay lesbians","gay лесби"))verify(ContentPolicy.accepts(word),"allowed word $word")
     for(word in listOf("gay","гей","shemale","dominatrix","доминатрикс"))verify(!ContentPolicy.accepts(word),"blocked word $word")
+    for (word in listOf("anime", "animation", "hebntai", "hentai", "furry")) {
+        verify(!ContentPolicy.accepts(word.uppercase()), "new blocked title $word")
+        verify(!ContentPolicy.accepts("Sample", listOf(word)), "new blocked tag $word")
+    }
     for(word in listOf("femdom","фемдом"))verify(ContentPolicy.accepts(word),"allowed word $word")
     verify(Translation.target("слово")=="en","one Russian word")
     verify(Translation.target("два слова")=="en","two Russian words")
