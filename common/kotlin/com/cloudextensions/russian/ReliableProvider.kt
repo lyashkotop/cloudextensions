@@ -11,6 +11,8 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
+private const val SEARCH_REVIEW_LIMIT = 10
+
 /** UI request bounds and one real preview shared by the search and detail response. */
 class ReliableProvider(private val source:MainAPI):MainAPI() {
     override var name:String get()=source.name;set(value){source.name=value}
@@ -113,10 +115,10 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         val accepted=mutableListOf<SearchResponse>()
         val deadline=System.nanoTime()+5_000_000_000L
         var cursor=0
-        while(accepted.size<7 && cursor<items.size) {
+        while(accepted.size<SEARCH_REVIEW_LIMIT && cursor<items.size) {
             val budget=((deadline-System.nanoTime())/1_000_000).coerceAtMost(3500)
             if(budget<=0)break
-            val batch=items.drop(cursor).take(7-accepted.size)
+            val batch=items.drop(cursor).take(SEARCH_REVIEW_LIMIT-accepted.size)
             cursor+=batch.size
             accepted+=batch.map { card -> async {
                 val checked=review(card,budget) ?: return@async null
@@ -127,8 +129,8 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 ready
             }}.awaitAll().filterNotNull()
         }
-        // Keep unreviewed cards below a fully checked prefix. Never shift one into the first seven.
-        if(accepted.size>=7)accepted+items.drop(cursor) else accepted
+        // Append unreviewed cards only after filling the checked prefix.
+        if(accepted.size>=SEARCH_REVIEW_LIMIT)accepted+items.drop(cursor) else accepted
     }
     private suspend fun prepareSearch(items:List<SearchResponse>):List<SearchResponse> = coroutineScope {
         val normalized = items.filter { ContentPolicy.accepts(it.name) }.map { normalizeCard(it) }
