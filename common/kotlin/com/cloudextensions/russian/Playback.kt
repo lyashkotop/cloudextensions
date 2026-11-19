@@ -5,10 +5,12 @@ import com.lagradost.cloudstream3.network.WebViewResolver
 import com.lagradost.cloudstream3.utils.*
 import java.util.Collections
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
-import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.ErrorLoadingException
 import org.json.JSONArray
 import org.json.JSONObject
@@ -121,35 +123,34 @@ object Playback {
         val page = loadedPage ?: Network.page(PageRequest(pageUrl),origin)
         val emitted=Collections.synchronizedSet(mutableSetOf<String>())
         fun accept(link: ExtractorLink) { if(playable(link.url)&&emitted.add(link.url))callback(link) }
-        var rejected:Int?=null
+        val rejected = mutableListOf<Int>()
         var unreachable=false
         var playerUrl=page.baseUri()
-        suspend fun emit(source: Source,referer: String,headers: Map<String,String>, confirmed: Boolean = requireConfirmed): Int? {
-            if(!playable(source.url))return null
-            val probe=RequestLimits.optional(3500){withContext(Dispatchers.IO){
-                val request=okhttp3.Request.Builder().url(source.url).header("Referer",referer).header("Range","bytes=0-31")
-                for((k,v)in headers)request.header(k,v)
-                app.baseClient.newBuilder().callTimeout(3,java.util.concurrent.TimeUnit.SECONDS).build().newCall(request.build()).execute().use { response ->
-                    val mime=response.header("Content-Type")
-                    val status=if(response.isSuccessful && mime.orEmpty().contains("text/html"))415 else response.code
-                    Triple(status,response.request.url.toString(),mime)
+        val probeLimit = Semaphore(4)
+        suspend fun verifySources(
+            sources: List<Source>, referer: String, headers: Map<String, String>, confirmed: Boolean = requireConfirmed,
+        ): List<Int?> = coroutineScope {
+            val probes = sources.asSequence().filter { playable(it.url) }.distinctBy { it.url }.map { source ->
+                async { source to probeLimit.withPermit { MediaRequests.probe(source.url, referer, headers) } }
+            }.toList().awaitAll()
+            probes.map { (source, probe) ->
+                val status = probe?.status
+                when {
+                    status == null && confirmed -> unreachable = true
+                    status != null && status !in 200..299 -> rejected += status
+                    else -> accept(newExtractorLink(name, name, source.url, streamType(probe?.url ?: source.url, probe?.mime)) {
+                        this.referer = referer
+                        this.headers = headers
+                        quality = getQualityFromName(source.label)
+                    })
                 }
-            }}
-            val status=probe?.first
-            if(status==null && confirmed){unreachable=true;return null}
-            if(status!=null && status !in 200..299){rejected=status;return status}
-            val type=streamType(probe?.second ?: source.url,probe?.third)
-            accept(newExtractorLink(name,name,source.url,type) {
-                this.referer=referer
-                this.headers=headers
-                quality=getQualityFromName(source.label)
-            })
-            return null
+                status?.takeUnless { it in 200..299 }
+            }
         }
         suspend fun resolve(document:Document,referer:String): Int? {
             val headers = Network.headers(referer)
-            val statuses = sources(document).map { emit(it, referer, headers) }
-            for(source in EmbeddedPlayers.abSources(document))emit(source,referer,Network.headers(referer))
+            val statuses = verifySources(sources(document), referer, headers)
+            verifySources(EmbeddedPlayers.abSources(document), referer, headers)
             // Pornhub declares an MP4 catalogue URL in mediaDefinitions, not a video file.
             for(script in document.select("script")) {
                 val match=Regex("""["']?mediaDefinitions["']?\s*:\s*""").find(script.data())?:continue
@@ -160,13 +161,18 @@ object Playback {
                     if(playable(endpoint)||!endpoint.contains("/video/get_media"))continue
                     val raw=RequestLimits.optional(5000){Network.page(PageRequest(endpoint),referer).wholeText()}?:continue
                     val streams=try{JSONArray(raw)}catch(_:Exception){continue}
-                    for(j in 0 until streams.length()){val item=streams.optJSONObject(j)?:continue;val url=absolute(endpoint,item.optString("videoUrl"))?:continue;emit(Source(url,item.optString("quality")),referer,Network.headers(referer))}
+                    val variants = (0 until streams.length()).mapNotNull { index ->
+                        val item = streams.optJSONObject(index) ?: return@mapNotNull null
+                        val url = absolute(endpoint, item.optString("videoUrl")) ?: return@mapNotNull null
+                        Source(url, item.optString("quality"))
+                    }
+                    verifySources(variants, referer, headers)
                 }
             }
             return statuses.firstOrNull()?.takeIf { statuses.all { code -> code == 404 || code == 410 } }
         }
         if (declared.isNotEmpty()) {
-            for (source in declared.distinctBy { it.url }) emit(source, page.baseUri(), Network.headers(page.baseUri()), confirmed = true)
+            verifySources(declared, page.baseUri(), Network.headers(page.baseUri()), confirmed = true)
             if (emitted.isNotEmpty()) return true
         }
         resolve(page,page.baseUri())
@@ -174,8 +180,11 @@ object Playback {
         // Let CloudStream's maintained extractors handle embedded hosts first.
         var missingStaticFile: Int? = null
         var unresolvedFrame = false
-        for(frame in page.select("iframe[src],iframe[data-src]").filter { it.closest(".ad,.ads,.advertisement") == null }) {
-            val url=absolute(page.baseUri(),frame.attr("data-src").ifBlank{frame.attr("src")}) ?: continue
+        val players = page.select("iframe[src],iframe[data-src]")
+            .filter { it.closest(".ad,.ads,.advertisement") == null }
+            .map { it.attr("data-src").ifBlank { it.attr("src") } } +
+            listOfNotNull(Metadata.ownVideo(page)?.optString("embedUrl"))
+        for (url in players.mapNotNull { absolute(page.baseUri(), it) }.distinct()) {
             if(url==pageUrl||advertisement.containsMatchIn(url)||java.net.URI(url).host.orEmpty().contains("googletagmanager"))continue
             // An iframe may be an HTML player even when its path ends in .mp4.
             // Resolve that declared page before falling back to an Android WebView.
@@ -200,10 +209,12 @@ object Playback {
             }catch(e:CancellationException){throw e}catch(_:Exception){}
             unresolvedFrame = true
             playerUrl=finalUrl
-            try { loadExtractor(finalUrl,pageUrl,subtitles,::accept) }catch(e:CancellationException){throw e}catch(_:Exception){}
+            try { loadExtractor(finalUrl,pageUrl,subtitles,::accept) }
+            catch(e:CancellationException){throw e}catch(_:Exception){}catch(_:LinkageError){}
         }
         if(emitted.isNotEmpty())return true
-        if(page.baseUri()!=pageUrl)try{loadExtractor(page.baseUri(),origin,subtitles,::accept)}catch(e:CancellationException){throw e}catch(_:Exception){}
+        if(page.baseUri()!=pageUrl)try{loadExtractor(page.baseUri(),origin,subtitles,::accept)}
+        catch(e:CancellationException){throw e}catch(_:Exception){}catch(_:LinkageError){}
         if(emitted.isNotEmpty())return true
         if (!unresolvedFrame) missingStaticFile?.let { status ->
             throw ErrorLoadingException("Сервер плеера $name вернул HTTP $status для файла видео")
@@ -224,16 +235,33 @@ object Playback {
                 }catch(_:Exception){}
             },timeout=18_000L
         )
-        val captured=withTimeoutOrNull(20_000){resolver.resolveUsingWebView(playerUrl,referer=pageUrl,headers=Network.headers(playerUrl))}
+        val captured = try {
+            withTimeoutOrNull(20_000) { resolver.resolveUsingWebView(playerUrl, referer = pageUrl, headers = Network.headers(playerUrl)) }
+        } catch (e: NotImplementedError) {
+            (missingStaticFile ?: rejected.firstOrNull())?.let { throw mediaError(it) }
+            throw e
+        }
         val requests=captured?.second.orEmpty().filter { playable(it.url.toString()) }
-        for(source in exposed.toList().distinctBy { it.url })emit(source,playerUrl,Network.headers(playerUrl))
+        verifySources(exposed.toList(), playerUrl, Network.headers(playerUrl))
         for(request in requests) {
             val headers=request.headers.toMap().filterKeys { it.lowercase() !in setOf("host","connection","content-length","accept-encoding","range") }
-            emit(Source(request.url.toString()),playerUrl,headers)
+            verifySources(listOf(Source(request.url.toString())), playerUrl, headers)
         }
-        val failure = missingStaticFile ?: rejected
-        if(emitted.isEmpty() && failure!=null)throw ErrorLoadingException("Сервер файла видео вернул HTTP $failure")
+        val failure = missingStaticFile ?: rejected.firstOrNull()
+        if (emitted.isEmpty() && failure != null) throw mediaError(failure)
         if(emitted.isEmpty() && requireConfirmed && unreachable)throw ErrorLoadingException("Сервер видео не ответил: нет подтверждённых потоков")
         return emitted.isNotEmpty()
+    }
+
+    private fun mediaError(status: Int): ErrorLoadingException {
+        val detail = when (status) {
+            401, 403 -> "Сервер ограничил доступ к видео"
+            404, 410 -> "Файл видео удалён или недоступен"
+            415 -> "Сервер вернул страницу или ответ без видеоданных"
+            429 -> "Сервер ограничил частоту запросов"
+            in 500..599 -> "Сервер видео временно недоступен"
+            else -> "Сервер файла видео отклонил запрос"
+        }
+        return ErrorLoadingException("$detail (HTTP $status)")
     }
 }

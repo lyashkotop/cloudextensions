@@ -5,7 +5,7 @@ import org.jsoup.nodes.Document
 
 /** AbXXX metadata used by the TubeBDSM aggregator. */
 object AbxxxMetadata {
-    suspend fun enrich(page:Document):Document {
+    suspend fun enrich(page: Document, includeRelated: Boolean): Document {
         val id=EmbeddedPlayers.abId(page) ?: return page
         val number=id.toLongOrNull() ?: return page
         val bucket="${number/1_000_000*1_000_000}/${number/1000*1000}"
@@ -20,6 +20,7 @@ object AbxxxMetadata {
         val tags=result.body().appendElement("div").addClass("video-tags")
         val categories=video.optJSONObject("categories")
         if(categories!=null)for(key in categories.keys())categories.optJSONObject(key)?.let{tags.appendElement("a").text(it.optString("title"))}
+        if (!includeRelated) return result
         RequestLimits.optional(2000) {
             val related=Network.page(PageRequest("https://abxxx.com/api/json/videos_related2/432000/20/$bucket/$id.all.1.json"),page.baseUri()).wholeText()
             val videos=JSONObject(related).optJSONArray("videos") ?: return@optional

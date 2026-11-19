@@ -1,6 +1,7 @@
 package com.cloudextensions.sites
 
 import com.cloudextensions.russian.Network
+import com.cloudextensions.russian.EPornerPlayer
 import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.Playback
 import com.cloudextensions.russian.RequestLimits
@@ -71,8 +72,18 @@ internal object PlayerConfig {
         return when (address.host) {
             "drtuber.com", "www.drtuber.com" -> request(desktopDrTuber(page, address), page.baseUri())
             "m.drtuber.com", "viptube.com", "www.viptube.com", "m.viptube.com" -> mobileSources(page, address)
+            "eporner.com", "www.eporner.com" -> EPornerPlayer.sources(page)
             else -> emptyList()
         }
+    }
+
+    fun requiresPaidAccess(page: Document): Boolean {
+        val host = page.baseUri().toHttpUrlOrNull()?.host?.removePrefix("www.")
+        if (host != "faphouse.com") return false
+        val current = page.selectFirst("script#view-state-data[type=application/json]")?.data() ?: return false
+        val video = try { JSONObject(current).optJSONObject("video") } catch (_: org.json.JSONException) { null }
+        return video?.opt("videoViewAllowed") == false &&
+            video.optString("videoAccessType") in setOf("premium", "paid")
     }
 
     private suspend fun mobileSources(page: Document, address: HttpUrl): List<Playback.Source> {

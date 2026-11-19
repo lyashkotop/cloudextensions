@@ -1,5 +1,6 @@
 package com.jacekun
 
+import com.cloudextensions.russian.RequestLimits
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.*
@@ -7,6 +8,12 @@ import com.lagradost.cloudstream3.utils.loadExtractor
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
+import java.net.URI
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 class JavGuru : MainAPI() {
     override var lang = "ja"
@@ -136,11 +143,12 @@ class JavGuru : MainAPI() {
         val hls4 = Regex(""""hls4"\s*:\s*"([^"]+)"""").find(unpacked)?.groupValues?.get(1)
         val hls2 = Regex(""""hls2"\s*:\s*"(https[^"]+)"""").find(unpacked)?.groupValues?.get(1)
         return when {
-            hls4 != null -> if (hls4.startsWith("http")) hls4
-                else "https://" + embedUrl.substringAfter("//").substringBefore("/") + hls4
+            hls4 != null -> URI(embedUrl).resolve(hls4).toString().takeIf { it.startsWith("https://") || it.startsWith("http://") }
             else -> hls2
         }
     }
+
+    private data class Player(val number: Int, val url: String, val referer: String, val external: Boolean)
 
     override suspend fun loadLinks(
         data: String,
@@ -148,38 +156,54 @@ class JavGuru : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val pageBody = app.get(data).text
+        val pageBody = app.get(data).let { response -> response.okhttpResponse.use { response.text } }
         val servers = Regex(""""iframe_url":"([A-Za-z0-9+/=]+)"""").findAll(pageBody)
             .mapNotNull { runCatching { base64Decode(it.groupValues[1]) }.getOrNull() }
             .distinct()
             .toList()
 
-        var found = false
-        servers.forEachIndexed { index, searcho ->
-            runCatching {
-                val searchoPage = app.get(searcho, referer = "$mainUrl/").text
-                val realSrc = resolveSearcho(searchoPage) ?: return@runCatching
-                val resp = app.get(realSrc, referer = searcho)
-                val embedUrl = resp.url
-
-                if (embedUrl.contains("vide0.net")) {
-                    if (loadExtractor(embedUrl, "$mainUrl/", subtitleCallback, callback)) found = true
-                    return@runCatching
-                }
-
-                val link = extractPackedHls(resp.text, embedUrl) ?: return@runCatching
-                found = true
-                callback.invoke(
-                    newExtractorLink(
-                        source = name,
-                        name = "Server ${index + 1}",
-                        url = link
-                    ) {
-                        this.referer = embedUrl
-                        this.quality = Qualities.Unknown.value
-                        this.type = ExtractorLinkType.M3U8
+        val players = coroutineScope {
+            val permits = Semaphore(4)
+            servers.mapIndexed { index, searcho ->
+                async {
+                    RequestLimits.optional(9000) {
+                        permits.withPermit {
+                            val response = app.get(searcho, referer = "$mainUrl/")
+                            val searchoPage = response.okhttpResponse.use { response.text }
+                            val realSrc = resolveSearcho(searchoPage) ?: return@withPermit null
+                            val embed = app.get(realSrc, referer = searcho)
+                            embed.okhttpResponse.use {
+                                val host = URI(embed.url).host.orEmpty().removePrefix("www.")
+                                if (host == "vide0.net") {
+                                    Player(index + 1, embed.url, "$mainUrl/", external = true)
+                                } else {
+                                    val hls = extractPackedHls(embed.text, embed.url) ?: return@use null
+                                    Player(index + 1, hls, embed.url, external = false)
+                                }
+                            }
+                        }
                     }
-                )
+                }
+            }.awaitAll().filterNotNull()
+        }
+
+        var found = false
+        for (player in players) {
+            if (player.external) {
+                val loaded = try {
+                    RequestLimits.optional(5000) {
+                        loadExtractor(player.url, player.referer, subtitleCallback, callback)
+                    }
+                } catch (_: LinkageError) {
+                    false
+                }
+                found = loaded == true || found
+            } else {
+                callback(newExtractorLink(name, "Server ${player.number}", player.url, ExtractorLinkType.M3U8) {
+                    referer = player.referer
+                    quality = Qualities.Unknown.value
+                })
+                found = true
             }
         }
         return found

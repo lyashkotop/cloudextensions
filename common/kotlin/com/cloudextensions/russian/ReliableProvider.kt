@@ -47,22 +47,39 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
 
     private suspend fun cards(items: List<SearchResponse>): List<SearchResponse> = coroutineScope {
         val deadline = System.nanoTime() + 3_000_000_000L
-        items.filter { ContentPolicy.accepts(it.name) }.map { card -> async {
-            if (Metadata.isTruncatedTitle(card.name)) {
-                val image = Metadata.rememberPoster(card.url, card.posterUrl)
-                normalizeCard(card, image, expandTitle(card, deadline))
-            } else normalizeCard(card)
-        } }.awaitAll()
+        val allowed = items.filter { ContentPolicy.accepts(it.name) }
+        val posters = allowed.map { card -> normalizeCard(card, title = card.name) }
+        if (source !is PosterSource) ImagePrefetch.warm(posters)
+        val titles = allowed.map { card ->
+            if (Metadata.isTruncatedTitle(card.name)) async { expandTitle(card, deadline) } else null
+        }
+        posters.mapIndexed { index, card ->
+            val title = titles[index]?.await() ?: Metadata.title(card.url, listOf(card.name))
+            if (card is MovieSearchResponse && title != card.name) card.copy(name = title) else card
+        }
     }
     private val posterPermits = Semaphore(12)
+    private data class PosterKey(val video: String, val poster: String?, val headers: Map<String, String>)
+    private val resolvedPosters = java.util.Collections.synchronizedMap(BoundedMap<PosterKey, Pair<Long, String>>(256))
+
+    private suspend fun resolvePoster(
+        provider: PosterSource, url: String, poster: String?, headers: Map<String, String>,
+    ): String? {
+        val key = PosterKey(videoKey(url), poster, headers.toMap())
+        resolvedPosters[key]?.takeIf { System.nanoTime() - it.first < 90_000_000_000L }?.let { return it.second }
+        val resolved = RequestLimits.optional(provider.posterTimeoutMs) {
+            posterPermits.withPermit { provider.resolvePoster(url, poster, headers) }
+        }
+        if (resolved != null && resolved != poster) resolvedPosters[key] = System.nanoTime() to resolved
+        return resolved
+    }
+
     private suspend fun withResolvedPosters(items: List<SearchResponse>): List<SearchResponse> = coroutineScope {
         val provider = source as? PosterSource ?: return@coroutineScope items
         items.mapIndexed { index, item -> async {
             if (item !is MovieSearchResponse) return@async item
             val headers = item.posterHeaders.orEmpty()
-            val poster = RequestLimits.optional(provider.posterTimeoutMs) {
-                posterPermits.withPermit { provider.resolvePoster(item.url, item.posterUrl, headers) }
-            }
+            val poster = resolvePoster(provider, item.url, item.posterUrl, headers)
             val ready = if (poster == null || poster == item.posterUrl) item else {
                 Metadata.rememberPoster(item.url, poster)
                 item.copy(posterUrl = poster, posterHeaders = Network.replacementImageHeaders(poster, item.url, headers))
@@ -176,7 +193,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
             val headers = Network.imageHeaders(result.posterUrl, url) + result.posterHeaders.orEmpty()
             val provider = source as? PosterSource
             val poster = provider?.let {
-                RequestLimits.optional(it.posterTimeoutMs) { it.resolvePoster(url, result.posterUrl, headers) }
+                resolvePoster(it, url, result.posterUrl, headers)
             }
             result.posterHeaders = if (poster != null && poster != result.posterUrl) {
                 result.posterUrl = Metadata.rememberPoster(url, poster)

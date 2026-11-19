@@ -1,5 +1,7 @@
 package com.cloudextensions.russian
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 object TubeSafariPosters {
@@ -27,8 +29,19 @@ object TubeSafariPosters {
         val embed = RequestLimits.optional(2700) {
             Network.page(PageRequest("https://www.xvideos.com/embedframe/$id"), url)
         } ?: return poster
-        return embedPosterUrls(embed).firstOrNull { image ->
-            PosterRequests.available(image, Network.replacementImageHeaders(image, url, headers), 2600)
+        return coroutineScope {
+            val checks = embedPosterUrls(embed).map { image ->
+                async {
+                    image.takeIf {
+                        PosterRequests.available(it, Network.replacementImageHeaders(it, url, headers), 2600)
+                    }
+                }
+            }
+            try {
+                checks.firstNotNullOfOrNull { it.await() }
+            } finally {
+                checks.forEach { it.cancel() }
+            }
         } ?: poster
     }
 }

@@ -111,12 +111,16 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         return SearchPage(cards, next)
     }
 
-    override suspend fun fullTitle(url:String):String? = searchMetadata(url).title
+    override suspend fun fullTitle(url: String): String = searchMetadata(url, includeOriginal = false).title
     protected open fun readMetadata(document:Document):VideoDetail = Metadata.detail(document,spec)
-    final override suspend fun searchMetadata(url:String):VideoDetail {
+    protected open suspend fun reviewMetadata(document: Document, detail: VideoDetail): VideoDetail = detail
+    final override suspend fun searchMetadata(url: String): VideoDetail = searchMetadata(url, includeOriginal = true)
+
+    private suspend fun searchMetadata(url: String, includeOriginal: Boolean): VideoDetail {
         val document=page(PageRequest(url))
         if(spec.id=="ThisVid" && document.selectFirst(".box ul.description")==null)throw ErrorLoadingException("Не удалось проверить категории ThisVid")
-        val meta=readMetadata(document)
+        val base = readMetadata(document)
+        val meta = if (includeOriginal) reviewMetadata(document, base) else base
         val heading=document.selectFirst("h1")?.text().orEmpty()
         if(!ContentPolicy.accepts(heading,meta.tags))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         if(meta.title.isBlank())throw ErrorLoadingException("Название не получено")

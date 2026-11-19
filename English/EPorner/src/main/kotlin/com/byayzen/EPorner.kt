@@ -1,13 +1,14 @@
 package com.byayzen
 
-import com.lagradost.api.Log
 import com.lagradost.cloudstream3.*
+import com.cloudextensions.russian.EPornerPlayer
+import com.cloudextensions.russian.Network
+import com.cloudextensions.russian.PageRequest
+import com.cloudextensions.russian.Playback
 import com.cloudextensions.russian.applyVideoDuration
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
-import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.utils.*
 import org.jsoup.nodes.Element
-import java.math.BigInteger
 
 class EPorner : MainAPI() {
     override var mainUrl = "https://www.eporner.com"
@@ -106,90 +107,15 @@ class EPorner : MainAPI() {
         }
     }
 
-
-
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit
+        callback: (ExtractorLink) -> Unit,
     ): Boolean {
         val url = fixUrl(data)
-        var videolink = false
-
-        try {
-            val vidmatch = """/(?:embed|video)-([a-zA-Z0-9]+)""".toRegex().find(url)
-            val vid = vidmatch?.groupValues?.get(1) ?: return false
-
-            val embedurl = "$mainUrl/embed/$vid/"
-            val embedhtml = app.get(embedurl).text
-
-            val md5hash = """EP\.video\.player\.hash\s*=\s*'([^']+)'""".toRegex().find(embedhtml)?.groupValues?.get(1)
-            if (md5hash == null) {
-                Log.d(name, "hash bulunamadi")
-                return false
-            }
-            val convertedhash = md5hash.chunked(8).map { chunk ->
-                BigInteger(chunk, 16).toString(36)
-            }.joinToString("")
-            Log.d(name, "vid: $vid - hash: $convertedhash")
-            val xhrurl = "$mainUrl/xhr/video/$vid?hash=$convertedhash&domain=www.eporner.com&pixelRatio=1&playerWidth=0&playerHeight=0&fallback=false&embed=true&supportedFormats=hls,dash,h265,vp9,av1,mp4&_=${System.currentTimeMillis()}"
-
-            val responsetext = app.get(
-                xhrurl,
-                headers = mapOf(
-                    "Referer" to embedurl,
-                    "X-Requested-With" to "XMLHttpRequest"
-                )
-            ).text
-            Log.d(name, "xhr yanit uzunlugu: ${responsetext.length}")
-
-            """labelShort"\s*:\s*"(\d{3,4}p)[^"]*"\s*,\s*"src"\s*:\s*"([^"]+)"""".toRegex()
-                .findAll(responsetext).forEach { match ->
-                    val quality = match.groupValues[1]
-                    val videourl = match.groupValues[2]
-                    if (!videourl.contains("/dload/")) {
-                        Log.d(name, "kalite: $quality - url: $videourl")
-                        callback.invoke(
-                            newExtractorLink(
-                                name = name,
-                                source = name,
-                                url = videourl,
-                                type = INFER_TYPE
-                            ) {
-                                this.referer = mainUrl
-                                this.quality = getQualityFromName(quality)
-                            }
-                        )
-                        videolink = true
-                    }
-                }
-
-            val hlsmatch = """"srcFallback"\s*:\s*"(https?://[^"]+\.m3u8[^"]*)"""".toRegex().find(responsetext)
-            if (hlsmatch != null) {
-                Log.d(name, "hls: ${hlsmatch.groupValues[1]}")
-                callback.invoke(
-                    newExtractorLink(
-                        name = name,
-                        source = "${name}:HLS",
-                        url = hlsmatch.groupValues[1],
-                        type = ExtractorLinkType.M3U8
-                    ) {
-                        this.referer = mainUrl
-                        this.quality = Qualities.Unknown.value
-                    }
-                )
-                videolink = true
-            }
-
-            if (!videolink) {
-                Log.d(name, "xhr icerisinde video linki bulunmadı")
-            }
-
-        } catch (e: Exception) {
-            Log.d(name, "hata: ${e.message}")
-        }
-
-        return videolink
+        val page = Network.page(PageRequest(url), mainUrl)
+        val sources = EPornerPlayer.sources(page)
+        return Playback.linksFromPage(name, mainUrl, url, page, sources, subtitleCallback, callback)
     }
-    }
+}

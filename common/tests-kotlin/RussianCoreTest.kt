@@ -158,6 +158,7 @@ fun main(args:Array<String>) {
     verify(ukNext?.url=="https://ukdevilz.com/video/guy?p=2"&&ukNext.data==null,"UKDevilz uses a real page permalink without CSRF-dependent POST")
     verify(Metadata.description("Watch online for free","Own title").isEmpty(),"upstream promotional plot is removed")
     verify(Metadata.tag("для")==null&&Metadata.tag("Real source tag")=="Real source tag","upstream tags preserve labels without fragment words")
+    verify(Metadata.tag("温泉") == "温泉", "two-character Japanese tags survive card normalization")
     val flagCard=Jsoup.parse("<a><img class='vid-tag-info-tag-ico' data-src='/girls/flags/russian.png'><img class=video-img src='/actual-frame.jpg'></a>","https://photos.example/")
     verify(Metadata.poster(flagCard,"https://photos.example/")=="https://photos.example/actual-frame.jpg","country flag never replaces the actual video frame")
     val logoCard=Jsoup.parse("<img src='/logo.png'><img data-src='/thumb.jpg'>","https://photos.example/")

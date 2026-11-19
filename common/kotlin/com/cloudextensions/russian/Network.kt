@@ -19,6 +19,7 @@ import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.FormBody
 import okhttp3.Interceptor
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.Jsoup
@@ -26,7 +27,8 @@ import org.jsoup.nodes.Document
 
 object Network {
     private val cloudflare by lazy { CloudflareKiller() }
-    private class HttpFailure(val code:Int,val url:String,val retryAfter:String?=null): IOException("HTTP $code: ${url.toHttpUrlOrNull()?.host}")
+    private class HttpFailure(val code: Int, val url: String, val retryAfter: String? = null) :
+        IOException("HTTP $code: ${url.toHttpUrlOrNull()?.host}")
     private val challengeHandler=Interceptor { chain ->
         cloudflare.intercept(object:Interceptor.Chain by chain {
             override fun proceed(request:Request):Response {
@@ -45,7 +47,8 @@ object Network {
         return wait.coerceAtLeast(0).takeIf{it<=3000}
     }
     private val cache = Collections.synchronizedMap(BoundedMap<PageRequest,Pair<Long,Document>>(24))
-    private val locks = ConcurrentHashMap<PageRequest,Mutex>()
+    private class PageGate(val mutex: Mutex = Mutex(), var users: Int = 1)
+    private val locks = ConcurrentHashMap<PageRequest, PageGate>()
     private val permits = Semaphore(4)
     const val USER_AGENT = "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
     fun headers(referer: String) = mapOf("User-Agent" to USER_AGENT,"Referer" to referer)
@@ -70,8 +73,8 @@ object Network {
     private suspend fun pageUnbounded(request: PageRequest, referer: String): Document {
         fun cached() = cache[request]?.takeIf { System.nanoTime()-it.first < TimeUnit.SECONDS.toNanos(30) }?.second
         cached()?.let { return it }
-        val lock=locks.getOrPut(request){Mutex()}
-        return try { lock.withLock {
+        val gate = locks.compute(request) { _, pending -> pending?.also { it.users++ } ?: PageGate() }!!
+        return try { gate.mutex.withLock {
             cached() ?: permits.withPermit {
                 // Strip2 can serve cached documents with expired signed thumbnails/media URLs.
                 val refresh=java.net.URI(request.url).host.orEmpty().endsWith(".strip2.co") && request.data==null
@@ -103,7 +106,9 @@ object Network {
                     }
                     try {
                         if(response.code !in 200..299 && !(request.allowNotFound && response.code==404))throw HttpFailure(response.code,response.url)
-                        response.document.apply { attr("data-response-code",response.code.toString()) }
+                        Jsoup.parse(response.text, response.url).apply {
+                            attr("data-response-code", response.code.toString())
+                        }
                     } finally { response.okhttpResponse.close() }
                 }
                 if(refresh)document.setBaseUri(request.url)
@@ -111,27 +116,52 @@ object Network {
                 cache[request]=System.nanoTime() to document
                 document
             }
-        }} finally { locks.remove(request,lock) }
+        }} finally {
+            locks.computeIfPresent(request) { _, pending -> if (--pending.users == 0) null else pending }
+        }
     }
-    private suspend fun execute(request: Request,allowNotFound: Boolean): Document = suspendCancellableCoroutine { continuation ->
-        val client=app.baseClient.newBuilder().callTimeout(15,TimeUnit.SECONDS).connectTimeout(8,TimeUnit.SECONDS).readTimeout(12,TimeUnit.SECONDS).build()
-        val call=client.newCall(request)
-        continuation.invokeOnCancellation { call.cancel() }
-        call.enqueue(object: Callback {
-            override fun onFailure(call: Call,e: IOException) { if(continuation.isActive)continuation.resumeWithException(e) }
-            override fun onResponse(call: Call,response: Response) {
-                try {
-                    response.use {
-                        if(!it.isSuccessful && !(allowNotFound && it.code==404))throw HttpFailure(it.code,it.request.url.toString(),it.header("Retry-After"))
-                        val text=it.body?.string() ?: throw ErrorLoadingException("Пустой ответ: ${request.url.host}")
-                        val envelope=if(text.trimStart().startsWith("{"))try { org.json.JSONObject(text) }catch(_:Exception){null} else null
-                        val page=Jsoup.parse(envelope?.optString("html")?.takeIf(String::isNotBlank) ?: text,it.request.url.toString())
-                        if(envelope?.has("results_remaining")==true)page.attr("data-results-remaining",envelope.optInt("results_remaining").toString())
-                        page.attr("data-response-code",it.code.toString())
-                        if(continuation.isActive)continuation.resume(page)
-                    }
-                }catch(error:Exception){if(continuation.isActive)continuation.resumeWithException(error)}
+
+    private suspend fun execute(request: Request, allowNotFound: Boolean): Document {
+        val client = app.baseClient.newBuilder().callTimeout(15, TimeUnit.SECONDS)
+            .connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
+        return read(request, client) { response ->
+            if (!response.isSuccessful && !(allowNotFound && response.code == 404)) {
+                throw HttpFailure(response.code, response.request.url.toString(), response.header("Retry-After"))
             }
-        })
+            val text = response.body?.string() ?: throw ErrorLoadingException("Пустой ответ: ${request.url.host}")
+            val envelope = if (text.trimStart().startsWith("{")) {
+                try { org.json.JSONObject(text) } catch (_: org.json.JSONException) { null }
+            } else null
+            val page = Jsoup.parse(
+                envelope?.optString("html")?.takeIf(String::isNotBlank) ?: text,
+                response.request.url.toString(),
+            )
+            if (envelope?.has("results_remaining") == true) {
+                page.attr("data-results-remaining", envelope.optInt("results_remaining").toString())
+            }
+            page.attr("data-response-code", response.code.toString())
+            page
+        }
     }
+
+    internal suspend fun <T> read(request: Request, client: OkHttpClient, parse: (Response) -> T): T =
+        suspendCancellableCoroutine { continuation ->
+            val call = client.newCall(request)
+            continuation.invokeOnCancellation { call.cancel() }
+            call.enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    if (continuation.isActive) continuation.resumeWithException(e)
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    try {
+                        response.use {
+                            if (continuation.isActive) continuation.resume(parse(it))
+                        }
+                    } catch (error: Exception) {
+                        if (continuation.isActive) continuation.resumeWithException(error)
+                    }
+                }
+            })
+        }
 }

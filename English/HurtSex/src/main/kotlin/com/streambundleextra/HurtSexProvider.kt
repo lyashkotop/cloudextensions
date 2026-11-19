@@ -9,7 +9,7 @@ class HurtSexProvider: RussianProvider(SiteSpec(
  cards="a[href*=/video/]:has(.plugthumb)",
  link="a[href]",
  titleSelector=".titlebox",
- tagSelector=".videoinfo a[href*=/category/], .tags a",
+ tagSelector=".videoinfo a[href*=/category/], .tags a, .videopage .tagsbox a[href*=/tag/], .videopage .tagsbox a[href*=/category/]",
  descriptionSelector=".videoinfo .description",
  sections=listOf(Section("Latest","/"))
 )) {

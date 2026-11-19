@@ -157,14 +157,26 @@ class BeegProvider : MainAPI() {
     override suspend fun load(url: String): LoadResponse = coroutineScope {
         val id=Regex("/(?:xid/|play/\\d+-)(\\d+)").find(url)?.groupValues?.get(1)
         val encode=Regex("[?&]e=([A-Za-z0-9]+)").find(url)?.groupValues?.get(1).orEmpty()
+        val spec = SiteSpec("Beeg", name, mainUrl, "span.item", "a[href]", ".title", emptyList())
+        val originalTags = encode.takeIf(String::isNotBlank)?.let { embed ->
+            async { DetailEnrichment.xvideosTags(embed, spec, budget = 3000) }
+        }
         val html=async { RequestLimits.optional(7000){fetchPage(url)}.orEmpty() }
         val api=async { if(id==null)null else RequestLimits.optional(3500){JSONObject(app.get("$searchApiBase/id/$id/?format=ajax&e=$encode",headers=Network.headers(mainUrl)).text)} }
-        val doc=Jsoup.parse(html.await(),url)
+        val markup = html.await()
+        val doc=Jsoup.parse(markup,url)
         val meta=api.await()
         val title=Metadata.title(url,listOf(meta?.optString("title").orEmpty(),doc.selectFirst("h1")?.text().orEmpty(),doc.selectFirst("meta[property=og:title]")?.attr("content").orEmpty()))
         if(title.isBlank())throw ErrorLoadingException("Video metadata is missing")
-        val detail=Metadata.detail(doc,SiteSpec("Beeg",name,mainUrl,"span.item","a[href]",".title",emptyList()))
-        val tags=meta?.optString("cats")?.split(',')?.map{it.trim().trim('*')}?.mapNotNull(Metadata::tag).orEmpty().ifEmpty{detail.tags}
+        val detail = Metadata.detail(doc, spec)
+        val declaredTags = meta?.optString("cats")?.split(',')
+            ?.mapNotNull { Metadata.tag(it.trim().trim('*')) }.orEmpty().ifEmpty { detail.tags }
+        val tags = if (declaredTags.isNotEmpty()) {
+            originalTags?.cancel()
+            declaredTags
+        } else {
+            originalTags?.await() ?: DetailEnrichment.xvideosTags(findEncode(markup).orEmpty(), spec, budget = 2000)
+        }
         val related=meta?.optJSONArray("related")
         val recommendations=if(related==null)emptyList() else (0 until related.length()).mapNotNull { i ->
             val item=related.optJSONObject(i) ?: return@mapNotNull null

@@ -3,6 +3,7 @@
 package com.byayzen
 
 import com.lagradost.api.Log
+import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
@@ -18,6 +19,18 @@ class MissAV : MainAPI() {
     override val supportedTypes = setOf(TvType.NSFW)
     val subtitleCatUrl = "https://www.subtitlecat.com"
     private val cloudflareKiller by lazy { CloudflareKiller() }
+
+    private suspend fun page(url: String): Document {
+        val response = app.get(url, interceptor = cloudflareKiller)
+        try {
+            if (response.code !in 200..299) {
+                throw ErrorLoadingException("MissAV: сайт вернул HTTP ${response.code}")
+            }
+            return response.document.apply { setBaseUri(response.url) }
+        } finally {
+            response.okhttpResponse.close()
+        }
+    }
 
     override val mainPage = mainPageOf(
         "$mainUrl/en/weekly-hot?sort=weekly_views" to "Weekly Hot",
@@ -47,7 +60,7 @@ class MissAV : MainAPI() {
         val separator = if (request.data.contains("?")) "&" else "?"
         val url = "${request.data}${separator}page=$page"
 
-        val document = app.get(url, interceptor = cloudflareKiller).document
+        val document = page(url)
 
         val home = document.select("div.grid.grid-cols-2 > div, div.thumbnail.group")
             .mapNotNull { it.toMainPageResult() }
@@ -104,7 +117,7 @@ class MissAV : MainAPI() {
             "${mainUrl}/en/search/${query}?page=$page"
         }
 
-        val document = app.get(url, interceptor = cloudflareKiller).document
+        val document = page(url)
 
         val aramaCevap =
             document.select("div.grid.grid-cols-2 > div, div.thumbnail.group").mapNotNull { it.toMainPageResult() }.distinctBy { it.url }
@@ -116,7 +129,7 @@ class MissAV : MainAPI() {
     override suspend fun quickSearch(query: String): List<SearchResponse>? = search(query)
 
     override suspend fun load(url: String): LoadResponse? {
-        val document = app.get(url, interceptor = cloudflareKiller).document
+        val document = page(url)
 
         val title = document.selectFirst("h1.text-base")?.text()?.trim() ?: return null
         val poster = fixUrlNull(document.selectFirst("meta[property='og:image']")?.attr("content"))

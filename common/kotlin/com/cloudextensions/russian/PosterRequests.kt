@@ -1,13 +1,8 @@
 package com.cloudextensions.russian
 
 import com.lagradost.cloudstream3.app
-import kotlinx.coroutines.suspendCancellableCoroutine
-import okhttp3.Call
-import okhttp3.Callback
 import okhttp3.Request
 import okhttp3.Response
-import java.io.IOException
-import kotlin.coroutines.resume
 import java.util.Collections
 import java.util.concurrent.TimeUnit
 
@@ -18,38 +13,52 @@ interface PosterSource {
 
 internal object PosterRequests {
     private data class ImageCheck(val url: String, val headers: Map<String, String>)
-    private val working = Collections.synchronizedMap(BoundedMap<ImageCheck, Long>(512))
+    private data class Checked(val available: Boolean, val expires: Long)
+    private val checked = Collections.synchronizedMap(BoundedMap<ImageCheck, Checked>(512))
 
     suspend fun available(url: String, headers: Map<String, String>, timeoutMs: Long): Boolean =
         check(url, headers, timeoutMs) == true
 
     /** A timeout or a temporary CDN failure leaves the image's availability unknown. */
     suspend fun check(url: String, headers: Map<String, String>, timeoutMs: Long): Boolean? {
-        val key = ImageCheck(url, headers)
-        if (working[key]?.let { System.nanoTime() - it < TimeUnit.MINUTES.toNanos(2) } == true) return true
-        val result = RequestLimits.optional(timeoutMs) {
-            suspendCancellableCoroutine<Boolean?> { continuation ->
-                val request = Request.Builder().url(url)
-                headers.forEach { (name, value) -> request.header(name, value) }
-                val call = app.baseClient.newCall(request.build())
-                continuation.invokeOnCancellation { call.cancel() }
-                call.enqueue(object : Callback {
-                    override fun onFailure(call: Call, e: IOException) = continuation.resume(null)
-
-                    override fun onResponse(call: Call, response: Response) {
-                        val image = response.use {
-                            when {
-                                it.isSuccessful -> it.header("Content-Type").orEmpty().startsWith("image/", ignoreCase = true)
-                                it.code == 408 || it.code == 429 || it.code >= 500 -> null
-                                else -> false
-                            }
-                        }
-                        continuation.resume(image)
-                    }
-                })
+        val key = ImageCheck(url, headers.toMap())
+        checked[key]?.takeIf { System.nanoTime() < it.expires }?.let { return it.available }
+        return RequestLimits.optional(timeoutMs) {
+            val request = Request.Builder().url(url)
+            key.headers.forEach { (name, value) -> request.header(name, value) }
+            request.header("Range", "bytes=0-15")
+            val client = app.baseClient
+            fun inspect(response: Response): Boolean? {
+                val available = when {
+                    response.isSuccessful -> isImage(response)
+                    response.code == 408 || response.code == 416 || response.code == 429 || response.code >= 500 -> null
+                    else -> false
+                }
+                if (available != null && (response.isSuccessful || response.code in listOf(404, 410))) {
+                    val ttl = TimeUnit.SECONDS.toNanos(if (available) 120 else 30)
+                    checked[key] = Checked(available, System.nanoTime() + ttl)
+                }
+                return available
+            }
+            val (code, available) = Network.read(request.build(), client) { it.code to inspect(it) }
+            if (code == 416) {
+                Network.read(request.removeHeader("Range").build(), client, ::inspect)
+            } else {
+                available
             }
         }
-        if (result == true) working[key] = System.nanoTime()
-        return result
+    }
+
+    private fun isImage(response: Response): Boolean {
+        val mime = response.header("Content-Type").orEmpty()
+        if (mime.startsWith("image/", ignoreCase = true)) return true
+        if (mime.isNotBlank() && !mime.startsWith("application/octet-stream", true)) return false
+        val source = response.body?.source() ?: return false
+        source.request(16)
+        val prefix = source.buffer.readByteString(minOf(16L, source.buffer.size))
+        val hex = prefix.hex()
+        val text = prefix.utf8()
+        return hex.startsWith("ffd8ff") || hex.startsWith("89504e470d0a1a0a") || text.startsWith("GIF8") ||
+            (text.startsWith("RIFF") && text.drop(8).startsWith("WEBP")) || hex.drop(8).startsWith("66747970617669")
     }
 }

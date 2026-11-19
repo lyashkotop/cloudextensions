@@ -17,6 +17,7 @@ object Metadata {
     private val posterTimes = Collections.synchronizedMap(BoundedMap<String,Long>(1024))
     private val durations = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val stopTag = Regex("(?iu)^(?:ра|для|и|а|но|что|это|как|при|the|and|for|with|from|of|to|in|on|an?|home|главная|tags|теги|categories|категории|all videos|все видео|(?:free |hd )?porn(?: videos?)?|порно(?: видео)?|xxx|hd|sd|[48]k|[0-9]{3,4}p)$")
+    private val shortTag = Regex("[A-Za-z0-9\\u3040-\\u30ff\\u3400-\\u9fff]{2}")
     private val promo = Regex("(?iu)(?:смотрите (?:у нас|онлайн|бесплатно)|смотреть (?:онлайн|бесплатно)|бесплатные порно видео|watch (?:online|for free)|free porn videos|best porn site)")
     private val whitespace = Regex("\\s+")
     private val truncated = Regex("(?:…|\\.\\.\\.)$")
@@ -35,7 +36,9 @@ object Metadata {
         return value.split(Regex("(?<=[.!?])\\s+|[\\r\\n]+"))
             .filter { it.isNotBlank() && !promo.containsMatchIn(it) && !it.trimEnd('.','!','?').equals(title.trimEnd('.','!','?'),true) }.joinToString(" ")
     }
-    fun tag(raw:String):String? = clean(raw).takeIf { sourceValue(it) && (it.length>=3 || it.matches(Regex("[A-Za-z0-9]{2}"))) && it.length<=100 && !stopTag.matches(it) }
+    fun tag(raw: String): String? = clean(raw).takeIf {
+        sourceValue(it) && it.length <= 100 && (it.length >= 3 || shortTag.matches(it)) && !stopTag.matches(it)
+    }
     fun alias(from: String,to: String) {
         val a=videoKey(from);val b=videoKey(to)
         titles[a]?.let{titles[b]=it};posters[a]?.let{posters[b]=it;posterTimes[a]?.let{stamp->posterTimes[b]=stamp}};durations[a]?.let{durations[b]=it}
@@ -168,7 +171,10 @@ object Metadata {
         val titleFields=listOf(localizedTitle(page.selectFirst("h1"),spec.titleLanguage).orEmpty(),heading,data?.optString("name").orEmpty()).filter(String::isNotBlank)
         val rawTitle=title(page.baseUri(),titleFields.ifEmpty{listOf(page.selectFirst("meta[property=og:title]")?.attr("content").orEmpty())})
         val tags=mutableListOf<String>()
-        fun add(raw: String?) { val label=clean(raw); if((label.length>=3 || label.matches(Regex("[A-Za-z0-9]{2}"))) && label.length<=100 && !stopTag.matches(label) && tags.none { it.equals(label,true) })tags+=label }
+        fun add(raw: String?) {
+            val label = raw?.let(::tag) ?: return
+            if (tags.none { it.equals(label, true) }) tags += label
+        }
         for(e in page.select(spec.tagSelector.ifBlank{tagSelector})) if(e.closest("nav,header,aside,.related,.related-videos,#related-videos,#relateddiv,.tax-extra") == null && (e.closest("footer")==null || e.closest("article .single-entry-footer,article .entry-footer")!=null)) add(e.text())
         if(tags.isEmpty() && data != null) for(key in listOf("genre")) {
             when(val item=data.opt(key)) { is JSONArray -> for(i in 0 until item.length())add(item.optString(i)); is String -> item.split(',',';').forEach(::add) }

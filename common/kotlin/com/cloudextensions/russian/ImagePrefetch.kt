@@ -35,7 +35,7 @@ object ImagePrefetch {
     fun warm(cards: List<SearchResponse>) {
         val ctx = context ?: return
         cards.asSequence().mapNotNull { card ->
-            card.posterUrl?.takeIf(String::isNotBlank)?.let { Poster(it, card.posterHeaders.orEmpty()) }
+            card.posterUrl?.takeIf(String::isNotBlank)?.let { Poster(it, card.posterHeaders.orEmpty().toMap()) }
         }.distinct().take(12).forEach { poster ->
             val started = System.nanoTime()
             synchronized(scheduled) {
@@ -43,28 +43,34 @@ object ImagePrefetch {
                 scheduled[poster] = started
             }
             scope.launch {
-                permits.withPermit {
-                    try {
-                        val request = coil.enqueue(ctx, poster)
-                        val result = withTimeoutOrNull(5000) { request.await() }
-                        if (result == null) {
-                            request.cancel()
-                            error("Image preload timed out")
+                try {
+                    val loaded = withTimeoutOrNull(5000) {
+                        permits.withPermit {
+                            val request = coil.enqueue(ctx, poster)
+                            try {
+                                val result = request.await()
+                                result != null && result.javaClass.simpleName != "ErrorResult"
+                            } finally {
+                                if (!request.isCompleted) request.cancel()
+                            }
                         }
-                        if (result.javaClass.simpleName == "ErrorResult") error("Image server rejected preload")
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        synchronized(scheduled) {
-                            if (scheduled[poster] == started) scheduled.remove(poster)
-                        }
-                        warn(e.javaClass.simpleName)
-                    } catch (e: LinkageError) {
-                        warn(e.javaClass.simpleName)
                     }
+                    if (loaded != true) forget(poster, started)
+                } catch (e: CancellationException) {
+                    forget(poster, started)
+                    throw e
+                } catch (e: Exception) {
+                    forget(poster, started)
+                    warn(e.javaClass.simpleName)
+                } catch (e: LinkageError) {
+                    warn(e.javaClass.simpleName)
                 }
             }
         }
+    }
+
+    private fun forget(poster: Poster, started: Long) = synchronized(scheduled) {
+        if (scheduled[poster] == started) scheduled.remove(poster)
     }
 
     private fun warn(reason: String) {
