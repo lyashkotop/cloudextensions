@@ -1,7 +1,10 @@
 package com.example.websites
 
 import com.cloudextensions.russian.*
+import com.lagradost.cloudstream3.HomePageResponse
+import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Document
@@ -12,18 +15,9 @@ class Strip2Provider: RussianProvider(SiteSpec(
     tagSelector="[itemprop=tag], .info-table [itemprop=genre]", descriptionSelector=".file-card__description", related=".tiles_wrapper",
     sections=listOf(
         Section("Новинки","/"),
-        Section("Новинки","/videocat/new/"),
         Section("Неделя","/videocat/most-popular/"),
         Section("Месяц","/videocat/mobile/"),
         Section("ТОП","/videocat/top-rated/"),
-        Section("Вперёд","/videocat/p2/"),
-        Section("3","/videocat/p3/"),
-        Section("4","/videocat/p4/"),
-        Section("5","/videocat/p5/"),
-        Section("6","/videocat/p6/"),
-        Section("7","/videocat/p7/"),
-        Section("417","/videocat/p417/"),
-        Section("Все теги","/videocat/tags/"),
         Section("Альтушки","/videocat/tag/altuwki/"),
         Section("Секс на вписке","/videocat/tag/seks-na-vpiske/"),
         Section("Русское частное","/videocat/tag/russkoe-chastnoe/"),
@@ -36,7 +30,6 @@ class Strip2Provider: RussianProvider(SiteSpec(
         Section("Русские мамки","/videocat/tag/russkie-mamki/"),
         Section("Юные девушки 18+","/videocat/tag/junye-devuwki-18/"),
         Section("Подростки 18+","/videocat/tag/podrostki-18/"),
-        Section("Все модели","/videocat/tags/pornstars-list/"),
         Section("Alina Rai","/videocat/tag/alina-rai/"),
         Section("Александр Пистолетов","/videocat/tag/aleksandr-pistoletov/"),
         Section("Desert Angel","/videocat/tag/desert-angel/"),
@@ -52,6 +45,13 @@ class Strip2Provider: RussianProvider(SiteSpec(
     )
 )) {
     private val dimensions = Regex("""(\d+)\s*[×x]\s*(\d+)""")
+
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        // CloudStream requests all rows together. A failed category should not cancel the home page.
+        val row = RequestLimits.optional(10_000L) { super.getMainPage(page, request) }
+        return row?.takeIf { it.items.any { section -> section.list.isNotEmpty() } }
+            ?: newHomePageResponse(emptyList(), false)
+    }
 
     fun downloadableSources(document: Document): List<Playback.Source> {
         val address = document.baseUri().toHttpUrlOrNull() ?: return emptyList()
