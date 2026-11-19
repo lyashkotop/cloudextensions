@@ -64,5 +64,5 @@ jobs:
         with:
           name: cloudextensions-${{ github.run_number }}
           path: .release/
-          include-hidden-files: false
+          include-hidden-files: true
           retention-days: 14
