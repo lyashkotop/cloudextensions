@@ -10,6 +10,7 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.plugins.Plugin
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import java.io.IOException
+import java.io.InterruptedIOException
 import java.util.Collections
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
@@ -45,7 +46,9 @@ private fun failure(error: Throwable): Pair<String, Int?> {
         code != null && code >= 500 -> "site_unavailable" to code
         message.contains("приватн") || message.contains("private") -> "private" to code
         message.contains("фильтр") || message.contains("hidden by category filter") -> "filtered" to code
-        message.contains("вовремя") || message.contains("timeout") || message.contains("тайм") -> "timeout" to code
+        message.contains("не содержит видеоплеера") -> "no_player" to code
+        causes.any { it is InterruptedIOException } ||
+            message.contains("вовремя") || message.contains("timeout") || message.contains("тайм") -> "timeout" to code
         causes.any { it is LinkageError || it is ReflectiveOperationException } -> "probe_error" to code
         causes.any { it is IOException } -> "network_or_source_error" to code
         else -> "source_error" to code
@@ -121,6 +124,7 @@ private fun cardFields(cards: List<SearchResponse>) = mapOf("count" to cards.siz
 fun main(args: Array<String>) {
     runBlocking {
         val (entry, query) = args
+        val sampleCount = args.getOrNull(2)?.toInt() ?: 2
         val api = stage("registration", 5000) {
             val plugin = Class.forName(entry).getDeclaredConstructor().newInstance() as Plugin
             plugin.load(Context())
@@ -149,18 +153,23 @@ fun main(args: Array<String>) {
         } else report("next_page", "not_applicable")
         val searchCards = search?.items.orEmpty()
         val homeCards = home.orEmpty()
-        val first = (searchCards + homeCards).firstOrNull { !unsuitableSample.containsMatchIn(it.name) }
-        val second = (homeCards + searchCards).firstOrNull {
-            it.url != first?.url && !unsuitableSample.containsMatchIn(it.name)
-        }
-        val samples = listOfNotNull(first, second).distinctBy { it.url }
+        val samples = (0 until maxOf(searchCards.size, homeCards.size)).asSequence()
+            .flatMap { sequenceOf(searchCards.getOrNull(it), homeCards.getOrNull(it)).filterNotNull() }
+            .filterNot { unsuitableSample.containsMatchIn(it.name) }
+            .distinctBy { it.url }
+            .take(sampleCount)
+            .toList()
         if (samples.isEmpty()) {
             report("listing_cover", "no_sample")
             report("detail", "no_sample")
             return@runBlocking
         }
         coroutineScope {
-            samples.mapIndexed { index, sample -> async(Dispatchers.IO) { inspectSample(api, sample, index + 1) } }.awaitAll()
+            for ((batchIndex, batch) in samples.chunked(2).withIndex()) {
+                batch.mapIndexed { index, sample ->
+                    async(Dispatchers.IO) { inspectSample(api, sample, batchIndex * 2 + index + 1) }
+                }.awaitAll()
+            }
         }
     }
     kotlin.system.exitProcess(0)

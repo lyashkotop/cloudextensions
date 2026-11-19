@@ -8,12 +8,18 @@ import org.jsoup.nodes.Document
 object DetailEnrichment {
     private data class Original(val url: String, val tags: String, val description: String = "", val desktop: Boolean = false)
     private val xvideosId = Regex("^/embedframe/([A-Za-z0-9]+)/?$")
-    private val pornhubId = Regex("^/embed/(ph[A-Za-z0-9]+)/?$")
+    private val pornhubId = Regex("^/embed/(ph[A-Za-z0-9]+|[0-9a-fA-F]{13})/?$")
     private val desktopAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
-    private fun xvideos(id: String) = Original(
-        "https://www.xvideos.com/video.$id/_", ".video-tags-list a.is-keyword", ".video-description-text",
-    )
+    fun xvideosPage(id: String): String? {
+        if (!id.matches(Regex("[A-Za-z0-9]+"))) return null
+        val separator = if (id.all { it in '0'..'9' }) "" else "."
+        return "https://www.xvideos.com/video$separator$id/_"
+    }
+
+    private fun xvideos(id: String) = xvideosPage(id)?.let {
+        Original(it, ".video-tags-list a.is-keyword, .video-tags-list a.is-category", ".video-description-text")
+    }
 
     private fun originalPage(page: Document): Original? {
         for (frame in page.select("iframe[src], iframe[data-src]")) {
@@ -50,8 +56,8 @@ object DetailEnrichment {
     }
 
     suspend fun xvideosTags(id: String, spec: SiteSpec, budget: Long): List<String> {
-        if (!id.matches(Regex("[A-Za-z0-9]+"))) return emptyList()
-        return read(xvideos(id), spec, budget)?.tags.orEmpty()
+        val original = xvideos(id) ?: return emptyList()
+        return read(original, spec, budget)?.tags.orEmpty()
     }
 
     private suspend fun read(target: Original, spec: SiteSpec, budget: Long): VideoDetail? {

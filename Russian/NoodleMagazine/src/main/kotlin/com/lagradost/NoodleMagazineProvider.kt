@@ -9,8 +9,6 @@ import java.util.Collections
 import kotlinx.coroutines.CancellationException
 import okhttp3.Headers
 import okhttp3.Interceptor
-import org.json.JSONObject
-import org.json.JSONTokener
 import org.jsoup.nodes.Document
 
 class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
@@ -80,26 +78,14 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
             applyVideoDuration(detail.duration)
         }
     }
-    override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean {
-        val page=document(PageRequest(data));val emitted=mutableSetOf<String>()
-        for(script in page.select("script")) {
-            val assignment=Regex("window\\.playlist\\s*=\\s*").find(script.data()) ?: continue
-            val playlist=try{JSONTokener(script.data().substring(assignment.range.last+1)).nextValue() as? JSONObject}catch(_:Exception){null} ?: continue
-            val sources=playlist.optJSONArray("sources") ?: continue
-            for(i in 0 until sources.length()) {
-                val item=sources.optJSONObject(i) ?: continue
-                val url=item.optString("file").takeIf{it.startsWith("http://")||it.startsWith("https://")} ?: continue
-                if(!emitted.add(url))continue
-                callback(newExtractorLink(name,name,url,INFER_TYPE){referer=mainUrl;quality=getQualityFromName(item.optString("label"));headers=mapOf("User-Agent" to PLAYER_AGENT)})
-            }
-        }
-        return emitted.isNotEmpty()
-    }
+    override suspend fun loadLinks(
+        data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,
+    ): Boolean = NoodlePlayback.links(name, document(PageRequest(data)), data, "", callback)
+
     override fun getVideoInterceptor(extractorLink:ExtractorLink):Interceptor=Interceptor{chain->
-        val original=chain.request();val headers=Headers.Builder().add("User-Agent",PLAYER_AGENT)
+        val original=chain.request();val headers=Headers.Builder().add("User-Agent",NoodlePlayback.USER_AGENT)
         // Retain byte ranges for seeking while using the source's required player identity.
         for(name in listOf("Range","If-Range"))original.header(name)?.let{headers.add(name,it)}
         chain.proceed(original.newBuilder().headers(headers.build()).build())
     }
-    private companion object {const val PLAYER_AGENT="stagefright/1.2 (Linux;Android 13)"}
 }

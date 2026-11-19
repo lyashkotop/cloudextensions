@@ -4,13 +4,10 @@ package com.CXXX
 import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import okhttp3.Interceptor
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.json.JSONObject
-import org.json.JSONTokener
 
 class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
     override var mainUrl = "https://tyler-brown.com"
@@ -68,7 +65,8 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
         val pending=tags.filter{cyrillic.containsMatchIn(it) && it.lowercase() !in terms}
         val translated=if(pending.isEmpty())emptyList() else RequestLimits.optional(3500){Translation.text(pending.joinToString("\n"),"en")}?.split(Regex("[\r\n]+"))?.map(String::trim)?.filter(String::isNotBlank)
         val mapping=if(translated!=null && translated.size==pending.size)pending.zip(translated).toMap() else emptyMap()
-        return tags.mapNotNull{if(cyrillic.containsMatchIn(it))terms[it.lowercase()] ?: mapping[it] else it}.mapNotNull(Metadata::tag).distinctBy{it.lowercase()}
+        return tags.map { tag -> terms[tag.lowercase()] ?: mapping[tag] ?: tag }
+            .mapNotNull(Metadata::tag).distinctBy { it.lowercase() }
     }
 
     override suspend fun load(url: String): LoadResponse {
@@ -90,43 +88,11 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
         }
     }
 
-    override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean {
-        val page=document(data)
-        val playlist=page.select("script").firstNotNullOfOrNull { script ->
-            val start=Regex("""window\.playlist\s*=\s*""").find(script.data()) ?: return@firstNotNullOfOrNull null
-            try{JSONTokener(script.data().substring(start.range.last+1)).nextValue() as? JSONObject}catch(_:Exception){null}
-        } ?: throw ErrorLoadingException("Источник не предоставил плейлист")
-        val sources=playlist.optJSONArray("sources") ?: throw ErrorLoadingException("В плейлисте нет источников")
-        val seen=mutableSetOf<String>()
-        var emitted=0
-        for(i in 0 until sources.length()) {
-            val source=sources.optJSONObject(i) ?: continue
-            val url=fixUrlNull(source.optString("file"))?.takeIf{it.startsWith("https://")||it.startsWith("http://")} ?: continue
-            if(!seen.add(url))continue
-            val headers=Network.headers("$mainUrl/")+mapOf("User-Agent" to PLAYER_AGENT)
-            val working=RequestLimits.optional(2200){withContext(Dispatchers.IO){
-                val request=okhttp3.Request.Builder().url(url).header("Range","bytes=0-31")
-                headers.forEach{(key,value)->request.header(key,value)}
-                app.baseClient.newBuilder().callTimeout(2,java.util.concurrent.TimeUnit.SECONDS).build().newCall(request.build()).execute().use { response ->
-                    val type=response.header("Content-Type").orEmpty()
-                    response.isSuccessful && (type.startsWith("video/") || type.contains("mpegurl") || type.contains("octet-stream"))
-                }
-            }}==true
-            if(!working)continue
-            val label=source.optString("label")
-            val resolution=label.removeSuffix("p").toIntOrNull()
-            emitted++
-            callback(newExtractorLink(name,"",url,INFER_TYPE){
-                referer="$mainUrl/"
-                quality=resolution ?: Qualities.Unknown.value
-                this.headers=headers
-            })
-        }
-        if(emitted==0)throw ErrorLoadingException("Нет доступных потоков: серверы видео не ответили")
-        return true
-    }
+    override suspend fun loadLinks(
+        data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,
+    ): Boolean = NoodlePlayback.links(name, document(data), data, "$mainUrl/", callback)
+
     override fun getVideoInterceptor(extractorLink:ExtractorLink):Interceptor=Interceptor{chain->
-        chain.proceed(chain.request().newBuilder().header("User-Agent",PLAYER_AGENT).header("Referer","$mainUrl/").build())
+        chain.proceed(chain.request().newBuilder().header("User-Agent",NoodlePlayback.USER_AGENT).header("Referer","$mainUrl/").build())
     }
-    private companion object {const val PLAYER_AGENT="stagefright/1.2 (Linux;Android 13)"}
 }

@@ -7,7 +7,9 @@ import java.net.URLEncoder
 import com.cloudextensions.russian.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
+import org.json.JSONTokener
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 
@@ -154,7 +156,24 @@ class BeegProvider : MainAPI(), DetailTagSource {
 
     // ── Detail ───────────────────────────────────────────────────────────────
 
-    private val detailSpec get() = SiteSpec("Beeg", name, mainUrl, "span.item", "a[href]", ".title", emptyList())
+    private val detailSpec get() = SiteSpec(
+        "Beeg", name, mainUrl, "span.item", "a[href]", ".title", emptyList(),
+        tagSelector = ".lst_tag a.play-tag",
+    )
+    private val declaredPlayer = Regex("""\bvideo_embed\s*=\s*""")
+
+    private fun originalVideo(page: String): String? {
+        val assignment = declaredPlayer.find(page) ?: return null
+        val value = try {
+            JSONTokener(page.substring(assignment.range.last + 1)).nextValue() as? String
+        } catch (_: org.json.JSONException) {
+            null
+        }
+        val player = value?.toHttpUrlOrNull() ?: return null
+        return if (player.host == "vp.privatez.link") {
+            player.queryParameter("u")?.toHttpUrlOrNull()?.toString()
+        } else player.toString()
+    }
 
     override suspend fun missingTags(url: String): List<String> {
         val embed = Regex("[?&]e=([A-Za-z0-9]+)").find(url)?.groupValues?.get(1) ?: return emptyList()
@@ -176,13 +195,22 @@ class BeegProvider : MainAPI(), DetailTagSource {
         val title=Metadata.title(url,listOf(meta?.optString("title").orEmpty(),doc.selectFirst("h1")?.text().orEmpty(),doc.selectFirst("meta[property=og:title]")?.attr("content").orEmpty()))
         if(title.isBlank())throw ErrorLoadingException("Video metadata is missing")
         val detail = Metadata.detail(doc, spec)
-        val declaredTags = meta?.optString("cats")?.split(',')
+        val declaredTags = meta?.optString("cats")?.takeUnless { it == "[]" }?.split(',')
             ?.mapNotNull { Metadata.tag(it.trim().trim('*')) }.orEmpty().ifEmpty { detail.tags }
         val tags = if (declaredTags.isNotEmpty()) {
             originalTags?.cancel()
             declaredTags
         } else {
-            originalTags?.await() ?: DetailEnrichment.xvideosTags(findEncode(markup).orEmpty(), spec, budget = 2000)
+            val resolved = originalTags?.await()
+                ?: DetailEnrichment.xvideosTags(findEncode(markup).orEmpty(), spec, budget = 2000)
+            resolved.ifEmpty {
+                originalVideo(markup)?.let { source ->
+                    RequestLimits.optional(3000) {
+                        val original = Network.page(PageRequest(source), url)
+                        Metadata.detail(original, spec.copy(tagSelector = "")).tags
+                    }
+                }.orEmpty()
+            }
         }
         val related=meta?.optJSONArray("related")
         val recommendations=if(related==null)emptyList() else (0 until related.length()).mapNotNull { i ->
@@ -228,11 +256,23 @@ class BeegProvider : MainAPI(), DetailTagSource {
             if (playFromEmbedframe(encode, data, callback)) return true
         }
 
-        // 3. /play/ pages carry no embed code — resolve it through the site's own search API.
+        // 3. The regular home catalogue can declare a different host in its player.
+        val original = pageHtml?.let(::originalVideo) ?: encode?.let(DetailEnrichment::xvideosPage)
+        if (original != null) {
+            val played = try {
+                RequestLimits.optional(9000) { Playback.confirmedLinks(name, data, original, subtitleCallback, callback) }
+            } catch (_: NotImplementedError) {
+                null
+            }
+            if (played == true) return true
+        }
+
+        // 4. If the page omits its embed code, resolve it through the site's search API.
         if (videoId != null) {
-            val resolved = findEncodeViaSearch(videoId, pageHtml, data)
-            if (resolved != null && playFromEmbedframe(resolved, data, callback)) return true
-            if (resolved != null) playFromWrapper(videoId, resolved, data, callback)
+            val resolved = findEncodeViaSearch(videoId, pageHtml, data)?.takeUnless { it == encode }
+            if (resolved != null &&
+                (playFromEmbedframe(resolved, data, callback) || playFromWrapper(videoId, resolved, data, callback))
+            ) return true
         }
 
         // 4. Nothing playable: offer the preview, but say so instead of pretending it is the video.

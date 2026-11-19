@@ -12,7 +12,8 @@ internal object MediaRequests {
     suspend fun probe(url: String, referer: String, headers: Map<String, String>): Result? =
         RequestLimits.optional(3500) {
             val client = app.baseClient.newBuilder().callTimeout(3, TimeUnit.SECONDS).build()
-            val request = Request.Builder().url(url).header("Referer", referer)
+            val request = Request.Builder().url(url)
+            if (referer.isNotBlank()) request.header("Referer", referer)
             headers.forEach { (key, value) -> request.header(key, value) }
             val result = Network.read(request.header("Range", "bytes=0-31").build(), client, ::result)
             // A server can support normal media requests while rejecting byte ranges.

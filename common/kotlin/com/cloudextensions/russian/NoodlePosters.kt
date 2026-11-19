@@ -2,7 +2,6 @@ package com.cloudextensions.russian
 
 import org.json.JSONArray
 import org.json.JSONObject
-import org.json.JSONTokener
 import org.jsoup.nodes.Document
 import java.net.URI
 import java.util.Collections
@@ -26,7 +25,6 @@ internal object NoodlePosters {
     private val alternatives = Collections.synchronizedMap(BoundedMap<String, Pair<Long, List<String>>>(256))
     // The image proxy includes the upstream image host and path in the preview URL.
     private val wrappedPreview = Regex("""^/preview/[^/]+/[^/]+/[0-9]+/(sun[0-9]+(?:-[0-9]+)?\.vkuserphoto\.ru|i\.mycdn\.me)(/[^/].*)$""")
-    private val playlistAssignment = Regex("""\bwindow\.playlist\s*=\s*""")
 
     private fun originalImage(poster: String): String? {
         val uri = try { URI(poster) } catch (_: java.net.URISyntaxException) { return null }
@@ -50,16 +48,7 @@ internal object NoodlePosters {
             }
         } + page.select("meta[property=og:image], meta[property=og:image:secure_url], meta[name=twitter:image], link[rel=image_src], video[poster]").map {
             it.attr("content").ifBlank { it.attr("href").ifBlank { it.attr("poster") } }
-        } + page.select("script").mapNotNull { script ->
-            val js = script.data()
-            val assignment = playlistAssignment.find(js) ?: return@mapNotNull null
-            val playlist = try {
-                JSONTokener(js.substring(assignment.range.last + 1)).nextValue() as? JSONObject
-            } catch (_: org.json.JSONException) {
-                null
-            }
-            playlist?.optString("image")
-        }
+        } + NoodlePlayback.playlists(page).map { it.optString("image") }
         val base = page.baseUri().ifBlank { url }
         return images.mapNotNull { Metadata.imageUrl(base, it) }.distinct().also {
             alternatives[videoKey(url)] = System.nanoTime() to it
@@ -99,7 +88,7 @@ internal object NoodlePosters {
         // Keep the listing size when it works. Check the alternatives together so a slow CDN
         // cannot consume the entire budget before a valid cover is tried.
         verified(listOfNotNull(poster) + saved.orEmpty())?.let { return it }
-        if (saved == null && slowOriginal == null) {
+        if (saved == null) {
             val declared = RequestLimits.optional(1100) { remember(url, source.posterPage(url)) }.orEmpty()
             verified(declared)?.let { return it }
         }

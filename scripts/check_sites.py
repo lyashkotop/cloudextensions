@@ -34,14 +34,14 @@ def proxy_options():
     return options
 
 
-def probe(module, libraries, classes):
+def probe(module, libraries, classes, sample_count):
     command = [
         'java', *proxy_options(), '-cp', os.pathsep.join(map(str, [*libraries, classes])),
-        'com.cloudextensions.probes.SiteHealthProbeKt', module['entryClass'], QUERIES[module['language']],
+        'com.cloudextensions.probes.SiteHealthProbeKt', module['entryClass'], QUERIES[module['language']], str(sample_count),
     ]
     status = 'probe_error'
     try:
-        process = subprocess.run(command, capture_output=True, timeout=155)
+        process = subprocess.run(command, capture_output=True, timeout=155 + 85 * ((sample_count - 1) // 2))
         log = process.stdout
         if process.returncode == 0:
             status = 'complete'
@@ -67,7 +67,7 @@ def summary(report):
     lines = [
         '## CloudStream source check', '',
         'JVM SDK probes check HTTP responses and file signatures. A sample requiring Android WebView is marked accordingly.',
-        'When two distinct cards are available, results are shown separately for both samples.', '',
+        f"Up to {report.get('sampleLimit', 2)} distinct cards per source. Filtered cards are skipped for playback.", '',
         '| Source | ' + ' | '.join(STAGES.values()) + ' |',
         '| ' + ' | '.join(['---'] * (len(STAGES) + 1)) + ' |',
     ]
@@ -95,6 +95,8 @@ def main():
     parser.add_argument('--output', type=Path, default=ROOT / '.release/site-health.json')
     parser.add_argument('--selection', choices=('focused', 'all'), default='focused')
     parser.add_argument('--provider', action='append', help='Check a specific internal ID; may be repeated')
+    parser.add_argument('--samples', type=int, choices=range(1, 11), default=2, metavar='1–10',
+                        help='Number of distinct cards to check per source (default: 2)')
     args = parser.parse_args()
     available = modules()
     selection = set(args.provider) if args.provider else FOCUSED if args.selection == 'focused' else set()
@@ -125,13 +127,14 @@ def main():
             checks = []
             for compiled in as_completed(compiles):
                 module = compiles[compiled]
-                checks.append(network.submit(probe, module, [harness, *libraries, common], compiled.result()))
+                checks.append(network.submit(probe, module, [harness, *libraries, common], compiled.result(), args.samples))
             for checked in as_completed(checks):
                 site = checked.result()
                 results[site['provider']] = site
 
     report = {
         'checkedAt': datetime.now(timezone.utc).isoformat(),
+        'sampleLimit': args.samples,
         'providers': [results[module['id']] for module in selected],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
