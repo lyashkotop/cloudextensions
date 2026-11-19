@@ -44,7 +44,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--directory', type=Path, default=root / '.tools')
     parser.add_argument('--manifest', type=Path, default=root / 'tools/toolchain.json')
-    directory = parser.parse_args().directory
+    args = parser.parse_args()
+    directory = args.directory
     directory.mkdir(parents=True, exist_ok=True)
     for tool in json.loads(args.manifest.read_text()):
         target = directory / tool['file']

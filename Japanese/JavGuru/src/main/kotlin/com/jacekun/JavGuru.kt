@@ -1,5 +1,7 @@
 package com.jacekun
 
+import com.cloudextensions.russian.Network
+import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.RequestLimits
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
@@ -156,7 +158,7 @@ class JavGuru : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val pageBody = app.get(data).let { response -> response.okhttpResponse.use { response.text } }
+        val pageBody = Network.page(PageRequest(data), "$mainUrl/").html()
         val servers = Regex(""""iframe_url":"([A-Za-z0-9+/=]+)"""").findAll(pageBody)
             .mapNotNull { runCatching { base64Decode(it.groupValues[1]) }.getOrNull() }
             .distinct()
