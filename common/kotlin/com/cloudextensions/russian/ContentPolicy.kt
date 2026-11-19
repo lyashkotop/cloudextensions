@@ -70,7 +70,7 @@ object ContentPolicy {
         "домина",
         "доминатрикс",
     )
-    private val allowed = Regex("(?iu)(?<![\\p{L}\\p{N}])(?:lesbians?|лесби|лесбиян(?:ка|ки|ок|ский|ское|ские)?)(?![\\p{L}\\p{N}])")
+    private val allowed = Regex("(?iu)(?<![\\p{L}\\p{N}])(?:lesbians?|girls|лесби|лесбиян(?:ка|ки|ок|ке|ку|кой|кам|ками|ках|ский|ская|ское|ские)?|девуш(?:ки|ек|кам|ками|ках)|дівчат(?:а|ам|ами|ах)?)(?![\\p{L}\\p{N}])")
     private val blocked = Regex("(?iu)(?<![\\p{L}\\p{N}])(?:" + blockedWords.joinToString("|") { Regex.escape(it).replace(" ", "\\s+") } + ")(?![\\p{L}\\p{N}])")
     fun accepts(title: String, tags: List<String> = emptyList()): Boolean {
         if (!enabled) return true

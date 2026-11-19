@@ -74,6 +74,11 @@ fun main(args:Array<String>) {
     verify(Metadata.timing("32s")=="00:32" && Metadata.timing("32 sec")=="00:32","explicit seconds are parsed as seconds")
     verify(Metadata.timing("32 min")=="32:00","explicit minutes retain their unit")
     for(word in listOf("guy","lesbian","lesbians","лесби","лесбиянки","gay lesbians","gay лесби"))verify(ContentPolicy.accepts(word),"allowed word $word")
+    for (label in listOf("lesbians", "girls", "лесби", "лесбиянками", "девушки", "девушек", "дівчата")) {
+        verify(ContentPolicy.accepts("Blocked furry title", listOf(label)), "allowed tag overrides filter: $label")
+        verify(ContentPolicy.accepts(label.uppercase(), listOf("furry")), "allowed title overrides filter: $label")
+    }
+    verify(!ContentPolicy.accepts("Furry girlsnight"), "allowed words require boundaries")
     for(word in listOf("gay","гей","shemale","dominatrix","доминатрикс"))verify(!ContentPolicy.accepts(word),"blocked word $word")
     for (word in listOf("anime", "animation", "hebntai", "hentai", "furry")) {
         verify(!ContentPolicy.accepts(word.uppercase()), "new blocked title $word")
