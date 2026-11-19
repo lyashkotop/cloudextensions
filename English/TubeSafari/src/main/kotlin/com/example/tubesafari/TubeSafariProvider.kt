@@ -1,5 +1,6 @@
 package com.example.tubesafari
 import com.cloudextensions.russian.*
+import org.jsoup.nodes.Document
 class TubeSafariProvider: RussianProvider(SiteSpec(
  id="TubeSafari",
  title="TubeSafari",
@@ -11,4 +12,15 @@ class TubeSafariProvider: RussianProvider(SiteSpec(
  tagSelector=".video_tags a, .video_info a[href*=/search/], .tags a",
  descriptionSelector=".video_description, .video_description p",
  sections=listOf(Section("Swallow","/search/swallow"),Section("Fetish","/search/fetish"),Section("Shower","/search/shower"),Section("Pov","/search/pov"),Section("Party","/search/party"),Section("Lesbian","/search/lesbian"),Section("Amateur Anal","/search/amateur-anal"),Section("Asian Anal","/search/asian-anal"),Section("Latex","/search/latex"),Section("Ass Licking","/search/ass-licking"),Section("Japanese","/search/japanese"),Section("Best Blowjob","/search/best-blowjob"),Section("Squirting","/search/squirting"),Section("Bts","/search/bts"),Section("Bdsm","/search/bdsm"),Section("Throat Fuck","/search/throat-fuck"),Section("Amateur Couple","/search/amateur-couple"),Section("Casting","/search/casting"),Section("Natural","/search/natural"),Section("Milf","/search/milf"),Section("Cumshot","/search/cumshot"),Section("Edging","/search/edging"),Section("Cfnm","/search/cfnm"),Section("Fisting","/search/fisting"),Section("Missionary","/search/missionary"),Section("Solo Girl","/search/solo-girl"),Section("Curvy","/search/curvy"),Section("Femdom Pegging","/search/femdom-pegging"),Section("Dirty Talk","/search/dirty-talk"),Section("Interracial","/search/interracial"),Section("Amateur Milf","/search/amateur-milf"),Section("Massage","/search/massage"),Section("4K","/search/4k"),Section("Real Homemade","/search/real-homemade"),Section("British","/search/british"),Section("Face Fuck","/search/face-fuck"),Section("Facesitting","/search/facesitting"),Section("Big Cock","/search/big-cock"),Section("Sex","/search/sex"),Section("Panties","/search/panties"),Section("Pinay","/search/pinay"),Section("Czech","/search/czech"),Section("Pornstar","/search/pornstar"),Section("Parody","/search/parody"),Section("Blonde","/search/blonde"),Section("Real Orgasm","/search/real-orgasm"),Section("Latina","/search/latina"),Section("Mexicana","/search/mexicana"),Section("German","/search/german"),Section("Ass Eating","/search/ass-eating"),Section("Kink","/search/kink"),Section("Cuckold","/search/cuckold"),Section("Anal Creampie","/search/anal-creampie"),Section("Orgasm","/search/orgasm"),Section("Pov Blowjob","/search/pov-blowjob"),Section("Bukkake","/search/bukkake"),Section("Big Tits","/search/big-tits"),Section("Creampie","/search/creampie"),Section("Big Booty","/search/big-booty"),Section("Gangbang","/search/gangbang"),Section("Cum In Mouth","/search/cum-in-mouth"),Section("Sloppy Blowjob","/search/sloppy-blowjob"),Section("Huge Tits","/search/huge-tits"),Section("Reaction","/search/reaction"),Section("Riding Dick","/search/riding-dick"),Section("Pussy Eating","/search/pussy-eating"),Section("Dildo","/search/dildo"),Section("Cum Swallowing","/search/cum-swallowing"),Section("Mature","/search/mature"),Section("Facial","/search/facial"),Section("Femdom Handjob","/search/femdom-handjob"),Section("Orgy","/search/orgy"),Section("Solo Squirt","/search/solo-squirt"),Section("Threesome","/search/threesome"),Section("Squirt","/search/squirt"),Section("Big Ass","/search/big-ass"),Section("Chubby","/search/chubby"),Section("Amador","/search/amador"),Section("Arab","/search/arab"),Section("Riding","/search/riding"),Section("Cum On Face","/search/cum-on-face"),Section("Deepthroat","/search/deepthroat"),Section("Russian","/search/russian"),Section("Italian","/search/italian"))
-)){override var lang="en"}
+)), PosterSource {
+ override var lang="en"
+ override val posterTimeoutMs = 5600L
+ override fun readMetadata(document: Document): VideoDetail {
+  val detail = super.readMetadata(document)
+  if (detail.title.isNotBlank() || document.selectFirst("iframe#video2") == null) return detail
+  val title = document.title().replace(Regex("(?i)\\s+-\\s+tubesafari\\.com$"), "")
+  return detail.copy(title = Metadata.title(document.baseUri(), listOf(title)))
+ }
+ override suspend fun resolvePoster(url: String, poster: String?, headers: Map<String, String>): String? =
+  TubeSafariPosters.resolve(url, poster, headers)
+}

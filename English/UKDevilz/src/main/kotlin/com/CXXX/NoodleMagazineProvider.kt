@@ -86,8 +86,7 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
             tags=categories
             plot=null
             this.recommendations=recommendations
-            val seconds=metadata.duration.split(':').fold(0.0){sum,value->sum*60+(value.toDoubleOrNull()?:0.0)}
-            if(seconds>0)duration=(seconds/60).toInt()
+            applyVideoDuration(metadata.duration)
         }
     }
 

@@ -43,17 +43,17 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         ready
     } } }.awaitAll() }
     private val posterPermits = Semaphore(12)
-    private suspend fun withNoodlePosters(items: List<SearchResponse>): List<SearchResponse> = coroutineScope {
-        val provider = source as? NoodlePosterSource ?: return@coroutineScope items
+    private suspend fun withResolvedPosters(items: List<SearchResponse>): List<SearchResponse> = coroutineScope {
+        val provider = source as? PosterSource ?: return@coroutineScope items
         items.map { item -> async {
             if (item !is MovieSearchResponse) return@async item
             val headers = item.posterHeaders.orEmpty()
-            val poster = RequestLimits.optional(3500) {
-                posterPermits.withPermit { NoodlePosters.resolve(provider, item.url, item.posterUrl, headers) }
+            val poster = RequestLimits.optional(provider.posterTimeoutMs) {
+                posterPermits.withPermit { provider.resolvePoster(item.url, item.posterUrl, headers) }
             }
             if (poster == null || poster == item.posterUrl) return@async item
             Metadata.rememberPoster(item.url, poster)
-            item.copy(posterUrl = poster, posterHeaders = NoodlePosters.headersFor(poster, item.url, headers))
+            item.copy(posterUrl = poster, posterHeaders = PosterRequests.headersFor(poster, item.url, headers))
         } }.awaitAll()
     }
     private data class Review(val allowed:Boolean,val detail:LoadResponse?,val title:String?=detail?.name)
@@ -111,7 +111,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     }
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная") {
         val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
-        val rows=result.items.map{it.copy(list=withNoodlePosters(cards(it.list,prefetch=true)))}
+        val rows=result.items.map{it.copy(list=withResolvedPosters(cards(it.list,prefetch=true)))}
         ImagePrefetch.warm(rows.flatMap{it.list})
         newHomePageResponse(rows,result.hasNext)
     }
@@ -122,7 +122,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         if(!ContentPolicy.accepts(query))return@required newSearchResponseList(emptyList(),false)
         if(lang !in listOf("ru","en") || (source as? SearchPolicy)?.translateQueries==false) {
             val result=Translation.originalOnly{source.search(query,page)}?:return@required newSearchResponseList(emptyList(),false)
-            val ready=withNoodlePosters(prepareSearch(result.items))
+            val ready=withResolvedPosters(prepareSearch(result.items))
             ImagePrefetch.warm(ready)
             return@required newSearchResponseList(ready,result.hasNext)
         }
@@ -137,7 +137,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         if(responses.isEmpty())batches.firstNotNullOfOrNull{it.error}?.let{throw it}
         val merged=responses.flatMap{it.items}.filter{ContentPolicy.accepts(it.name)}.distinctBy{videoKey(it.url)}
         val previous=synchronized(searchHistory){if(page==1)searchHistory[query]=mutableMapOf();searchHistory.getOrPut(query){mutableMapOf()}.filterKeys{it<page}.values.flatten().toSet()}
-        val fresh=prepareSearch(merged.filter{videoKey(it.url) !in previous})
+        val fresh=withResolvedPosters(prepareSearch(merged.filter{videoKey(it.url) !in previous}))
         synchronized(searchHistory){searchHistory.getOrPut(query){mutableMapOf()}[page]=fresh.map{videoKey(it.url)}.toSet()}
         ImagePrefetch.warm(fresh)
         newSearchResponseList(fresh,responses.any{it.hasNext})
@@ -146,20 +146,21 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         val result=savedReview(url)?.detail ?: source.load(url) ?: throw ErrorLoadingException("Источник не вернул карточку")
         if(!ContentPolicy.accepts(result.name,result.tags.orEmpty()))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         result.plot=Metadata.description(result.plot,result.name)
+        result.showShortDuration()
         result.tags=result.tags.orEmpty().mapNotNull(Metadata::tag).distinctBy{it.lowercase()}
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
         if(result is MovieLoadResponse) {
             val headers = Network.imageHeaders(result.posterUrl, url) + result.posterHeaders.orEmpty()
-            val provider = source as? NoodlePosterSource
+            val provider = source as? PosterSource
             val poster = provider?.let {
-                RequestLimits.optional(3500) { NoodlePosters.resolve(it, url, result.posterUrl, headers) }
+                RequestLimits.optional(it.posterTimeoutMs) { it.resolvePoster(url, result.posterUrl, headers) }
             }
             result.posterHeaders = if (poster != null && poster != result.posterUrl) {
                 result.posterUrl = Metadata.rememberPoster(url, poster)
-                NoodlePosters.headersFor(poster, url, headers)
+                PosterRequests.headersFor(poster, url, headers)
             } else headers
         }
-        result.recommendations=withNoodlePosters(cards(result.recommendations.orEmpty(),prefetch=true))
+        result.recommendations=withResolvedPosters(cards(result.recommendations.orEmpty(),prefetch=true))
         ImagePrefetch.warm(result.recommendations.orEmpty(),0)
         result
     }

@@ -69,8 +69,7 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         }
         return newMovieLoadResponse(detail.title,url,TvType.NSFW,url){
             posterUrl=detail.poster;posterHeaders=Network.headers("$mainUrl/");plot=Metadata.plot(detail);tags=detail.tags;recommendations=related
-            val seconds=detail.duration.split(':').fold(0.0){total,p->total*60+(p.toDoubleOrNull()?:0.0)}
-            if(seconds>0)duration=(seconds/60).toInt()
+            applyVideoDuration(detail.duration)
         }
     }
     override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean {

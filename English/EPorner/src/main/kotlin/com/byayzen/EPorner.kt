@@ -2,6 +2,7 @@ package com.byayzen
 
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.*
+import com.cloudextensions.russian.applyVideoDuration
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.utils.*
@@ -71,8 +72,8 @@ class EPorner : MainAPI() {
         )
         val tags = document.select("div#video-info-tags ul li.vit-category a, div#video-info-tags ul li.vit-tag a").map { it.text() }
         val year = document.selectFirst("span.C a")?.text()?.trim()?.toIntOrNull()
-        val duration = document.selectFirst("span.vid-length")?.text()?.replace("min", "")?.trim()
-            ?.toIntOrNull()
+        val duration = document.selectFirst("span.vid-length")?.text()?.trim()
+        val exactDuration = if (duration?.all(Char::isDigit) == true) "$duration min" else duration
         val description =
             document.selectFirst("#video-description, .video-description")?.text()?.trim()
         val recommendations =
@@ -84,7 +85,7 @@ class EPorner : MainAPI() {
             this.plot = description
             this.year = year
             this.tags = tags
-            this.duration = duration
+            applyVideoDuration(exactDuration)
             this.recommendations = recommendations
             addActors(actors)
         }

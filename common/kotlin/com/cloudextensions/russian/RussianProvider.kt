@@ -159,8 +159,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy {
             year=detail.year
             this.recommendations=recommendations
             // No rounded minute value is reused as an exact duration.
-            val parts=detail.duration.split(':');val seconds=parts.fold(0.0){total,value->total*60+(value.toDoubleOrNull()?:0.0)}
-            if(seconds>0)duration=(seconds/60).toInt()
+            applyVideoDuration(detail.duration)
         }
     }
     protected open suspend fun related(document: Document,detail: VideoDetail,url: String): List<SearchResponse> {

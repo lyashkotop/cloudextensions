@@ -71,7 +71,7 @@ class AdaptedProvider(private val source: MainAPI): MainAPI() {
                 val metadata=page?.let{Metadata.detail(it,SiteSpec("upstream",name,mainUrl,".none","a[href]",".title",emptyList()))}
                 if(result.plot.isNullOrBlank())result.plot=metadata?.description
                 if(result.tags.isNullOrEmpty())result.tags=metadata?.tags
-                if(result.duration==null && metadata!=null && metadata.duration.isNotBlank())result.duration=(metadata.duration.split(':').fold(0.0){total,v->total*60+(v.toDoubleOrNull()?:0.0)}/60).toInt()
+                if(result.duration==null && metadata!=null)result.applyVideoDuration(metadata.duration)
                 result.posterUrl=Metadata.choosePoster(url,result.posterUrl,metadata?.poster)
             }catch(e:CancellationException){throw e}catch(_:Exception){}
         }

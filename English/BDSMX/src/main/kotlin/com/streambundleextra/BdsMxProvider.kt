@@ -74,8 +74,7 @@ class BdsMxProvider:MainAPI() {
         val related=RequestLimits.optional { labels.firstOrNull()?.let{catalogue(it,1).items.filter{r->r.url!=url}} }.orEmpty()
         return newMovieLoadResponse(Metadata.title(url,listOf(title)),url,TvType.NSFW,url){
             posterUrl=image(item);posterHeaders=Network.headers(mainUrl);plot=label(item,"description");tags=labels;recommendations=related
-            val seconds=Metadata.timing(item.optString("duration")).split(':').fold(0.0){a,b->a*60+(b.toDoubleOrNull()?:0.0)}
-            if(seconds>0)duration=(seconds/60).toInt()
+            applyVideoDuration(item.optString("duration"))
         }
     }
     override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean {

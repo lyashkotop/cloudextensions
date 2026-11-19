@@ -176,7 +176,7 @@ class BeegProvider : MainAPI() {
             posterUrl=Metadata.choosePoster(url,meta?.optString("thumb"),detail.poster)
             plot=detail.description;this.tags=tags;this.recommendations=recommendations
             val seconds=meta?.optInt("dur",0)?:0
-            if(seconds>0)duration=seconds/60
+            applyVideoDuration(if (seconds > 0) seconds.toString() else detail.duration)
         }
     }
 
