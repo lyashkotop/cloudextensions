@@ -1,0 +1,11 @@
+{
+  "id": "Ro85",
+  "name": "85RO",
+  "language": "ja",
+  "category": "Japanese",
+  "entryClass": "com.cloudextensions.entries.Ro85Plugin",
+  "providerClass": "com.cloudextensions.sites.Ro85Provider",
+  "description": "85ro.com — Japanese catalogue, search and KVS playback.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Ro85.png",
+  "runtime": "kotlin"
+}

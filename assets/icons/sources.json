@@ -488,5 +488,15 @@
     "bytes": 757,
     "sha256": "28f4b55c38b80046595354f62c66dc1dc3e555016e4006ab2986b32909653f88",
     "file": "BDSMStreak.png"
+  },
+  {
+    "id": "Ro85",
+    "domain": "85ro.com",
+    "source": "https://www.85ro.com/favicon-32x32.png",
+    "http": 200,
+    "ok": true,
+    "bytes": 1731,
+    "sha256": "500807a43067629bcbe8734bd6fdb7e9eb8f1ef9b2323434fc649a3f4e292f5f",
+    "file": "Ro85.png"
   }
 ]
