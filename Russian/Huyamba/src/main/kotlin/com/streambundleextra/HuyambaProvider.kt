@@ -1,6 +1,7 @@
 package com.streambundleextra
 
 import com.cloudextensions.russian.*
+import com.lagradost.cloudstream3.LoadResponse
 
 class HuyambaProvider: RussianProvider(SiteSpec(
     id="Huyamba", title="Huyamba", origin="https://ru.huyamba.name",
@@ -43,4 +44,19 @@ class HuyambaProvider: RussianProvider(SiteSpec(
         Section("Домашнее порно видео","/categories/homemade-porn-videos/"),
         Section("Виртуальное порно VR 360","/categories/vr-porn-videos/"),
     )
-))
+)) {
+    override suspend fun load(url: String): LoadResponse {
+        val detail = super.load(url)
+        val description = detail.plot.orEmpty()
+        if (description.length >= 90) {
+            val prefix = description.take(description.length / 2)
+            val sentence = prefix.indexOfLast { it in ".!?" } + 1
+            detail.plot = if (sentence >= description.length / 3) prefix.take(sentence)
+                else prefix.take(prefix.lastIndexOf(' ').takeIf { it >= description.length / 3 } ?: prefix.length)
+                    .trimEnd() + "…"
+        }
+        val tags = detail.tags.orEmpty()
+        detail.tags = tags.take(maxOf(8, (tags.size * 3 + 3) / 4))
+        return detail
+    }
+}

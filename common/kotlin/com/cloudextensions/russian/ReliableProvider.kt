@@ -6,12 +6,17 @@ import okhttp3.Interceptor
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
 private const val SEARCH_REVIEW_LIMIT = 10
+private const val SEARCH_PAGE_MINIMUM = 4
+private const val MAX_UPSTREAM_PAGES_PER_EXPANSION = 4
+private const val SEARCH_REVIEW_BUDGET_MS = 5_000L
 
 /** UI request bounds and one real preview shared by the search and detail response. */
 class ReliableProvider(private val source:MainAPI):MainAPI() {
@@ -94,57 +99,67 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     private val reviews=java.util.Collections.synchronizedMap(BoundedMap<String,Pair<Long,Review>>(128))
     private val reviewPermits=Semaphore(4)
     private fun savedReview(url:String)=reviews[videoKey(url)]?.takeIf{System.nanoTime()-it.first<300_000_000_000L}?.second
-    private suspend fun review(card:SearchResponse,budget:Long=3500):Review? {
-        savedReview(card.url)?.let{return it}
-        val result=RequestLimits.optional(budget){reviewPermits.withPermit {
-            try {
-                if(source is SearchMetadataSource){
-                    val meta=source.searchMetadata(card.url)
-                    return@withPermit Review(ContentPolicy.accepts(meta.title,meta.tags),null,meta.title)
+    private fun remainingMillis(deadline: Long) = (deadline - System.nanoTime()) / 1_000_000
+
+    private suspend fun review(card: SearchResponse, deadline: Long): Review? {
+        savedReview(card.url)?.let { return it }
+        val result = RequestLimits.optional(remainingMillis(deadline)) {
+            reviewPermits.withPermit {
+                savedReview(card.url)?.let { return@withPermit it }
+                val budget = minOf(3500L, remainingMillis(deadline))
+                RequestLimits.optional(budget) {
+                    try {
+                        if (source is SearchMetadataSource) {
+                            val meta = source.searchMetadata(card.url)
+                            Review(ContentPolicy.accepts(meta.title, meta.tags), null, meta.title)
+                        } else {
+                            val detail = source.load(card.url) ?: return@optional null
+                            Review(ContentPolicy.accepts(detail.name, detail.tags.orEmpty()), detail)
+                        }
+                    } catch (e: ErrorLoadingException) {
+                        if (excludedDetails.containsMatchIn(e.message.orEmpty())) Review(false, null) else null
+                    }
                 }
-                val detail=source.load(card.url) ?: return@withPermit null
-                Review(ContentPolicy.accepts(detail.name,detail.tags.orEmpty()),detail)
-            }catch(e:ErrorLoadingException){
-                if(Regex("(?iu)hidden by category filter|скрыто фильтром|приватн|private video").containsMatchIn(e.message.orEmpty()))Review(false,null) else null
             }
-        }} ?: return null
-        reviews[videoKey(card.url)]=System.nanoTime() to result
+        } ?: return null
+        reviews[videoKey(card.url)] = System.nanoTime() to result
         return result
     }
-    private suspend fun previewSearch(items:List<SearchResponse>):List<SearchResponse> = coroutineScope {
-        val accepted=mutableListOf<SearchResponse>()
-        val deadline=System.nanoTime()+5_000_000_000L
-        var cursor=0
-        while(accepted.size<SEARCH_REVIEW_LIMIT && cursor<items.size) {
-            val budget=((deadline-System.nanoTime())/1_000_000).coerceAtMost(3500)
-            if(budget<=0)break
-            val batch=items.drop(cursor).take(SEARCH_REVIEW_LIMIT-accepted.size)
-            cursor+=batch.size
-            accepted+=batch.map { card -> async {
-                val checked=review(card,budget) ?: return@async null
-                if(!checked.allowed)return@async null
-                val full=checked.title?.let{Metadata.title(card.url,listOf(it))} ?: card.name
-                val ready=if(card is MovieSearchResponse)card.copy(name=full) else card
-                if (source !is PosterSource) ImagePrefetch.warm(listOf(ready))
-                ready
-            }}.awaitAll().filterNotNull()
+
+    private val excludedDetails = Regex("(?iu)hidden by category filter|скрыто фильтром|приватн|private video")
+
+    private suspend fun previewSearch(items: List<SearchResponse>, deadline: Long): List<SearchResponse> = coroutineScope {
+        val accepted = mutableListOf<SearchResponse>()
+        var cursor = 0
+        while (accepted.size < SEARCH_REVIEW_LIMIT && cursor < items.size && remainingMillis(deadline) > 0) {
+            val end = minOf(items.size, cursor + SEARCH_REVIEW_LIMIT - accepted.size)
+            val batch = items.subList(cursor, end)
+            cursor = end
+            accepted += batch.map { card ->
+                async {
+                    val checked = review(card, deadline) ?: return@async null
+                    if (!checked.allowed) return@async null
+                    val full = checked.title?.let { Metadata.title(card.url, listOf(it)) } ?: card.name
+                    val ready = if (card is MovieSearchResponse) card.copy(name = full) else card
+                    if (source !is PosterSource) ImagePrefetch.warm(listOf(ready))
+                    ready
+                }
+            }.awaitAll().filterNotNull()
         }
         // Append unreviewed cards only after filling the checked prefix.
-        if(accepted.size>=SEARCH_REVIEW_LIMIT)accepted+items.drop(cursor) else accepted
+        if (accepted.size >= SEARCH_REVIEW_LIMIT) accepted + items.drop(cursor) else accepted
     }
-    private suspend fun prepareSearch(items:List<SearchResponse>):List<SearchResponse> = coroutineScope {
+
+    private suspend fun prepareSearch(items: List<SearchResponse>, deadline: Long): List<SearchResponse> = coroutineScope {
         val normalized = items.filter { ContentPolicy.accepts(it.name) }.map { normalizeCard(it) }
-        val expanded = async {
-            val deadline = System.nanoTime() + 3_000_000_000L
-            normalized.filter { Metadata.isTruncatedTitle(it.name) && ContentPolicy.accepts(it.name) }
-                .map { card -> async { videoKey(card.url) to expandTitle(card, deadline) } }.awaitAll().toMap()
-        }
-        val reviewed = previewSearch(normalized)
-        val titles = expanded.await()
+        val reviewed = previewSearch(normalized, deadline)
         reviewed.map { card ->
-            val full=Metadata.title(card.url,listOf(card.name,titles[videoKey(card.url)].orEmpty()))
-            if(card is MovieSearchResponse)card.copy(name=full) else card
-        }
+            async {
+                if (card !is MovieSearchResponse || !Metadata.isTruncatedTitle(card.name)) return@async card
+                val title = RequestLimits.optional(remainingMillis(deadline)) { expandTitle(card, deadline) }
+                card.copy(name = Metadata.title(card.url, listOf(card.name, title.orEmpty())))
+            }
+        }.awaitAll()
     }
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная") {
         val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
@@ -162,28 +177,64 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         ImagePrefetch.warm(items)
         return newSearchResponseList(items, hasNext)
     }
-    private val searchHistory=java.util.Collections.synchronizedMap(BoundedMap<String,MutableMap<Int,Set<String>>>(32))
-    override suspend fun search(query:String,page:Int):SearchResponseList = RequestLimits.required("Поиск") {
-        if(!ContentPolicy.accepts(query))return@required newSearchResponseList(emptyList(),false)
-        if(lang !in listOf("ru","en") || (source as? SearchPolicy)?.translateQueries==false) {
-            val result=source.search(query,page)?:return@required newSearchResponseList(emptyList(),false)
-            val ready=withResolvedPosters(prepareSearch(result.items))
-            return@required searchPage(ready, page, result.hasNext)
+    private data class SavedSearchPage(val response: SearchResponseList, val nextUpstreamPage: Int)
+    private class SearchHistory {
+        val mutex = Mutex()
+        val pages = mutableMapOf<Int, SavedSearchPage>()
+    }
+    private val searchHistory = BoundedMap<String, SearchHistory>(32)
+
+    private suspend fun upstreamSearch(query: String, page: Int): SearchResponseList {
+        if (lang !in listOf("ru", "en") || (source as? SearchPolicy)?.translateQueries == false) {
+            return source.search(query, page) ?: newSearchResponseList(emptyList(), false)
         }
-        data class Batch(val response:SearchResponseList?,val error:Exception?=null)
-        suspend fun branch(term:String):Batch=try{Batch(source.search(term,page))}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){Batch(null,e)}
-        val batches=coroutineScope {
-            val original=async{branch(query)}
-            val translated=async{Translation.translated(query)?.let{branch(it)}}
-            listOfNotNull(original.await(),translated.await())
+        data class Batch(val response: SearchResponseList?, val error: Exception? = null)
+        suspend fun branch(term: String): Batch = try {
+            Batch(source.search(term, page))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Batch(null, e)
         }
-        val responses=batches.mapNotNull{it.response}
-        if(responses.isEmpty())batches.firstNotNullOfOrNull{it.error}?.let{throw it}
-        val merged=responses.flatMap{it.items}.filter{ContentPolicy.accepts(it.name)}.distinctBy{videoKey(it.url)}
-        val previous=synchronized(searchHistory){if(page==1)searchHistory[query]=mutableMapOf();searchHistory.getOrPut(query){mutableMapOf()}.filterKeys{it<page}.values.flatten().toSet()}
-        val fresh=withResolvedPosters(prepareSearch(merged.filter{videoKey(it.url) !in previous}))
-        synchronized(searchHistory){searchHistory.getOrPut(query){mutableMapOf()}[page]=fresh.map{videoKey(it.url)}.toSet()}
-        searchPage(fresh, page, responses.any { it.hasNext })
+        val batches = coroutineScope {
+            val original = async { branch(query) }
+            val translated = async { Translation.translated(query)?.let { branch(it) } }
+            listOfNotNull(original.await(), translated.await())
+        }
+        val responses = batches.mapNotNull { it.response }
+        if (responses.isEmpty()) batches.firstNotNullOfOrNull { it.error }?.let { throw it }
+        return newSearchResponseList(responses.flatMap { it.items }, responses.any { it.hasNext })
+    }
+
+    override suspend fun search(query: String, page: Int): SearchResponseList = RequestLimits.required("Поиск") {
+        if (page < 1 || !ContentPolicy.accepts(query)) return@required newSearchResponseList(emptyList(), false)
+        val history = synchronized(searchHistory) {
+            if (page == 1) SearchHistory().also { searchHistory[query] = it }
+            else searchHistory.getOrPut(query) { SearchHistory() }
+        }
+        history.mutex.withLock {
+            history.pages[page]?.let { return@withLock it.response }
+            val seen = history.pages.asSequence().filter { it.key < page }
+                .flatMap { it.value.response.items.asSequence() }.mapTo(mutableSetOf()) { videoKey(it.url) }
+            var upstream = history.pages[page - 1]?.nextUpstreamPage ?: page
+            var result = upstreamSearch(query, upstream)
+            val deadline = System.nanoTime() + SEARCH_REVIEW_BUDGET_MS * 1_000_000L
+            val cards = mutableListOf<SearchResponse>()
+            var limit = if (page == 1) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
+            while (true) {
+                val unique = result.items.distinctBy { videoKey(it.url) }.filter { videoKey(it.url) !in seen }
+                val checked = prepareSearch(unique, deadline)
+                cards += checked
+                seen += checked.map { videoKey(it.url) }
+                upstream++
+                limit--
+                if (cards.size >= SEARCH_PAGE_MINIMUM || !result.hasNext || limit == 0) break
+                result = RequestLimits.optional(remainingMillis(deadline)) { upstreamSearch(query, upstream) } ?: break
+            }
+            val response = searchPage(withResolvedPosters(cards), page, result.hasNext)
+            history.pages[page] = SavedSearchPage(response, upstream)
+            response
+        }
     }
     override suspend fun load(url: String): LoadResponse = RequestLimits.required("Карточка") { loadCard(url) }
 
