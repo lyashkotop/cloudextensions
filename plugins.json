@@ -120,9 +120,9 @@
     "fileHash": "sha256-ba983f9a10b4e03aebed3aaf39015d6e711d2285e01cadf200897a5b532b9e1a"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/122/Strip2.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/123/Strip2.cs3",
     "status": 1,
-    "version": 122,
+    "version": 123,
     "apiVersion": 1,
     "name": "1 · RU · Strip2",
     "internalName": "Strip2",
@@ -136,8 +136,8 @@
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Strip2.jpg",
-    "fileSize": 132662,
-    "fileHash": "sha256-12e934d5216b4d3c176f2ec768fe01f957e1cdc938fb0f5d78da1ed603f44765"
+    "fileSize": 133014,
+    "fileHash": "sha256-16e583c4f71ab1525d83c9b1f3b6dc36b413ada92330eb611dc0dd80c10ce88c"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/122/Vpoisk.cs3",
