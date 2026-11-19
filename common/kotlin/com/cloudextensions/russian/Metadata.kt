@@ -105,7 +105,10 @@ object Metadata {
             val image = card.selectFirst("img")
             val label = title(url,listOf(localizedTitle(card,spec.titleLanguage).orEmpty(),link.attr("title"),link.attr("aria-label"),image?.attr("alt").orEmpty(),card.selectFirst(spec.titleSelector)?.attr("title").orEmpty(),card.selectFirst(spec.titleSelector)?.text().orEmpty(),image?.attr("aria-label").orEmpty()))
             if (label.isBlank()) continue
-            val tags = card.select("[rel=tag], [data-tag]").map { clean(it.text()) }.filter(String::isNotBlank).distinct()
+            val tags = (
+                card.select("[rel=tag], [data-tag]").flatMap { listOf(it.text(), it.attr("data-tag")) } +
+                    listOf(card.attr("data-orientation"), link.attr("data-orientation"))
+                ).map(::clean).filter(String::isNotBlank).distinct()
             if (!ContentPolicy.accepts(label,tags)) continue
             val clocks=card.select(".prop span,.video_length,.m_time").map { clean(it.text()) }.filter { it.matches(Regex("(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}")) }
             val duration = (card.select(".duration, .card__duration, .video-duration, .time, [data-duration]").asSequence().map { timing(it.attr("data-duration").ifBlank { it.text() }) }.toList()+clocks.map(::timing)).firstOrNull(String::isNotBlank).orEmpty()

@@ -11,4 +11,7 @@ class ThisVidProvider: RussianProvider(SiteSpec(
  descriptionSelector=".box ul.description > li:first-child p",
  durationSelector=".box .title-description:matchesOwn([0-9]+:[0-9]{2})",
  sections=listOf(Section("Latest","/"),Section("Popular","/popular/"))
-)){override var lang="en"}
+)) {
+    override var lang = "en"
+    override val minInitialSearchResults = 3
+}

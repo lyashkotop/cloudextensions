@@ -117,14 +117,21 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     }
     override suspend fun search(query:String):List<SearchResponse> = search(query,1).items
     override suspend fun quickSearch(query:String):List<SearchResponse> = search(query,1).items
+    private suspend fun searchPage(items: List<SearchResponse>, page: Int, hasNext: Boolean): SearchResponseList {
+        val minimum = (source as? SearchPolicy)?.minInitialSearchResults ?: 1
+        if (minimum > 1 && page == 1 && items.size < minimum) {
+            return newSearchResponseList(emptyList(), false)
+        }
+        ImagePrefetch.warm(items)
+        return newSearchResponseList(items, hasNext)
+    }
     private val searchHistory=java.util.Collections.synchronizedMap(BoundedMap<String,MutableMap<Int,Set<String>>>(32))
     override suspend fun search(query:String,page:Int):SearchResponseList = RequestLimits.required("Поиск") {
         if(!ContentPolicy.accepts(query))return@required newSearchResponseList(emptyList(),false)
         if(lang !in listOf("ru","en") || (source as? SearchPolicy)?.translateQueries==false) {
             val result=Translation.originalOnly{source.search(query,page)}?:return@required newSearchResponseList(emptyList(),false)
             val ready=withResolvedPosters(prepareSearch(result.items))
-            ImagePrefetch.warm(ready)
-            return@required newSearchResponseList(ready,result.hasNext)
+            return@required searchPage(ready, page, result.hasNext)
         }
         data class Batch(val response:SearchResponseList?,val error:Exception?=null)
         suspend fun branch(term:String):Batch=try{Batch(Translation.originalOnly{source.search(term,page)})}catch(e:kotlinx.coroutines.CancellationException){throw e}catch(e:Exception){Batch(null,e)}
@@ -139,8 +146,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         val previous=synchronized(searchHistory){if(page==1)searchHistory[query]=mutableMapOf();searchHistory.getOrPut(query){mutableMapOf()}.filterKeys{it<page}.values.flatten().toSet()}
         val fresh=withResolvedPosters(prepareSearch(merged.filter{videoKey(it.url) !in previous}))
         synchronized(searchHistory){searchHistory.getOrPut(query){mutableMapOf()}[page]=fresh.map{videoKey(it.url)}.toSet()}
-        ImagePrefetch.warm(fresh)
-        newSearchResponseList(fresh,responses.any{it.hasNext})
+        searchPage(fresh, page, responses.any { it.hasNext })
     }
     override suspend fun load(url:String):LoadResponse = RequestLimits.required("Карточка") {
         val result=savedReview(url)?.detail ?: source.load(url) ?: throw ErrorLoadingException("Источник не вернул карточку")
