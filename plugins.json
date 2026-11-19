@@ -540,9 +540,9 @@
     "fileHash": "sha256-7a69bcb22b6d93486799c76cd5d00c6150b6b62b3c91ac1564df2c5f6ea85792"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/117/TubeSafari.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/118/TubeSafari.cs3",
     "status": 1,
-    "version": 117,
+    "version": 118,
     "apiVersion": 1,
     "name": "3 · EN · TubeSafari",
     "internalName": "TubeSafari",
@@ -556,8 +556,8 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/TubeSafari.jpg",
-    "fileSize": 141489,
-    "fileHash": "sha256-85bca510247c85a32616eb34238bb67d40c7d3270986beb3febce0ffac2e7194"
+    "fileSize": 141468,
+    "fileHash": "sha256-7822ddcbbd7dd4df46e85a24e084802759d71453d2e5b8b7960d17a52fc18813"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/117/UKDevilz.cs3",
