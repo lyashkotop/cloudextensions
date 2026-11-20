@@ -360,9 +360,9 @@
     "fileHash": "sha256-92369bfbbf6ae7158f86c12ec48b30b7e0f40325c57fc7d1eb99654486bc4fe3"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/128/HeavyR.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/130/HeavyR.cs3",
     "status": 1,
-    "version": 128,
+    "version": 130,
     "apiVersion": 1,
     "name": "3 · EN · Heavy-R",
     "internalName": "HeavyR",
@@ -376,8 +376,8 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/HeavyR.png",
-    "fileSize": 143949,
-    "fileHash": "sha256-9fa8e3fe5e4b3e208e505db4e6b84881beebfd72df9831d7debc70a91081d535"
+    "fileSize": 146161,
+    "fileHash": "sha256-ca2f9b2e0673a33b64d0f1c6e6f9f41f85bf2b673a53b40cb5e76acd754fbd6d"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/128/HurtSex.cs3",

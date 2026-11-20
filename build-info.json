@@ -1,12 +1,12 @@
 {
-  "version": 129,
-  "sourceCommit": "ad61e237df3c0d0e2738cfd2bcf32bf52ebca41e",
+  "version": 130,
+  "sourceCommit": "1977db5a09d12e7ffb72aacaf528ee55d3880ba6",
   "packageLayout": "versioned",
   "plugins": 31,
   "rebuilt": [
-    "Vpoisk"
+    "HeavyR"
   ],
-  "dexClasses": 6762,
+  "dexClasses": 6765,
   "entryRegistrationsValidated": 31,
   "kotlinProviders": 31
 }
