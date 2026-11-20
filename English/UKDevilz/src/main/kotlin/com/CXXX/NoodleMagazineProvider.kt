@@ -4,7 +4,9 @@ package com.CXXX
 import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
+import java.util.Collections
 import okhttp3.Interceptor
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.json.JSONObject
@@ -24,6 +26,14 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
     )
     private val homePages = NoodleCatalogue()
     private val searchPages = NoodleCatalogue()
+    private val listingTitles = Collections.synchronizedMap(object : LinkedHashMap<String, String>(128, .75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > 256
+    })
+    private val watchPath = Regex("""/watch/(-?\d+(?:_\d+)?)/?""")
+    private val escapedUnicode = Regex("""\\u([a-fA-F0-9]{4})""")
+    private val genericTitle = Regex(
+        """(?i)^(?:video|watch video|watch online|free porn videos?|popular videos?|video (?:not found|unavailable|deleted)|noodle magazine|ukdevilz)[.!]?$"""
+    )
     private val spec get()=SiteSpec("UKDevilz",name,mainUrl,"div.item","a[href]","div.i_info div.title",emptyList(),
         tagSelector="#videoTagsBar a.vtag",titleLanguage="en",detailTitleSelector="div.l_info h1")
     private suspend fun document(url:String):Document = app.get(url,headers=mapOf("Cookie" to "ui_lang=en","Accept-Language" to "en-US,en;q=0.9")).document
@@ -40,6 +50,7 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
     private fun Element.toSearchResult(): MovieSearchResponse? {
         val href = fixUrl(this.selectFirst("a")?.attr("href") ?: return null)
         val title = this.selectFirst("a div.i_info div.title")?.text() ?: return null
+        if (usableTitle(title)) listingTitles[watchId(href) ?: href] = title
         val poster=Metadata.rememberPoster(href,Metadata.poster(this,mainUrl))
         return newMovieSearchResponse(Metadata.title(href,listOf(title)), href, TvType.NSFW) {
             posterUrl=poster
@@ -56,7 +67,29 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
 
     override suspend fun posterPage(url: String): Document = document(url)
 
-    override suspend fun fullTitle(url:String):String? = Metadata.detail(document(url),spec).title
+    private fun watchId(url: String): String? =
+        url.toHttpUrlOrNull()?.encodedPath?.let { watchPath.matchEntire(it)?.groupValues?.get(1) }
+
+    private fun usableTitle(value: String): Boolean = Metadata.sourceValue(value) && !genericTitle.matches(value)
+
+    private fun videoTitle(url: String, page: Document): String? {
+        val requested = watchId(url)
+        val actual = watchId(page.baseUri())
+        if (requested != null && actual != null && requested != actual) {
+            throw ErrorLoadingException("Сайт вернул страницу другого видео")
+        }
+        val heading = page.selectFirst("div.l_info h1")
+        val title = heading?.selectFirst("[data-video-title-translations], [data-video-title-base]") ?: heading
+        val translated = title?.attr("data-video-title-translations")?.let { raw ->
+            runCatching { JSONObject(raw).optString("en") }.getOrNull()
+        }?.let { value ->
+            escapedUnicode.replace(value) { it.groupValues[1].toInt(16).toChar().toString() }
+        }
+        return listOf(translated, title?.text(), title?.attr("data-video-title-base"), listingTitles[requested ?: url])
+            .map(Metadata::clean).firstOrNull(::usableTitle)
+    }
+
+    override suspend fun fullTitle(url:String):String? = videoTitle(url, document(url))
 
     private suspend fun englishTags(page:Document):List<String> {
         val tags=page.select("#videoTagsBar a.vtag").mapNotNull { element ->
@@ -74,14 +107,14 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
 
     override suspend fun load(url: String): LoadResponse {
         val document=document(url)
+        val title=videoTitle(url,document) ?: throw ErrorLoadingException("Источник не предоставил название видео")
         val metadata=Metadata.detail(document,spec)
         rememberNoodlePosters(url, document)
-        if(metadata.title.isBlank())throw ErrorLoadingException("Источник не предоставил название")
         val originalTags=document.select("#videoTagsBar a.vtag").map{it.text()}
-        if(!ContentPolicy.accepts(metadata.title+" "+document.selectFirst("div.l_info h1")?.text().orEmpty(),originalTags))throw ErrorLoadingException("Видео скрыто фильтром категорий")
+        if(!ContentPolicy.accepts(title+" "+document.selectFirst("div.l_info h1")?.text().orEmpty(),originalTags,metadata.description))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         val categories=englishTags(document)
         val recommendations = NoodleCatalogue.distinct(document.select("div.item").mapNotNull { it.toSearchResult() }, url)
-        return newMovieLoadResponse(metadata.title,url,TvType.NSFW,url) {
+        return newMovieLoadResponse(title,url,TvType.NSFW,url) {
             posterUrl=metadata.poster
             posterHeaders=Network.imageHeaders(metadata.poster,url)
             tags=categories

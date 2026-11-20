@@ -206,6 +206,9 @@ fun main(args:Array<String>) {
         verify(ContentPolicy.accepts("Лесбиянки", listOf(word)),"lesbian title overrides blocked tag $word")
     }
     verify(ContentPolicy.accepts("A video", listOf("black", "man")),"compound phrase stays within one field")
+    verify(!ContentPolicy.accepts("A video", description = "Contains HENTAI."),"hentai in the description blocks the card")
+    verify(ContentPolicy.accepts("A video", description = "hentaist and anime"),"the new rule matches only the whole word in descriptions")
+    verify(ContentPolicy.accepts("A video", listOf("lesbians"), "hentai"),"the lesbian exception also covers the description rule")
     verify(ContentPolicy.accepts("13D"),"3D is matched as a word")
     verify(Metadata.title("https://example.org/null-title",listOf("null","Original full title"))=="Original full title","JSON null never becomes the title")
     verify(Translation.target("big грудь")=="en","mixed two-word query gets an English companion")

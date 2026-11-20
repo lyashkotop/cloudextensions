@@ -122,10 +122,10 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                     try {
                         if (source is SearchMetadataSource) {
                             val meta = source.searchMetadata(card.url)
-                            Review(ContentPolicy.accepts(meta.title, meta.tags + Metadata.cardTags(card.url)), null, meta.title)
+                            Review(ContentPolicy.accepts(meta.title, meta.tags + Metadata.cardTags(card.url), meta.description), null, meta.title)
                         } else {
                             val detail = source.load(card.url) ?: return@optional null
-                            Review(ContentPolicy.accepts(detail.name, detail.tags.orEmpty() + Metadata.cardTags(card.url)), detail)
+                            Review(ContentPolicy.accepts(detail.name, detail.tags.orEmpty() + Metadata.cardTags(card.url), detail.plot), detail)
                         }
                     } catch (e: ErrorLoadingException) {
                         if (excludedDetails.containsMatchIn(e.message.orEmpty())) Review(false, null) else null
@@ -300,7 +300,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         val missingTags = if (tagsSource != null && result.tags.isNullOrEmpty()) {
             async { RequestLimits.optional(5700) { tagsSource.missingTags(url) }.orEmpty() }
         } else null
-        if (missingTags == null && !ContentPolicy.accepts(result.name, result.tags.orEmpty() + listedTags)) {
+        if (missingTags == null && !ContentPolicy.accepts(result.name, result.tags.orEmpty() + listedTags, result.plot)) {
             throw ErrorLoadingException("Видео скрыто фильтром категорий")
         }
         result.plot=Metadata.description(result.plot,result.name)
@@ -322,7 +322,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         }
         val tags = missingTags?.await() ?: result.tags.orEmpty()
         if (missingTags != null) {
-            if (!ContentPolicy.accepts(result.name, tags + listedTags)) throw ErrorLoadingException("Видео скрыто фильтром категорий")
+            if (!ContentPolicy.accepts(result.name, tags + listedTags, result.plot)) throw ErrorLoadingException("Видео скрыто фильтром категорий")
             if (result is MovieLoadResponse) ImagePrefetch.warm(result.posterUrl, result.posterHeaders.orEmpty())
         }
         result.tags = tags.mapNotNull(Metadata::tag).distinctBy { it.lowercase() }
