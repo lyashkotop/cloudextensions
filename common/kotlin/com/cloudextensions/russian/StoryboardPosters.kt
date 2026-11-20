@@ -20,13 +20,16 @@ internal object StoryboardPosters {
 
     fun frames(text: String, base: String): List<Frame> {
         if (!text.trimStart('\uFEFF').startsWith("WEBVTT")) return emptyList()
-        return text.lineSequence().mapNotNull { line ->
+        val sheets = text.lineSequence().mapNotNull { line ->
             val url = Metadata.imageUrl(base, line.trim().takeIf { "#xywh=" in it }) ?: return@mapNotNull null
             val (x, y, width, height) = coordinates.matchEntire(url.substringAfterLast('#'))
                 ?.groupValues?.drop(1)?.map(String::toInt) ?: return@mapNotNull null
             if (width < 100 || height < 75) return@mapNotNull null
             Frame(url.substringBeforeLast('#'), x, y, width, height)
-        }.distinctBy { it.sheet }.take(3).toList()
+        }.distinctBy { it.sheet }.take(120).toList()
+        if (sheets.size <= 6) return sheets
+        return listOf(0, 1, sheets.size / 2, 2, sheets.size / 4, sheets.size * 3 / 4)
+            .distinct().map(sheets::get)
     }
 
     fun cached(video: String): String? = destination(video)?.takeIf { it.isFile && it.length() > 0 }

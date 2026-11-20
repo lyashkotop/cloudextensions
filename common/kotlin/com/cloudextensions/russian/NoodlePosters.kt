@@ -8,6 +8,7 @@ import java.util.Collections
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -30,6 +31,7 @@ internal object NoodlePosters {
     private val alternatives = Collections.synchronizedMap(BoundedMap<String, Pair<Long, Candidates>>(256))
     // The image proxy includes the upstream image host and path in the preview URL.
     private val wrappedPreview = Regex("""^/preview/[^/]+/[^/]+/[0-9]+/(sun[0-9]+(?:-[0-9]+)?\.(?:vkuserphoto\.ru|userapi\.com)|i\.mycdn\.me|iv\.okcdn\.ru)(/[^/].*)$""")
+    private val legacyVkHost = Regex("""sun[0-9]+(?:-[0-9]+)?\.userapi\.com""")
 
     private fun originalImage(poster: String): String? {
         val uri = try { URI(poster) } catch (_: java.net.URISyntaxException) { return null }
@@ -38,6 +40,41 @@ internal object NoodlePosters {
         val (host, path) = match.destructured
         val query = uri.rawQuery?.let { "?$it" }.orEmpty()
         return Metadata.imageUrl(poster, "https://$host$path$query")
+    }
+
+    private fun imageSources(image: String): List<String> {
+        val original = originalImage(image) ?: image
+        val mirror = original.toHttpUrlOrNull()?.takeIf { legacyVkHost.matches(it.host) }
+            ?.let { it.newBuilder().host(it.host.removeSuffix(".userapi.com") + ".vkuserphoto.ru").build().toString() }
+        return listOfNotNull(mirror, original, image).distinct()
+    }
+
+    private suspend fun storyboardFrame(
+        url: String, frames: List<StoryboardPosters.Frame>, headers: Map<String, String>,
+    ): String? = coroutineScope {
+        val results = Channel<String?>(frames.size)
+        val checks = frames.mapIndexed { index, frame ->
+            launch {
+                if (index >= 3) delay(900)
+                for (sheet in imageSources(frame.sheet)) {
+                    val requestHeaders = Network.replacementImageHeaders(sheet, url, headers)
+                    val cached = RequestLimits.optional(2500) {
+                        StoryboardPosters.save(url, frame.copy(sheet = sheet), requestHeaders)
+                    }
+                    if (cached != null) {
+                        results.send(cached)
+                        return@launch
+                    }
+                }
+                results.send(null)
+            }
+        }
+        try {
+            repeat(checks.size) { results.receive()?.let { return@coroutineScope it } }
+            null
+        } finally {
+            checks.forEach { it.cancel() }
+        }
     }
 
     fun remember(url: String, page: Document): Candidates {
@@ -82,9 +119,9 @@ internal object NoodlePosters {
         val tried = mutableSetOf<String>()
         var slowOriginal: String? = null
         suspend fun verified(candidates: List<String>): String? = coroutineScope {
-            val originals = candidates.mapNotNull(::originalImage).toSet()
-            val images = candidates.flatMap { listOfNotNull(originalImage(it), it) }
-                .distinct().filterNot(tried::contains).take(4)
+            val sources = candidates.associateWith(::imageSources)
+            val originals = sources.flatMap { (image, options) -> options.filter { it != image } }.toSet()
+            val images = sources.values.flatten().distinct().filterNot(tried::contains).take(5)
             val results = Channel<Pair<String, Boolean?>>(images.size)
             val checks = images.map { image ->
                 tried += image
@@ -115,16 +152,8 @@ internal object NoodlePosters {
             val fallback = RequestLimits.optional(4000) {
                 val text = Network.page(PageRequest(declared.track), url).wholeText()
                 val frames = StoryboardPosters.frames(text, declared.track)
-                for (frame in frames) {
-                    for (sheet in listOfNotNull(originalImage(frame.sheet), frame.sheet).distinct()) {
-                        val requestHeaders = Network.replacementImageHeaders(sheet, url, headers)
-                        val cached = RequestLimits.optional(2500) {
-                            StoryboardPosters.save(url, frame.copy(sheet = sheet), requestHeaders)
-                        }
-                        if (cached != null) return@optional cached
-                    }
-                }
-                null
+                // Try sheets from different points in the video. One sheet can be gone while later ones still work.
+                storyboardFrame(url, frames, headers)
             }
             if (fallback != null) return fallback
         }
