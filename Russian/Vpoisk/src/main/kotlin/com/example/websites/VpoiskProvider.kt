@@ -1,6 +1,11 @@
 package com.example.websites
 
 import com.cloudextensions.russian.*
+import com.lagradost.cloudstream3.ErrorLoadingException
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.newExtractorLink
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 class VpoiskProvider: RussianProvider(SiteSpec(
     id="Vpoisk", title="Vpoisk", origin="https://m.vpoisk.xyz",
@@ -82,4 +87,32 @@ class VpoiskProvider: RussianProvider(SiteSpec(
         Section("Фистинг","/cat/%D0%A4%D0%B8%D1%81%D1%82%D0%B8%D0%BD%D0%B3/"),
         Section("Японцы","/cat/%D0%AF%D0%BF%D0%BE%D0%BD%D1%86%D1%8B/"),
     )
-))
+)) {
+    override suspend fun loadLinks(
+        data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,
+    ): Boolean {
+        val document = page(PageRequest(data))
+        val pageUrl = document.baseUri().toHttpUrlOrNull()
+            ?: throw ErrorLoadingException("Некорректный адрес Vpoisk")
+        val videoId = pageUrl.pathSegments.lastOrNull { it.isNotBlank() }?.toLongOrNull()
+            ?: throw ErrorLoadingException("Vpoisk не указал ID видео")
+        val sources = document.select("#v_preview video#player_a[src], #v_preview video#player_a source[src]")
+            .mapNotNull { pageUrl.resolve(it.attr("src")) }
+            .filter { it.isHttps && it.host == "cdn.vpoisk.tv" && it.pathSegments.last() == "$videoId.mp4" }
+            .distinct()
+        var found = false
+        for (source in sources) {
+            val stream = source.toString()
+            val link = newExtractorLink(name, name, stream, Playback.streamType(stream)) {
+                referer = pageUrl.toString()
+                headers = Network.headers(referer)
+            }
+            if (Playback.checkDirectLink(link) == true) {
+                callback(link)
+                found = true
+            }
+        }
+        if (!found) throw ErrorLoadingException("Vpoisk не отдал поток выбранного видео")
+        return true
+    }
+}
