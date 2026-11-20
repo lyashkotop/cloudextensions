@@ -100,9 +100,9 @@
     "fileHash": "sha256-028359836440a59272101a87a592579e900401b3bd90fb51fbdd8bdb3b906d0c"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/132/Semyana.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/133/Semyana.cs3",
     "status": 1,
-    "version": 132,
+    "version": 133,
     "apiVersion": 1,
     "name": "1 · RU · Semyana",
     "internalName": "Semyana",
@@ -116,8 +116,8 @@
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Semyana.png",
-    "fileSize": 162762,
-    "fileHash": "sha256-1f354f8cb76e3587e5b3476be5918d14ec52267700d8794fe8b4da825316ed4e"
+    "fileSize": 163017,
+    "fileHash": "sha256-ba3d58dd93a3a3f4b95df8695324f33a03f44c2d2c9c18159a3b1337f8ad28f4"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/132/Strip2.cs3",
