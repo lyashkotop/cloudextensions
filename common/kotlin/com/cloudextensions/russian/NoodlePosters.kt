@@ -29,7 +29,7 @@ internal object NoodlePosters {
     data class Candidates(val images: List<String>, val track: String?)
     private val alternatives = Collections.synchronizedMap(BoundedMap<String, Pair<Long, Candidates>>(256))
     // The image proxy includes the upstream image host and path in the preview URL.
-    private val wrappedPreview = Regex("""^/preview/[^/]+/[^/]+/[0-9]+/(sun[0-9]+(?:-[0-9]+)?\.(?:vkuserphoto\.ru|userapi\.com)|i\.mycdn\.me)(/[^/].*)$""")
+    private val wrappedPreview = Regex("""^/preview/[^/]+/[^/]+/[0-9]+/(sun[0-9]+(?:-[0-9]+)?\.(?:vkuserphoto\.ru|userapi\.com)|i\.mycdn\.me|iv\.okcdn\.ru)(/[^/].*)$""")
 
     private fun originalImage(poster: String): String? {
         val uri = try { URI(poster) } catch (_: java.net.URISyntaxException) { return null }
