@@ -140,9 +140,9 @@
     "fileHash": "sha256-bf18a3400052b1f1e92585289423c19ba73d1dbc0d9a8702189dba0c035bfb77"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/128/Vpoisk.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/129/Vpoisk.cs3",
     "status": 1,
-    "version": 128,
+    "version": 129,
     "apiVersion": 1,
     "name": "1 · RU · Vpoisk",
     "internalName": "Vpoisk",
@@ -156,8 +156,8 @@
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Vpoisk.png",
-    "fileSize": 158204,
-    "fileHash": "sha256-717710c12a141f9809c31a6d37270b79b506b3cf62dfc27c9902ca22a9b6ead4"
+    "fileSize": 159845,
+    "fileHash": "sha256-20b506b84681cdbcc2e26a1c081244979b786b3189135d70506f8937f5a5e506"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Japanese/128/JavGuru.cs3",
