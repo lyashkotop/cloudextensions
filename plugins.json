@@ -20,9 +20,9 @@
     "fileHash": "sha256-86adbabfd2d03eee927d9ea914fc6895ef8d2e2d1111d2a0b74bd9b6002af454"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/134/Huyamba.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/135/Huyamba.cs3",
     "status": 1,
-    "version": 134,
+    "version": 135,
     "apiVersion": 1,
     "name": "1 · RU · Huyamba",
     "internalName": "Huyamba",
@@ -36,8 +36,8 @@
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Huyamba.png",
-    "fileSize": 164393,
-    "fileHash": "sha256-8d65b6a317510786cc6da095d0a581db405cbc38a5714b09ce6fa99a8abb3959"
+    "fileSize": 164061,
+    "fileHash": "sha256-586176108fb6b4b60e938a9f2dde8f502a79b5b1c1fd7c224e087aca49d85c80"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/134/NoodleMagazine.cs3",
