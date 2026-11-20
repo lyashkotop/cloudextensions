@@ -123,7 +123,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         val base = readMetadata(document)
         val meta = if (includeOriginal) reviewMetadata(document, base) else base
         val heading=document.selectFirst("h1")?.text().orEmpty()
-        if(!ContentPolicy.accepts(heading,meta.tags))throw ErrorLoadingException("Видео скрыто фильтром категорий")
+        if(!ContentPolicy.accepts(heading,meta.tags + Metadata.cardTags(url)))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         if(meta.title.isBlank())throw ErrorLoadingException("Название не получено")
         return meta
     }
@@ -133,7 +133,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
     protected suspend fun loadDocument(url: String, document: Document): LoadResponse {
         val detail=enrichMetadata(document, readMetadata(document))
         if(detail.title.isBlank())throw ErrorLoadingException("На странице нет названия видео")
-        if(!ContentPolicy.accepts(detail.title,detail.tags))throw ErrorLoadingException("Видео скрыто фильтром категорий")
+        if(!ContentPolicy.accepts(detail.title,detail.tags + Metadata.cardTags(url)))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         val posterHeaders = Network.imageHeaders(detail.poster, mainUrl.trimEnd('/') + "/")
         if (this !is PosterSource) ImagePrefetch.warm(detail.poster, posterHeaders)
         val recommendations=RequestLimits.optional { related(document,detail,url) }.orEmpty()

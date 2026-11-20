@@ -1,6 +1,6 @@
 package com.cloudextensions.russian
 
-/** Same category choices as the previous bundle; explicit allowed words take precedence. */
+/** Apply the same category rules to titles and individual tags. */
 object ContentPolicy {
     @Volatile var enabled = true
     val blockedWords = listOf("cuckolding","куколдство","куколдинг","куколдский","транс","трансы","cuckold","cuckolds","куколд","куколды","куколда","куколдом","trans",
@@ -34,6 +34,7 @@ object ContentPolicy {
         "3d",
         "3dporn",
         "3d animated",
+        "3danimated",
         "black man",
         "pregnant",
         "furry",
@@ -76,14 +77,13 @@ object ContentPolicy {
         "доминатрикс",
     )
     private val allowed = Regex("(?iu)(?<![\\p{L}\\p{N}])(?:lesbians?|girls|лесби|лесбиян(?:ка|ки|ок|ке|ку|кой|кам|ками|ках|ский|ская|ское|ские)?|девуш(?:ки|ек|кам|ками|ках)|дівчат(?:а|ам|ами|ах)?)(?![\\p{L}\\p{N}])")
-    private val blocked = Regex("(?iu)(?<![\\p{L}\\p{N}])(?:" + blockedWords.joinToString("|") { Regex.escape(it).replace(" ", "\\s+") } + ")(?![\\p{L}\\p{N}])")
-    private val blockedTitles = Regex("""(?iu)(?<![\p{L}\p{N}])(?:anime|hentai)(?![\p{L}\p{N}])""")
-    private val alwaysBlocked = Regex("""(?iu)(?<![\p{L}\p{N}])(?:3d(?:[\s_-]*(?:porn|animated))?|black[\s_-]+man|pregnant)(?![\p{L}\p{N}])""")
+    private val blockedPatterns = blockedWords.joinToString("|") { word ->
+        word.split(' ').joinToString("[\\s_-]+", transform = Regex::escape)
+    }
+    private val blocked = Regex("""(?iu)(?<![\p{L}\p{N}])(?:$blockedPatterns)(?![\p{L}\p{N}])""")
     fun accepts(title: String, tags: List<String> = emptyList()): Boolean {
         if (!enabled) return true
         val fields = listOf(title) + tags
-        if (blockedTitles.containsMatchIn(title) || fields.any(alwaysBlocked::containsMatchIn)) return false
-        val evidence = fields.joinToString(" ")
-        return allowed.containsMatchIn(evidence) || !blocked.containsMatchIn(evidence)
+        return fields.any(allowed::containsMatchIn) || fields.none(blocked::containsMatchIn)
     }
 }

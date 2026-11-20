@@ -199,13 +199,13 @@ fun main(args:Array<String>) {
     for(word in listOf("cuckold","cuckolds","куколд","куколды","trans"))verify(!ContentPolicy.accepts(word),"new blocked category $word")
     verify(ContentPolicy.accepts("transport"),"trans is matched as a word, not a transport substring")
     verify(ContentPolicy.accepts("trans lesbians"),"explicit lesbian exception is retained")
-    for (word in listOf("anime", "hentai")) {
-        verify(!ContentPolicy.accepts("A $word title", listOf("lesbians")),"blocked title category $word")
+    for (word in ContentPolicy.blockedWords + listOf("3D-animated", "black  man", "female-domination")) {
+        verify(!ContentPolicy.accepts("A $word title"),"blocked title $word")
+        verify(!ContentPolicy.accepts("A video", listOf(word)),"blocked tag $word")
+        verify(ContentPolicy.accepts("A $word title", listOf("lesbians")),"lesbian tag overrides blocked title $word")
+        verify(ContentPolicy.accepts("Лесбиянки", listOf(word)),"lesbian title overrides blocked tag $word")
     }
-    for (word in listOf("3d", "3dporn", "3d animated", "3D-animated", "black  man", "pregnant")) {
-        verify(!ContentPolicy.accepts("Girls", listOf(word)),"blocked tag $word")
-        verify(!ContentPolicy.accepts("Girls $word"),"blocked title phrase $word")
-    }
+    verify(ContentPolicy.accepts("A video", listOf("black", "man")),"compound phrase stays within one field")
     verify(ContentPolicy.accepts("13D"),"3D is matched as a word")
     verify(Metadata.title("https://example.org/null-title",listOf("null","Original full title"))=="Original full title","JSON null never becomes the title")
     verify(Translation.target("big грудь")=="en","mixed two-word query gets an English companion")

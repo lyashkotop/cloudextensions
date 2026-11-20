@@ -16,6 +16,7 @@ object Metadata {
     private val posters = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val posterTimes = Collections.synchronizedMap(BoundedMap<String,Long>(1024))
     private val durations = Collections.synchronizedMap(BoundedMap<String,String>(1024))
+    private val listedTags = Collections.synchronizedMap(BoundedMap<String, List<String>>(1024))
     private val stopTag = Regex("(?iu)^(?:ра|для|и|а|но|что|это|как|при|the|and|for|with|from|of|to|in|on|an?|home|главная|tags|теги|categories|категории|all videos|все видео|(?:free |hd )?porn(?: videos?)?|порно(?: видео)?|xxx|hd|sd|[48]k|[0-9]{3,4}p)$")
     private val shortTag = Regex("[A-Za-z0-9\\u3040-\\u30ff\\u3400-\\u9fff]{2}")
     private val promo = Regex("(?iu)(?:смотрите (?:у нас|онлайн|бесплатно)|смотреть (?:онлайн|бесплатно)|бесплатные порно видео|watch (?:online|for free)|free porn videos|best porn site)")
@@ -58,6 +59,7 @@ object Metadata {
     fun clean(value: String?) = value.orEmpty().replace('\u00a0',' ').replace(whitespace," ").trim()
     private fun value(e: Element?): String = e?.let { listOf(it.attr("content"), it.attr("datetime"), it.text()).firstOrNull(String::isNotBlank) }.orEmpty()
     internal fun isTruncatedTitle(title: String): Boolean = truncated.containsMatchIn(title.trim())
+    internal fun cardTags(url: String): List<String> = listedTags[videoKey(url)].orEmpty()
 
     fun title(url: String, candidates: List<String>): String {
         val key = videoKey(url)
@@ -118,6 +120,7 @@ object Metadata {
                 card.select("[rel=tag], [data-tag]").flatMap { listOf(it.text(), it.attr("data-tag")) } +
                     listOf(card.attr("data-orientation"), link.attr("data-orientation"))
                 ).map(::clean).filter(String::isNotBlank).distinct()
+            if (tags.isNotEmpty()) listedTags[videoKey(url)] = tags
             if (!ContentPolicy.accepts(label,tags)) continue
             val clocks=card.select(".prop span,.video_length,.m_time").map { clean(it.text()) }.filter { it.matches(Regex("(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}")) }
             val duration = (card.select(".duration, .card__duration, .video-duration, .time, [data-duration]").asSequence().map { timing(it.attr("data-duration").ifBlank { it.text() }) }.toList()+clocks.map(::timing)).firstOrNull(String::isNotBlank).orEmpty()
