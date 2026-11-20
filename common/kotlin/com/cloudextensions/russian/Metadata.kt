@@ -132,6 +132,12 @@ object Metadata {
         // ThisVid renders trending blocks when no search matches. Those are never search results.
         val requested=java.net.URI(request.url)
         if(requested.host.orEmpty().removePrefix("www.")=="thisvid.com" && requested.path.orEmpty().startsWith("/search/") && page.selectFirst("#list_videos_common_videos_list_items")==null)return true
+        if (requested.host.orEmpty().removePrefix("www.") == "tubebdsm.com" &&
+            (requested.path.orEmpty().startsWith("/search") || current.path.orEmpty().startsWith("/search/")) &&
+            page.select("#content h3, .search-block h3").any {
+                it.closest(".card") == null && emptyMessage.containsMatchIn(it.text())
+            }
+        ) return true
         val redirected=request.data==null && java.net.URI(request.url).path.orEmpty().contains("search") && current.path.orEmpty().trim('/').isEmpty() && current.query.isNullOrBlank()
         return page.attr("data-response-code")=="404" || redirected || page.select("h1,h2,.empty,.no-results,.no-result,.nothing-found,.list-videos .message,.message").any {
             emptyMessage.containsMatchIn(it.text())

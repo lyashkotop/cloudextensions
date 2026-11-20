@@ -3,6 +3,8 @@ package com.cloudextensions.russian
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import okhttp3.Interceptor
+import java.io.File
+import java.net.URI
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitAll
@@ -52,13 +54,13 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         }?.takeIf { it.isNotBlank() } ?: card.name
     }
 
-    private suspend fun cards(items: List<SearchResponse>): List<SearchResponse> = coroutineScope {
+    private suspend fun cards(items: List<SearchResponse>, expandTitles: Boolean = true): List<SearchResponse> = coroutineScope {
         val deadline = System.nanoTime() + 3_000_000_000L
         val allowed = items.filter { ContentPolicy.accepts(it.name) }
         val posters = allowed.map { card -> normalizeCard(card, title = card.name) }
         if (source !is PosterSource) ImagePrefetch.warm(posters)
         val titles = allowed.map { card ->
-            if (Metadata.isTruncatedTitle(card.name)) async { expandTitle(card, deadline) } else null
+            if (expandTitles && Metadata.isTruncatedTitle(card.name)) async { expandTitle(card, deadline) } else null
         }
         posters.mapIndexed { index, card ->
             val title = titles[index]?.await() ?: Metadata.title(card.url, listOf(card.name))
@@ -73,7 +75,10 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         provider: PosterSource, url: String, poster: String?, headers: Map<String, String>,
     ): String? {
         val key = PosterKey(videoKey(url), poster, headers.toMap())
-        resolvedPosters[key]?.takeIf { System.nanoTime() - it.first < 90_000_000_000L }?.let { return it.second }
+        resolvedPosters[key]?.takeIf {
+            System.nanoTime() - it.first < 90_000_000_000L &&
+                (!it.second.startsWith("file:") || runCatching { File(URI(it.second)).isFile }.getOrDefault(false))
+        }?.let { return it.second }
         val resolved = RequestLimits.optional(provider.posterTimeoutMs) {
             posterPermits.withPermit { provider.resolvePoster(url, poster, headers) }
         }
@@ -81,15 +86,20 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         return resolved
     }
 
-    private suspend fun withResolvedPosters(items: List<SearchResponse>): List<SearchResponse> = coroutineScope {
+    private fun resolvedPosterHeaders(poster: String, url: String, headers: Map<String, String>): Map<String, String> =
+        if (poster.startsWith("file:")) emptyMap() else Network.replacementImageHeaders(poster, url, headers)
+
+    private suspend fun withResolvedPosters(
+        items: List<SearchResponse>, missingOnly: Boolean = false,
+    ): List<SearchResponse> = coroutineScope {
         val provider = source as? PosterSource ?: return@coroutineScope items
         items.mapIndexed { index, item -> async {
-            if (item !is MovieSearchResponse) return@async item
+            if (item !is MovieSearchResponse || (missingOnly && !item.posterUrl.isNullOrBlank())) return@async item
             val headers = item.posterHeaders.orEmpty()
             val poster = resolvePoster(provider, item.url, item.posterUrl, headers)
             val ready = if (poster == null || poster == item.posterUrl) item else {
                 Metadata.rememberPoster(item.url, poster)
-                item.copy(posterUrl = poster, posterHeaders = Network.replacementImageHeaders(poster, item.url, headers))
+                item.copy(posterUrl = poster, posterHeaders = resolvedPosterHeaders(poster, item.url, headers))
             }
             if (index < 7) ImagePrefetch.warm(listOf(ready))
             ready
@@ -184,6 +194,10 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     }
     private val searchHistory = BoundedMap<String, SearchHistory>(32)
 
+    private fun searchKey(card: SearchResponse): String =
+        if (source is NoodlePosterSource && (source as? SearchPolicy)?.translateQueries == true) NoodleCatalogue.identity(card.url)
+        else videoKey(card.url)
+
     private suspend fun upstreamSearch(query: String, page: Int): SearchResponseList {
         if (lang !in listOf("ru", "en") || (source as? SearchPolicy)?.translateQueries == false) {
             return source.search(query, page) ?: newSearchResponseList(emptyList(), false)
@@ -215,17 +229,17 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         history.mutex.withLock {
             history.pages[page]?.let { return@withLock it.response }
             val seen = history.pages.asSequence().filter { it.key < page }
-                .flatMap { it.value.response.items.asSequence() }.mapTo(mutableSetOf()) { videoKey(it.url) }
+                .flatMap { it.value.response.items.asSequence() }.mapTo(mutableSetOf(), ::searchKey)
             var upstream = history.pages[page - 1]?.nextUpstreamPage ?: page
             var result = upstreamSearch(query, upstream)
             val deadline = System.nanoTime() + SEARCH_REVIEW_BUDGET_MS * 1_000_000L
             val cards = mutableListOf<SearchResponse>()
             var limit = if (page == 1) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
             while (true) {
-                val unique = result.items.distinctBy { videoKey(it.url) }.filter { videoKey(it.url) !in seen }
+                val unique = result.items.distinctBy(::searchKey).filter { searchKey(it) !in seen }
                 val checked = prepareSearch(unique, deadline)
                 cards += checked
-                seen += checked.map { videoKey(it.url) }
+                seen += checked.map(::searchKey)
                 upstream++
                 limit--
                 if (cards.size >= SEARCH_PAGE_MINIMUM || !result.hasNext || limit == 0) break
@@ -248,7 +262,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         result.plot=Metadata.description(result.plot,result.name)
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
         val initialRecommendations = result.recommendations.orEmpty()
-        val recommendations = async { withResolvedPosters(cards(initialRecommendations)) }
+        val recommendations = async { withResolvedPosters(cards(initialRecommendations, expandTitles = false), missingOnly = true) }
         if(result is MovieLoadResponse) {
             val headers = Network.imageHeaders(result.posterUrl, url) + result.posterHeaders.orEmpty()
             val provider = source as? PosterSource
@@ -256,8 +270,9 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 resolvePoster(it, url, result.posterUrl, headers)
             }
             result.posterHeaders = if (poster != null && poster != result.posterUrl) {
-                result.posterUrl = Metadata.rememberPoster(url, poster)
-                Network.replacementImageHeaders(poster, url, headers)
+                Metadata.rememberPoster(url, poster)
+                result.posterUrl = poster
+                resolvedPosterHeaders(poster, url, headers)
             } else headers
             if (missingTags == null) ImagePrefetch.warm(result.posterUrl, result.posterHeaders.orEmpty())
         }

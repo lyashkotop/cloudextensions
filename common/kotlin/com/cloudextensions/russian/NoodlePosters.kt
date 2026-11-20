@@ -6,8 +6,9 @@ import org.jsoup.nodes.Document
 import java.net.URI
 import java.util.Collections
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 interface NoodlePosterSource : PosterSource {
@@ -81,19 +82,22 @@ internal object NoodlePosters {
         val tried = mutableSetOf<String>()
         var slowOriginal: String? = null
         suspend fun verified(candidates: List<String>): String? = coroutineScope {
-            val checks = candidates.flatMap { listOfNotNull(originalImage(it), it) }
-                .distinct().filterNot(tried::contains).take(4).map { image ->
-                    tried += image
-                    async {
-                        val requestHeaders = if (image == poster) headers else Network.replacementImageHeaders(image, url, headers)
-                        image to PosterRequests.check(image, requestHeaders, 1200)
-                    }
+            val originals = candidates.mapNotNull(::originalImage).toSet()
+            val images = candidates.flatMap { listOfNotNull(originalImage(it), it) }
+                .distinct().filterNot(tried::contains).take(4)
+            val results = Channel<Pair<String, Boolean?>>(images.size)
+            val checks = images.map { image ->
+                tried += image
+                launch {
+                    val requestHeaders = if (image == poster) headers else Network.replacementImageHeaders(image, url, headers)
+                    results.send(image to PosterRequests.check(image, requestHeaders, 1200))
                 }
+            }
             try {
-                for (check in checks) {
-                    val (image, available) = check.await()
+                repeat(checks.size) {
+                    val (image, available) = results.receive()
                     if (available == true) return@coroutineScope image
-                    if (available == null && candidates.any { originalImage(it) == image }) {
+                    if (available == null && image in originals) {
                         if (slowOriginal == null) slowOriginal = image
                     }
                 }
@@ -105,17 +109,20 @@ internal object NoodlePosters {
         // Keep the listing size when it works. Check the alternatives together so a slow CDN
         // cannot consume the entire budget before a valid cover is tried.
         verified(listOfNotNull(poster) + saved?.images.orEmpty())?.let { return it }
-        val declared = saved ?: RequestLimits.optional(1100) { remember(url, source.posterPage(url)) }
+        val declared = saved ?: RequestLimits.optional(1800) { remember(url, source.posterPage(url)) }
         verified(declared?.images.orEmpty())?.let { return it }
-        if (slowOriginal == null && declared?.track != null && ImagePrefetch.cacheDirectory() != null) {
+        if (declared?.track != null && ImagePrefetch.cacheDirectory() != null) {
             val fallback = RequestLimits.optional(4000) {
                 val text = Network.page(PageRequest(declared.track), url).wholeText()
                 val frames = StoryboardPosters.frames(text, declared.track)
                 for (frame in frames) {
-                    val original = originalImage(frame.sheet) ?: continue
-                    val requestHeaders = Network.replacementImageHeaders(original, url, headers)
-                    val cached = StoryboardPosters.save(url, frame.copy(sheet = original), requestHeaders)
-                    if (cached != null) return@optional cached
+                    for (sheet in listOfNotNull(originalImage(frame.sheet), frame.sheet).distinct()) {
+                        val requestHeaders = Network.replacementImageHeaders(sheet, url, headers)
+                        val cached = RequestLimits.optional(2500) {
+                            StoryboardPosters.save(url, frame.copy(sheet = sheet), requestHeaders)
+                        }
+                        if (cached != null) return@optional cached
+                    }
                 }
                 null
             }

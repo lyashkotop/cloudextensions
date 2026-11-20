@@ -117,13 +117,14 @@ object Playback {
 
     suspend fun linksFromPage(
         name: String, origin: String, pageUrl: String, page: Document, declared: List<Source>,
-        subtitles: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit
-    ): Boolean = resolveLinks(name, origin, pageUrl, subtitles, callback, false, loadedPage = page, declared = declared)
+        subtitles: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit, useResolvedUrl: Boolean = false,
+    ): Boolean = resolveLinks(name, origin, pageUrl, subtitles, callback, false, loadedPage = page,
+        declared = declared, useResolvedUrl = useResolvedUrl)
 
     private suspend fun resolveLinks(
         name: String, origin: String, pageUrl: String, subtitles: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit, requireConfirmed: Boolean, staticPlayerHost: String? = null,
-        loadedPage: Document? = null, declared: List<Source> = emptyList()
+        loadedPage: Document? = null, declared: List<Source> = emptyList(), useResolvedUrl: Boolean = false,
     ): Boolean {
         val page = loadedPage ?: Network.page(PageRequest(pageUrl),origin)
         val emitted=Collections.synchronizedSet(mutableSetOf<String>())
@@ -140,10 +141,11 @@ object Playback {
             }.toList().awaitAll()
             probes.map { (source, probe) ->
                 val status = probe?.status
+                val target = probe?.url?.takeIf { useResolvedUrl && playable(it) } ?: source.url
                 when {
                     status == null && confirmed -> unreachable = true
                     status != null && status !in 200..299 -> rejected += status
-                    else -> accept(newExtractorLink(name, name, source.url, streamType(probe?.url ?: source.url, probe?.mime)) {
+                    else -> accept(newExtractorLink(name, name, target, streamType(probe?.url ?: source.url, probe?.mime)) {
                         this.referer = referer
                         this.headers = headers
                         quality = getQualityFromName(source.label)

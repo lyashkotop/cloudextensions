@@ -14,7 +14,6 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     override var mainUrl="https://tyler-brown.com"
     override var name="Noodle Magazine"
     override var lang="ru"
-    override val translateQueries=false
     override val supportedTypes=setOf(TvType.NSFW)
     override val hasMainPage=true
     override val hasQuickSearch=false

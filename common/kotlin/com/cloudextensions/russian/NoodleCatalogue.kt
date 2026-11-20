@@ -34,7 +34,7 @@ class NoodleCatalogue {
             return cards.distinctBy { identity(it.url) }.filter { identity(it.url) != excluded }
         }
 
-        private fun identity(url: String): String {
+        internal fun identity(url: String): String {
             val path = url.toHttpUrlOrNull()?.pathSegments.orEmpty()
             val id = path.getOrNull(1)
             if (path.firstOrNull() == "watch" && !id.isNullOrBlank()) return "watch:$id"

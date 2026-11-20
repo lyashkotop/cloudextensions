@@ -117,6 +117,14 @@ fun main(args:Array<String>) {
     verify(request.data==mapOf("token" to "real","q" to "two words"),"POST fields and original query preserved")
     val notFound=Jsoup.parse("<h1>Nothing found</h1><div class=card><a href='/other/' title='Trending'>Trending</a></div>","https://example.org/search/?q=absent").apply { attr("data-response-code","404") }
     verify(Metadata.searchCards(notFound,spec,PageRequest(notFound.baseUri())).isEmpty(),"search 404 is an empty result, never trending")
+    val tubeRequest = PageRequest("https://www.tubebdsm.com/searching/by-form", mapOf("search_query[query]" to "absent"))
+    val tubeEmpty = Jsoup.parse("<div id=content><h3>No results found for the following search: absent</h3><h3>Popular videos</h3><div class=card><a href='/out/1' title='Popular video'>Popular video</a></div></div>", "https://www.tubebdsm.com/search/absent")
+    verify(Metadata.searchCards(tubeEmpty, spec, tubeRequest).isEmpty(),"TubeBDSM popular fallback is discarded")
+    tubeEmpty.select("#content > h3").remove()
+    tubeEmpty.selectFirst(".card")!!.appendElement("h3").text("No results found")
+    verify(Metadata.searchCards(tubeEmpty, spec, tubeRequest).size == 1,"TubeBDSM video titles do not signal an empty search")
+    val hcAliases = Jsoup.parse("<div class=card><a href='/video/100/first' title='First result'></a></div><div class=card><a href='/video/100/new-slug?ref=feed' title='Duplicate result'></a></div><div class=card><a href='/video/101/first' title='Another result'></a></div>", "https://hcbdsm.com/")
+    verify(Metadata.cards(hcAliases, spec).map { it.url } == listOf("https://hcbdsm.com/video/100/first", "https://hcbdsm.com/video/101/first"),"HcBDSMX keeps the first card for each numeric video ID")
     val ajax=Jsoup.parse("""<div class=pagination><a class=next href='#search' data-block-id='list_videos_search' data-parameters='q:two%20words;from_videos+from_albums:2'>Next</a></div>""","https://example.org/search/?q=two+words")
     val cursor=Pagination.next(ajax,PageRequest(ajax.baseUri()))?.url.orEmpty()
     verify(cursor.contains("from_videos=2")&&cursor.contains("from_albums=2")&&cursor.contains("q=two+words"),"source AJAX cursor preserves search and both page fields")
@@ -191,6 +199,14 @@ fun main(args:Array<String>) {
     for(word in listOf("cuckold","cuckolds","куколд","куколды","trans"))verify(!ContentPolicy.accepts(word),"new blocked category $word")
     verify(ContentPolicy.accepts("transport"),"trans is matched as a word, not a transport substring")
     verify(ContentPolicy.accepts("trans lesbians"),"explicit lesbian exception is retained")
+    for (word in listOf("anime", "hentai")) {
+        verify(!ContentPolicy.accepts("A $word title", listOf("lesbians")),"blocked title category $word")
+    }
+    for (word in listOf("3d", "3dporn", "3d animated", "3D-animated", "black  man", "pregnant")) {
+        verify(!ContentPolicy.accepts("Girls", listOf(word)),"blocked tag $word")
+        verify(!ContentPolicy.accepts("Girls $word"),"blocked title phrase $word")
+    }
+    verify(ContentPolicy.accepts("13D"),"3D is matched as a word")
     verify(Metadata.title("https://example.org/null-title",listOf("null","Original full title"))=="Original full title","JSON null never becomes the title")
     verify(Translation.target("big грудь")=="en","mixed two-word query gets an English companion")
     kotlinx.coroutines.runBlocking {

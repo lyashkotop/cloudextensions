@@ -51,15 +51,16 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
             ?: return newHomePageResponse(HomePageList(request.name,emptyList(),true),false)
         val document=page(route)
         val cards=Metadata.cards(document,spec)
+        val deduplicatePages = spec.id == "TubeBDSM" || spec.id == "HcBDSMX"
         val fingerprint=cards.map { videoKey(it.url) }.toSet()
         val (repeats, earlierCards) = synchronized(homeFingerprints) {
             val previous = homeFingerprints[request.data to (page - 1)]
-            val earlier = if (spec.id == "TubeBDSM" && page > 1) {
+            val earlier = if (deduplicatePages && page > 1) {
                 homeFingerprints.entries.asSequence().filter { (key, _) ->
                     key.first == request.data && key.second < page
                 }.flatMap { it.value.asSequence() }.toSet()
             } else emptySet()
-            if (spec.id == "TubeBDSM" && page == 1) homeFingerprints.keys.removeAll { it.first == request.data }
+            if (deduplicatePages && page == 1) homeFingerprints.keys.removeAll { it.first == request.data }
             homeFingerprints[request.data to page] = fingerprint
             (page > 1 && fingerprint.isNotEmpty() && fingerprint == previous) to earlier
         }
@@ -133,10 +134,12 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         val detail=enrichMetadata(document, readMetadata(document))
         if(detail.title.isBlank())throw ErrorLoadingException("На странице нет названия видео")
         if(!ContentPolicy.accepts(detail.title,detail.tags))throw ErrorLoadingException("Видео скрыто фильтром категорий")
+        val posterHeaders = Network.imageHeaders(detail.poster, mainUrl.trimEnd('/') + "/")
+        if (this !is PosterSource) ImagePrefetch.warm(detail.poster, posterHeaders)
         val recommendations=RequestLimits.optional { related(document,detail,url) }.orEmpty()
         return newMovieLoadResponse(detail.title,url,TvType.NSFW,url) {
             posterUrl=detail.poster
-            posterHeaders=Network.headers("${mainUrl.trimEnd('/')}/")
+            this.posterHeaders=posterHeaders
             plot=Metadata.plot(detail)
             tags=detail.tags
             year=detail.year
