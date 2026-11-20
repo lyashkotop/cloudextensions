@@ -1,6 +1,6 @@
 {
-  "version": 127,
-  "sourceCommit": "734d824d12928ad844c17af4d40f6e2c5127d299",
+  "version": 128,
+  "sourceCommit": "566f725bf45e5d329834efc2dca40857188eaa7d",
   "packageLayout": "versioned",
   "plugins": 31,
   "rebuilt": [
@@ -36,7 +36,7 @@
     "Xnxx",
     "XRares"
   ],
-  "dexClasses": 6729,
+  "dexClasses": 6760,
   "entryRegistrationsValidated": 31,
   "kotlinProviders": 31
 }
