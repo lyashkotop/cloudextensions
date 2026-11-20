@@ -72,8 +72,24 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
     override suspend fun search(query: String): List<SearchResponse> = search(query,1).items
     override suspend fun quickSearch(query: String): List<SearchResponse> = search(query,1).items
     // This provider follows one upstream query. ReliableProvider merges the original and translated queries.
-    override suspend fun search(query: String, page: Int): SearchResponseList {
-        val term = Metadata.clean(query)
+    override suspend fun search(query: String, page: Int): SearchResponseList =
+        searchPages(Metadata.clean(query), page)
+
+    internal suspend fun taxonomySearch(section: Section, page: Int): SearchResponseList {
+        val url = absolute(mainUrl, section.path) ?: return newSearchResponseList(emptyList(), false)
+        return searchPages("taxonomy:$url", page, url)
+    }
+
+    internal suspend fun taxonomyLinks(terms: Set<String>): List<Section> {
+        val root = page(PageRequest(mainUrl.trimEnd('/') + "/"))
+        val links = TaxonomySearch.links(root, terms)
+        if (links.any { TaxonomySearch.kind(it.path) == "tag" }) return links
+        val directory = TaxonomySearch.tagDirectory(root) ?: return links
+        val published = RequestLimits.optional(650) { TaxonomySearch.links(page(PageRequest(directory)), terms) }
+        return links + published.orEmpty()
+    }
+
+    private suspend fun searchPages(term: String, page: Int, taxonomyUrl: String? = null): SearchResponseList {
         if (term.isEmpty() || page < 1) return newSearchResponseList(emptyList(), false)
         val state = synchronized(searches) {
             val cached = searches[term]
@@ -85,9 +101,9 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
             state.pages[page]?.let { return@withLock it }
             // Walk the site's real cursors when CloudStream requests a later page first.
             for (number in (state.pages.size + 1)..page) {
-                val route = if (number == 1) searchRequest(term) else state.next
+                val route = if (number == 1) taxonomyUrl?.let { PageRequest(it) } ?: searchRequest(term) else state.next
                 if (route == null) return@withLock newSearchResponseList(emptyList(), false)
-                val result = fetchSearchPage(route)
+                val result = fetchSearchPage(route, taxonomyUrl != null)
                 val fingerprint = result.cards.map { videoKey(it.url) }.toSet()
                 val repeats = fingerprint.isNotEmpty() && !state.fingerprints.add(fingerprint)
                 state.next = result.next.takeUnless { repeats }
@@ -104,10 +120,15 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         return Pagination.search(root, spec, mainUrl, term)
     }
 
-    private suspend fun fetchSearchPage(route: PageRequest): SearchPage {
+    private suspend fun fetchSearchPage(route: PageRequest, taxonomy: Boolean = false): SearchPage {
         val document = page(route.copy(allowNotFound = true))
-        val empty = Metadata.emptySearch(document, route)
-        val cards = Metadata.searchCards(document, spec, empty)
+        val empty = Metadata.emptySearch(document, route) ||
+            (taxonomy && URI(document.baseUri()).path.orEmpty().trim('/').isEmpty())
+        val cards = when {
+            empty -> emptyList()
+            taxonomy -> Metadata.cards(document, spec)
+            else -> Metadata.searchCards(document, spec, empty)
+        }
         val next = if (empty) null else Pagination.next(document, route)?.takeUnless { it == route }
         return SearchPage(cards, next)
     }

@@ -192,6 +192,8 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     private class SearchHistory {
         val mutex = Mutex()
         val pages = mutableMapOf<Int, SavedSearchPage>()
+        var taxonomy: List<Section>? = null
+        val taxonomyEnds = mutableMapOf<String, Int>()
     }
     private val searchHistory = BoundedMap<String, SearchHistory>(32)
 
@@ -221,6 +223,44 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         return newSearchResponseList(responses.flatMap { it.items }, responses.any { it.hasNext })
     }
 
+    private suspend fun taxonomyResults(query: String, page: Int, history: SearchHistory): List<SearchResponseList> = coroutineScope {
+        val terms = TaxonomySearch.terms(query)
+        if (terms.isEmpty() || source is NoodlePosterSource && (source as? SearchPolicy)?.translateQueries == false) {
+            return@coroutineScope emptyList()
+        }
+        val native = source as? RussianProvider
+        val sections = history.taxonomy ?: run {
+            val declared = source.mainPage.filter {
+                TaxonomySearch.matches(it.name, terms) &&
+                    (TaxonomySearch.kind(it.data) != null || source is NoodlePosterSource && !it.data.startsWith('/'))
+            }.map { Section(it.name, it.data) }
+            val linked = native?.let { RequestLimits.optional(1100) { it.taxonomyLinks(terms) } }.orEmpty()
+            (declared + linked).distinctBy { TaxonomySearch.kind(it.path) ?: "category" }.also { history.taxonomy = it }
+        }
+        val replies = sections.filter { page <= (history.taxonomyEnds[it.path] ?: Int.MAX_VALUE) }.map { section ->
+            async {
+                section to RequestLimits.optional(1800) {
+                    if (native != null) native.taxonomySearch(section, page)
+                    else source.getMainPage(page, MainPageRequest(section.name, section.path, false))?.let { home ->
+                        newSearchResponseList(home.items.flatMap { it.list }, home.hasNext)
+                    }
+                }
+            }
+        }.awaitAll()
+        for ((section, response) in replies) {
+            if (response != null && !response.hasNext) history.taxonomyEnds[section.path] = page
+        }
+        replies.mapNotNull { it.second }
+    }
+
+    private suspend fun combinedSearch(query: String, page: Int, history: SearchHistory): SearchResponseList = coroutineScope {
+        val matches = async { upstreamSearch(query, page) }
+        val taxonomy = async { taxonomyResults(query, page, history) }
+        val original = matches.await()
+        val feeds = taxonomy.await()
+        newSearchResponseList(original.items + feeds.flatMap { it.items }, original.hasNext || feeds.any { it.hasNext })
+    }
+
     override suspend fun search(query: String, page: Int): SearchResponseList = RequestLimits.required("Поиск") {
         if (page < 1 || !ContentPolicy.accepts(query)) return@required newSearchResponseList(emptyList(), false)
         val history = synchronized(searchHistory) {
@@ -232,7 +272,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
             val seen = history.pages.asSequence().filter { it.key < page }
                 .flatMap { it.value.response.items.asSequence() }.mapTo(mutableSetOf(), ::searchKey)
             var upstream = history.pages[page - 1]?.nextUpstreamPage ?: page
-            var result = upstreamSearch(query, upstream)
+            var result = combinedSearch(query, upstream, history)
             val deadline = System.nanoTime() + SEARCH_REVIEW_BUDGET_MS * 1_000_000L
             val cards = mutableListOf<SearchResponse>()
             var limit = if (page == 1) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
@@ -244,7 +284,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 upstream++
                 limit--
                 if (cards.size >= SEARCH_PAGE_MINIMUM || !result.hasNext || limit == 0) break
-                result = RequestLimits.optional(remainingMillis(deadline)) { upstreamSearch(query, upstream) } ?: break
+                result = RequestLimits.optional(remainingMillis(deadline)) { combinedSearch(query, upstream, history) } ?: break
             }
             val response = searchPage(withResolvedPosters(cards), page, result.hasNext)
             history.pages[page] = SavedSearchPage(response, upstream)
