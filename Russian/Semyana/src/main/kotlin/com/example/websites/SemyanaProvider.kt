@@ -1,11 +1,12 @@
 package com.example.websites
 
 import com.cloudextensions.russian.*
+import org.jsoup.nodes.Document
 
 class SemyanaProvider: RussianProvider(SiteSpec(
     id="Semyana", title="Semyana", origin="https://w.semyana.com",
     cards=".video-card", link="a.video-card-link[href]", titleSelector=".video-title", searchMode="get",
-    tagSelector=".video-taxonomy .tax-cats a", descriptionSelector="", related="#related-videos",
+    tagSelector=".video-taxonomy .tax-feature-tags a[href^=/t/]", descriptionSelector="", related="#related-videos",
     sections=listOf(
         Section("Новинки","/new/"),
         Section("Популярное","/best/"),
@@ -30,4 +31,13 @@ class SemyanaProvider: RussianProvider(SiteSpec(
         Section("Hardcore Sex","/cat/hardcore-sex-56/"),
         Section("Big asses","/cat/big-asses/"),
     )
-))
+)) {
+    override fun readMetadata(document: Document): VideoDetail {
+        val detail = super.readMetadata(document)
+        // Semyana publishes categories and free-text searches in separate rows.
+        val tags = document.select(spec.tagSelector)
+            .mapNotNull { Metadata.tag(it.text()) }
+            .distinctBy { it.lowercase() }
+        return detail.copy(tags = tags)
+    }
+}
