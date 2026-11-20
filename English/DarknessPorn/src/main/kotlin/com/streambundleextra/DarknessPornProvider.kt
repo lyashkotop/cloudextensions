@@ -1,5 +1,6 @@
 package com.streambundleextra
 import com.cloudextensions.russian.*
+import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 class DarknessPornProvider: RussianProvider(SiteSpec(
@@ -8,6 +9,18 @@ class DarknessPornProvider: RussianProvider(SiteSpec(
  sections=listOf(Section("Videos","/"), Section("Most viewed","/?filter=most-viewed"))
 )) {
     override var lang = "en"
+    override val translateQueries = false
+
+    private val sitePromotion = Regex(
+        """(?i)(?:^|\s+[-–—]\s+)sick\s+.*?\s*porn video!\s*Extreme\s+.*?\s*video that you won['’]t find anywhere[!.]?$"""
+    )
+
+    override suspend fun load(url: String): LoadResponse {
+        val detail = super.load(url)
+        val summary = detail.plot.orEmpty().replace(sitePromotion, "").trim()
+        detail.plot = Metadata.description(summary, detail.name).ifBlank { null }
+        return detail
+    }
 
     override suspend fun loadLinks(
         data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,

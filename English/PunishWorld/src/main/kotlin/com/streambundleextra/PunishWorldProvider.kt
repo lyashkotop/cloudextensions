@@ -14,6 +14,7 @@ class PunishWorldProvider: RussianProvider(SiteSpec(
  sections=listOf(Section("Latest","/"), Section("Most viewed","/?filter=most-viewed"))
 )) {
     override var lang = "en"
+    override val translateQueries = false
 
     override suspend fun loadLinks(
         data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,

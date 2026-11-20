@@ -142,7 +142,7 @@ object Metadata {
             }
         ) return true
         val redirected=request.data==null && java.net.URI(request.url).path.orEmpty().contains("search") && current.path.orEmpty().trim('/').isEmpty() && current.query.isNullOrBlank()
-        return page.attr("data-response-code")=="404" || redirected || page.select("h1,h2,.empty,.no-results,.no-result,.nothing-found,.list-videos .message,.message").any {
+        return page.attr("data-response-code")=="404" || redirected || page.body().hasClass("search-no-results") || page.select("h1,h2,.empty,.no-results,.no-result,.nothing-found,.list-videos .message,.message").any {
             emptyMessage.containsMatchIn(it.text())
         }
     }

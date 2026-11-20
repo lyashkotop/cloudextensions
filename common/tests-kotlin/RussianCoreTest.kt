@@ -117,6 +117,12 @@ fun main(args:Array<String>) {
     verify(request.data==mapOf("token" to "real","q" to "two words"),"POST fields and original query preserved")
     val notFound=Jsoup.parse("<h1>Nothing found</h1><div class=card><a href='/other/' title='Trending'>Trending</a></div>","https://example.org/search/?q=absent").apply { attr("data-response-code","404") }
     verify(Metadata.searchCards(notFound,spec,PageRequest(notFound.baseUri())).isEmpty(),"search 404 is an empty result, never trending")
+    val wordpressFallback = Jsoup.parse("<body class='search search-no-results'><h1>absent (0 Videos)</h1><div class=card><a href='/video/popular' title='Popular video'>Popular video</a></div></body>", "https://example.org/?s=absent")
+    val wordpressRequest = PageRequest(wordpressFallback.baseUri())
+    verify(Metadata.searchCards(wordpressFallback, spec, wordpressRequest).isEmpty(), "WordPress zero-results page omits fallback cards")
+    wordpressFallback.body().removeClass("search-no-results").addClass("search-results")
+    wordpressFallback.selectFirst("h1")!!.text("popular (1 Video)")
+    verify(Metadata.searchCards(wordpressFallback, spec, wordpressRequest).size == 1, "WordPress matches remain searchable")
     val tubeRequest = PageRequest("https://www.tubebdsm.com/searching/by-form", mapOf("search_query[query]" to "absent"))
     val tubeEmpty = Jsoup.parse("<div id=content><h3>No results found for the following search: absent</h3><h3>Popular videos</h3><div class=card><a href='/out/1' title='Popular video'>Popular video</a></div></div>", "https://www.tubebdsm.com/search/absent")
     verify(Metadata.searchCards(tubeEmpty, spec, tubeRequest).isEmpty(),"TubeBDSM popular fallback is discarded")

@@ -53,6 +53,7 @@ class BeegProvider : MainAPI(), DetailTagSource, SearchPolicy {
 
     private val searchApiBase = "https://api-search.xv-cdn.net"
     private val nativeSearchBase = "https://search.beeg.porn/api"
+    private val cyrillicWord = Regex("[\\u0400-\\u052F]+")
     private val embedBase = "https://e.xv-cdn.net"
     private val xvideosBase = "https://www.xvideos.com"
 
@@ -116,10 +117,12 @@ class BeegProvider : MainAPI(), DetailTagSource, SearchPolicy {
         val native = async { fetchSearch("$nativeSearchBase$path") }
         val main = primary.await()
         val site = native.await()
-        val mainItems = searchItems(main, native = false)
+        // The upstream AJAX feed returns a broad fallback for unmatched Cyrillic queries.
+        val mainItems = searchItems(main, native = false, cyrillicWords = cyrillicWord.findAll(term).map { it.value }.toList())
         val siteItems = searchItems(site, native = true)
         val results = (mainItems + siteItems).distinctBy { it.url }
-        val next = main?.optInt("max_pages", page)?.let { it > page } == true || siteItems.isNotEmpty()
+        val next = (mainItems.isNotEmpty() && main?.optInt("max_pages", page)?.let { it > page } == true) ||
+            siteItems.isNotEmpty()
         newSearchResponseList(results, results.isNotEmpty() && next)
     }
 
@@ -128,13 +131,19 @@ class BeegProvider : MainAPI(), DetailTagSource, SearchPolicy {
             referer = "$mainUrl/").text)
     }
 
-    private fun searchItems(response: JSONObject?, native: Boolean): List<SearchResponse> {
+    private fun searchItems(response: JSONObject?, native: Boolean, cyrillicWords: List<String> = emptyList()): List<SearchResponse> {
         val items = response?.optJSONArray("items") ?: return emptyList()
         val base = mainUrl.toHttpUrlOrNull() ?: return emptyList()
         return (0 until items.length()).mapNotNull { i ->
             val item = items.optJSONObject(i) ?: return@mapNotNull null
             val title = Metadata.clean(item.optString("title")).takeIf(Metadata::sourceValue)
                 ?: return@mapNotNull null
+            if (cyrillicWords.isNotEmpty()) {
+                val labels = listOf(title, item.optString("cats"), item.optString("slug"))
+                if (!cyrillicWords.all { word -> labels.any { it.contains(word, ignoreCase = true) } }) {
+                    return@mapNotNull null
+                }
+            }
             val address = if (native) {
                 base.resolve(item.optString("url"))?.takeIf {
                     it.host.removePrefix("www.") == base.host.removePrefix("www.") &&
