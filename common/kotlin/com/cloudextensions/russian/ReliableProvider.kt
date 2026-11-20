@@ -202,7 +202,8 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         else videoKey(card.url)
 
     private suspend fun upstreamSearch(query: String, page: Int): SearchResponseList {
-        if (lang !in listOf("ru", "en") || (source as? SearchPolicy)?.translateQueries == false) {
+        if (lang !in listOf("ru", "en") || (source as? SearchPolicy)?.translateQueries == false ||
+            (source as? AdaptedProvider)?.translateQueries == false) {
             return source.search(query, page) ?: newSearchResponseList(emptyList(), false)
         }
         data class Batch(val response: SearchResponseList?, val error: Exception? = null)

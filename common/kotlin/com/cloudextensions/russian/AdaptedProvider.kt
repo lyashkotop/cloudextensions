@@ -86,4 +86,5 @@ class AdaptedProvider(private val source: MainAPI): MainAPI() {
     override fun getVideoInterceptor(extractorLink:ExtractorLink):Interceptor? = source.getVideoInterceptor(extractorLink)
 
     internal val detailTagSource: DetailTagSource? get() = source as? DetailTagSource
+    internal val translateQueries: Boolean get() = (source as? SearchPolicy)?.translateQueries ?: true
 }

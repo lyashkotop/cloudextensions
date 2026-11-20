@@ -43,14 +43,16 @@ import org.jsoup.nodes.Element
  *   The metadata API (api-search.xv-cdn.net/id/<id>/) is now used ONLY for metadata, never as a
  *   playable source, and a preview is clearly labelled as such if nothing better is found.
  */
-class BeegProvider : MainAPI(), DetailTagSource {
+class BeegProvider : MainAPI(), DetailTagSource, SearchPolicy {
     override var mainUrl = "https://beeg.porn"
     override var name = "Beeg.porn"
     override var lang = "en"
     override val hasMainPage = true
     override val supportedTypes = setOf(TvType.NSFW)
+    override val translateQueries = false
 
     private val searchApiBase = "https://api-search.xv-cdn.net"
+    private val nativeSearchBase = "https://search.beeg.porn/api"
     private val embedBase = "https://e.xv-cdn.net"
     private val xvideosBase = "https://www.xvideos.com"
 
@@ -102,58 +104,54 @@ class BeegProvider : MainAPI(), DetailTagSource {
 
     // ── Search ───────────────────────────────────────────────────────────────
 
-    /**
-     * Only the long-standing search(query) API is used: the paginated overload returns
-     * SearchResponseList, a type missing from older Cloudstream builds, and a provider that
-     * declares it cannot be loaded there at all. Two pages are merged instead.
-     */
     override suspend fun search(query: String): List<SearchResponse> = search(query, 1).items
 
-    override suspend fun search(query: String, page: Int): SearchResponseList {
-        val results = searchPage(query, page)
-        return newSearchResponseList(results, results.isNotEmpty())
+    override suspend fun search(query: String, page: Int): SearchResponseList = coroutineScope {
+        val term = query.trim()
+        if (term.isBlank() || page < 1) return@coroutineScope newSearchResponseList(emptyList(), false)
+        val q = URLEncoder.encode(term, "UTF-8").replace("+", "%20")
+        val path = "/search/?format=ajax&k=$q&p=$page"
+        // The web page prepends the main AJAX matches and appends its own index matches.
+        val primary = async { fetchSearch("$searchApiBase$path") }
+        val native = async { fetchSearch("$nativeSearchBase$path") }
+        val main = primary.await()
+        val site = native.await()
+        val mainItems = searchItems(main, native = false)
+        val siteItems = searchItems(site, native = true)
+        val results = (mainItems + siteItems).distinctBy { it.url }
+        val next = main?.optInt("max_pages", page)?.let { it > page } == true || siteItems.isNotEmpty()
+        newSearchResponseList(results, results.isNotEmpty() && next)
     }
 
-    private suspend fun searchPage(query: String, page: Int): List<SearchResponse> {
-        val q = URLEncoder.encode(query.trim(), "UTF-8").replace("+", "%20")
-        if (q.isBlank()) return emptyList()
-        val url = "$searchApiBase/search/?format=ajax&k=$q&p=$page"
-        val json = runCatching { app.get(url, headers = mapOf("User-Agent" to ua)).text }.getOrNull()
-            ?: return emptyList()
-        return parseSearchJson(json)
+    private suspend fun fetchSearch(url: String): JSONObject? = RequestLimits.optional(4500) {
+        JSONObject(app.get(url, headers = mapOf("User-Agent" to ua, "Origin" to mainUrl),
+            referer = "$mainUrl/").text)
     }
 
-    /**
-     * Each item looks like
-     *   {"video_id":89211070,"video_id_encode":"oohutbef54a","title":"…","thumb":"https:\/\/…",
-     *    …,"data_hz":{"hz_type":…}}
-     * i.e. it contains a nested object, so we slice the payload per item instead of regexing
-     * whole objects.
-     */
-    private fun parseSearchJson(json: String): List<SearchResponse> {
-        val out = mutableListOf<SearchResponse>()
-        val starts = Regex(""""video_id"\s*:\s*"?(\d+)"?""").findAll(json).toList()
-        starts.forEachIndexed { i, m ->
-            val end = starts.getOrNull(i + 1)?.range?.first ?: json.length
-            val chunk = json.substring(m.range.last, end)
-            val id = m.groupValues[1]
-            val encode = Regex(""""video_id_encode"\s*:\s*"([^"]+)"""").find(chunk)
-                ?.groupValues?.get(1) ?: return@forEachIndexed
-            val title = Regex(""""title"\s*:\s*"((?:[^"\\]|\\.)*)"""").find(chunk)
-                ?.groupValues?.get(1)?.jsonUnescape()?.trim() ?: return@forEachIndexed
-            val thumb = Regex(""""thumb"\s*:\s*"([^"]+)"""").find(chunk)
-                ?.groupValues?.get(1)?.replace("\\/", "/")
-            out.add(
-                newMovieSearchResponse(title, "$mainUrl/xid/$id/?e=$encode", TvType.NSFW) {
-                    this.posterUrl = thumb
+    private fun searchItems(response: JSONObject?, native: Boolean): List<SearchResponse> {
+        val items = response?.optJSONArray("items") ?: return emptyList()
+        val base = mainUrl.toHttpUrlOrNull() ?: return emptyList()
+        return (0 until items.length()).mapNotNull { i ->
+            val item = items.optJSONObject(i) ?: return@mapNotNull null
+            val title = Metadata.clean(item.optString("title")).takeIf(Metadata::sourceValue)
+                ?: return@mapNotNull null
+            val address = if (native) {
+                base.resolve(item.optString("url"))?.takeIf {
+                    it.host.removePrefix("www.") == base.host.removePrefix("www.") &&
+                        (it.encodedPath.startsWith("/play/") || it.encodedPath.startsWith("/xid/"))
                 }
-            )
+            } else {
+                val id = item.optString("video_id").takeIf { it.toLongOrNull() != null } ?: return@mapNotNull null
+                base.newBuilder().encodedPath("/xid/$id/").apply {
+                    item.optString("video_id_encode").takeIf(Metadata::sourceValue)?.let { addQueryParameter("e", it) }
+                    item.optString("video_id_xnxx").takeIf(Metadata::sourceValue)?.let { addQueryParameter("xn", it) }
+                }.build()
+            } ?: return@mapNotNull null
+            newMovieSearchResponse(title, address.toString(), TvType.NSFW) {
+                posterUrl = Metadata.imageUrl(mainUrl, item.optString("thumb"))
+            }
         }
-        return out.distinctBy { it.url }
     }
-
-    private fun String.jsonUnescape(): String =
-        this.replace("\\/", "/").replace("\\\"", "\"").replace("\\u0026", "&")
 
     // ── Detail ───────────────────────────────────────────────────────────────
 
