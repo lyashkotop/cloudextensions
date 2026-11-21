@@ -23,7 +23,8 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         "/popular/month" to "Popular","/popular/trending" to "Trending",
         "bdsm" to "БДСМ","homemade" to "Домашнее","anal" to "Анал",
         "lesbian" to "Лесбиянки","spanking" to "Порка",
-        "blonde" to "Blonde","milf" to "MILF"
+        "milf" to "MILF","студентки" to "Студентки",
+        "naked in public" to "На публіці","fetish" to "Фетиш"
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage="ru")
     private val homePages = NoodleCatalogue()
