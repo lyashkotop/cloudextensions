@@ -211,7 +211,9 @@ fun main(args:Array<String>) {
     for(word in listOf("cuckold","cuckolds","куколд","куколды","trans"))verify(!ContentPolicy.accepts(word),"new blocked category $word")
     verify(ContentPolicy.accepts("transport"),"trans is matched as a word, not a transport substring")
     verify(ContentPolicy.accepts("trans lesbians"),"explicit lesbian exception is retained")
-    for (word in ContentPolicy.blockedWords + listOf("3D-animated", "black  man", "female-domination", "BALL-BUSTING", "ball_basting")) {
+    verify(ContentPolicy.accepts("ASMR lesbians"),"ASMR also respects the existing lesbian exception")
+    verify(ContentPolicy.accepts("A video", emptyList(), "ASMR"),"ASMR is limited to titles and tags")
+    for (word in ContentPolicy.blockedWords + listOf("3D-animated", "black  man", "female-domination", "BALL-BUSTING", "ball_basting", "ASMR", "АСМР")) {
         verify(!ContentPolicy.accepts("A $word title"),"blocked title $word")
         verify(!ContentPolicy.accepts("A video", listOf(word)),"blocked tag $word")
         verify(ContentPolicy.accepts("A $word title", listOf("lesbians")),"lesbian tag overrides blocked title $word")

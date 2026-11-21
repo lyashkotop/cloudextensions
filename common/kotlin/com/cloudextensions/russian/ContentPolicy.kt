@@ -31,6 +31,8 @@ object ContentPolicy {
         "animation",
         "hebntai",
         "hentai",
+        "asmr",
+        "асмр",
         "3d",
         "3dporn",
         "3d animated",
