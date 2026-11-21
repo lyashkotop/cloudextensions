@@ -1,10 +1,10 @@
 {
-  "version": 150,
-  "sourceCommit": "c012ce2a018aec435aa7b5c606e414708e638528",
+  "version": 151,
+  "sourceCommit": "22cddcfb07cd22de7d45a9e8758c724bb0e2a99a",
   "packageLayout": "versioned",
   "plugins": 31,
   "rebuilt": [
-    "TubeBDSM"
+    "NoodleMagazine"
   ],
   "dexClasses": 7418,
   "entryRegistrationsValidated": 31,
