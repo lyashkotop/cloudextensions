@@ -47,11 +47,24 @@ object VideoScores {
         percent.matchEntire(raw.orEmpty().trim())?.groupValues?.get(1)?.replace(',', '.')?.toDoubleOrNull(), 100.0,
     )
 
-    private fun votes(up: String?, down: String?): Score? {
-        fun read(raw: String?): Double? = raw?.trim()?.takeIf(count::matches)
-            ?.filter(Char::isDigit)?.toDoubleOrNull()
-        val positive = read(up) ?: return null
-        val negative = read(down) ?: return null
+    private val compactCount = Regex("""([0-9]+(?:[.,][0-9]+)?)\s*([kmb])""", RegexOption.IGNORE_CASE)
+
+    private fun voteCount(raw: String?, compact: Boolean): Double? {
+        val text = raw?.trim() ?: return null
+        if (count.matches(text)) return text.filter(Char::isDigit).toDoubleOrNull()
+        if (!compact) return null
+        val (number, unit) = compactCount.matchEntire(text)?.destructured ?: return null
+        val scale = when (unit.lowercase()) {
+            "k" -> 1_000.0
+            "m" -> 1_000_000.0
+            else -> 1_000_000_000.0
+        }
+        return number.replace(',', '.').toDoubleOrNull()?.times(scale)
+    }
+
+    private fun votes(up: String?, down: String?, compact: Boolean = false): Score? {
+        val positive = voteCount(up, compact) ?: return null
+        val negative = voteCount(down, compact) ?: return null
         val total = positive + negative
         return if (total.isFinite() && total > 0) fromValue(positive / total, 1.0) else null
     }
@@ -108,8 +121,12 @@ object VideoScores {
                 val style = page.selectFirst("#video_rate")?.attr("style").orEmpty()
                 percentage(Regex("""\bwidth:\s*([0-9.]+%)""").find(style)?.groupValues?.get(1)) ?: it
             }
-            "XVideos" -> percentage(text(".vote-actions .rate-infos .good .rating-good-perc"))
-                ?: pair(".rating-good-nbr", ".rating-bad-nbr")
+            // The displayed percentage can be 100% even when the two public counters include dislikes.
+            "XVideos" -> votes(
+                text(".vote-actions .rate-infos .rating-good-nbr"),
+                text(".vote-actions .rate-infos .rating-bad-nbr"),
+                compact = true,
+            )
             "XHamster" -> {
                 val video = EmbeddedPlayers.initials(page)?.optJSONObject("videoEntity")
                 val rating = video?.optJSONObject("rating")

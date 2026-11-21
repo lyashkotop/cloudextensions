@@ -34,6 +34,16 @@ fun main(args:Array<String>) {
     val pervertium = SiteSpec("Pervertium", "Pervertium", pervertiumAliases.baseUri(), ".card", "a", ".title", emptyList())
     verify(Metadata.cards(pervertiumAliases, pervertium).map { it.title } == listOf("First Video", "Distinct Video"),
         "Pervertium aliases collapse while distinct video IDs remain")
+    fun xvideosScore(likes: String, dislikes: String): String? {
+        val video = Jsoup.parse("<div class='vote-actions'><div class='rate-infos'>" +
+            "<span class='rating-good-perc'>100%</span><span class='rating-good-nbr'>$likes</span>" +
+            "<span class='rating-bad-nbr'>$dislikes</span></div></div>")
+        return VideoScores.detail("XVideos", "https://www.xvideos.com/video1/_", video)?.toString(10)
+    }
+    verify(xvideosScore("809", "272") == "7.4", "XVideos uses the vote counters when its percentage disagrees")
+    verify(xvideosScore("4.6k", "1.1k") == "8", "XVideos handles abbreviated counters")
+    verify(xvideosScore("1", "0") == "10", "unanimous XVideos votes can give ten")
+    verify(xvideosScore("0", "0") == null, "an unrated XVideos page never becomes a ten")
     val embedPage=Jsoup.parse("""<script>window.initials={"sharingComponent":{"shareLink":"https://xhamster.com/videos/source-123"},"xplayerSettings":{"sources":{"hls":{"h264":{"url":"encrypted-value"}},"standard":{"h264":[{"url":"https://cdn.example.org/source.mp4","quality":"720p"}]}}}};</script>""","https://xhamster.com/embed/123")
     verify(EmbeddedPlayers.original(embedPage)=="https://xhamster.com/videos/source-123","embed fallback uses its source-declared public permalink")
     verify(EmbeddedPlayers.sources(embedPage).single().label=="720p","only declared HTTP sources are emitted; encrypted strings are not URLs")
