@@ -263,6 +263,7 @@ fun main(args:Array<String>) {
     verify(ContentPolicy.accepts("Braided hair") && ContentPolicy.accepts("A video", description = "AI generated"), "AI is a whole word and applies only to titles and tags")
     verify(ContentPolicy.accepts("ASMR lesbians"),"ASMR also respects the existing lesbian exception")
     verify(!ContentPolicy.accepts("A video", listOf("Farting")) && ContentPolicy.accepts("Farting in a title"), "farting is blocked only in tags")
+    verify(!ContentPolicy.accepts("A video", listOf("Толстушки")) && ContentPolicy.accepts("Толстушки"), "толстушки is blocked only in tags")
     verify(ContentPolicy.accepts("A video", emptyList(), "ASMR"),"ASMR is limited to titles and tags")
     for (word in ContentPolicy.blockedWords + listOf("3D-animated", "black  man", "female-domination", "BALL-BUSTING", "ball_basting", "ASMR", "АСМР")) {
         verify(!ContentPolicy.accepts("A $word title"),"blocked title $word")
