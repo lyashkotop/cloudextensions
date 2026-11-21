@@ -5,6 +5,7 @@ import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import java.net.URLEncoder
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import okhttp3.Headers
 import okhttp3.Interceptor
@@ -22,10 +23,11 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         "/popular/month" to "Popular","/popular/trending" to "Trending",
         "bdsm" to "БДСМ","homemade" to "Домашнее","anal" to "Анал",
         "lesbian" to "Лесбиянки","spanking" to "Порка",
-        "blonde" to "Blonde","milf" to "MILF","jav" to "JAV"
+        "blonde" to "Blonde","milf" to "MILF"
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage="ru")
     private val homePages = NoodleCatalogue()
+    private val homeOrders = ConcurrentHashMap<String, List<Int>>()
     private val searchPages = NoodleCatalogue()
     private fun route(query:String,page:Int)=PageRequest("$mainUrl/video/"+URLEncoder.encode(query,"UTF-8").replace("+","%20")+"?p="+(page-1),allowNotFound=true)
     private suspend fun document(request:PageRequest)=Network.page(request.copy(headers=mapOf("Cookie" to "ui_lang=ru","Accept-Language" to "ru-RU,ru;q=0.9")),"$mainUrl/")
@@ -34,12 +36,35 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse {
         if(page<1)return newHomePageResponse(request.name,emptyList(),false)
         val cards = homePages.page(request.data, page) {
-            if (request.data.startsWith("/")) {
-                val endpoint = mainUrl + request.data + (if (request.data.contains('?')) "&" else "?") + "p=" + (page - 1)
-                Metadata.cards(document(PageRequest(endpoint)), spec).map(::response)
-            } else results(request.data, page)
+            // Even the shorter Trending catalogue has these first nine pages.
+            val order = homeOrders.compute(request.data) { _, previous ->
+                if (page != 1 && previous != null) previous
+                else (1..9).shuffled().let {
+                    if (it.first() == previous?.firstOrNull()) it.drop(1) + it.first() else it
+                }
+            }!!
+            val sourcePage = order.getOrNull(page - 1) ?: page
+            val videos = categoryCards(request.data, sourcePage)
+            if (videos.isNotEmpty() || page != 1 || sourcePage == 1) videos
+            else {
+                // Recover when the source has shortened a category since the last refresh.
+                homeOrders[request.data] = listOf(1)
+                categoryCards(request.data, 1)
+            }
         }
         return newHomePageResponse(request.name,cards,cards.isNotEmpty())
+    }
+
+    private suspend fun categoryCards(category: String, page: Int): List<SearchResponse> {
+        if (!category.startsWith("/")) return results(category, page)
+        val separator = if (category.contains('?')) "&" else "?"
+        val request = PageRequest("$mainUrl$category${separator}p=${page - 1}", allowNotFound = true)
+        return Metadata.searchCards(document(request), spec, request).map(::response)
+    }
+
+    override suspend fun searchCategoryPage(category: String, page: Int): SearchResponseList {
+        val cards = categoryCards(category, page)
+        return newSearchResponseList(cards, cards.isNotEmpty())
     }
     override suspend fun search(query:String):List<SearchResponse> = search(query,1).items
     override suspend fun quickSearch(query:String):List<SearchResponse> = search(query,1).items

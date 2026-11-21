@@ -265,8 +265,11 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
             async {
                 section to RequestLimits.optional(1800) {
                     if (native != null) native.taxonomySearch(section, page)
-                    else source.getMainPage(page, MainPageRequest(section.name, section.path, false))?.let { home ->
-                        newSearchResponseList(home.items.flatMap { it.list }, home.hasNext)
+                    else {
+                        (source as? NoodlePosterSource)?.searchCategoryPage(section.path, page)
+                            ?: source.getMainPage(page, MainPageRequest(section.name, section.path, false))?.let { home ->
+                                newSearchResponseList(home.items.flatMap { it.list }, home.hasNext)
+                            }
                     }
                 }
             }

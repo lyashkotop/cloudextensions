@@ -1,5 +1,6 @@
 package com.cloudextensions.russian
 
+import com.lagradost.cloudstream3.SearchResponseList
 import org.json.JSONArray
 import org.json.JSONObject
 import org.jsoup.nodes.Document
@@ -14,6 +15,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 interface NoodlePosterSource : PosterSource {
     override val posterTimeoutMs: Long get() = 5300
+    suspend fun searchCategoryPage(category: String, page: Int): SearchResponseList? = null
 
     override suspend fun resolvePoster(url: String, poster: String?, headers: Map<String, String>): String? =
         NoodlePosters.resolve(this, url, poster, headers)
