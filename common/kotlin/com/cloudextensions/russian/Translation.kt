@@ -12,7 +12,7 @@ import java.util.Locale
 object Translation {
     @Volatile private var shared:SharedPreferences?=null
     fun configure(context:Context){shared=context.applicationContext.getSharedPreferences("cloudextensions-translations",Context.MODE_PRIVATE)}
-    private val dictionary=mapOf("bdsm" to "бдсм","guy" to "парень","woman" to "женщина","girl" to "девушка","man" to "мужчина","mother" to "мать","mom" to "мама","aunt" to "тётя","lesbian" to "лесбиянка","lesbians" to "лесбиянки","two words" to "два слова")
+    private val dictionary=mapOf("bdsm" to "бдсм","guy" to "парень","woman" to "женщина","girl" to "девушка","man" to "мужчина","mother" to "мать","mom" to "мама","aunt" to "тётя","lesbian" to "лесбиянка","lesbians" to "лесбиянки","spanking" to "порка","two words" to "два слова")
     private val cache=Collections.synchronizedMap(BoundedMap<String,String>(256))
     fun target(query: String): String? {
         val normalized=query.trim().replace(Regex("\\s+")," ")

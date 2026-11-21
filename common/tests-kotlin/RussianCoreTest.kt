@@ -221,6 +221,8 @@ fun main(args:Array<String>) {
     kotlinx.coroutines.runBlocking {
         verify(Translation.translated("парень")=="guy","Russian query receives English companion")
         verify(Translation.translated("guy")=="парень","English query receives Russian companion")
+        verify(Translation.translated("Порка")=="spanking","Russian spanking query uses the catalogue keyword")
+        verify(Translation.translated("spanking")=="порка","English spanking query receives the Russian companion")
         verify(Translation.translated("два слова")=="two words","two Russian words receive English companion")
         verify(Translation.translated("two words")=="два слова","two English words receive Russian companion")
     }
