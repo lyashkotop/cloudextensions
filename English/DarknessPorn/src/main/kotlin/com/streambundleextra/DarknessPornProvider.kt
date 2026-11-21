@@ -14,11 +14,14 @@ class DarknessPornProvider: RussianProvider(SiteSpec(
     private val sitePromotion = Regex(
         """(?i)(?:^|\s+[-–—]\s+)sick\s+.*?\s*porn video!\s*Extreme\s+.*?\s*video that you won['’]t find anywhere[!.]?$"""
     )
+    private val siteBrand = Regex("""(?i)\bdarkness\s*porn\b""")
 
     override suspend fun load(url: String): LoadResponse {
         val detail = super.load(url)
         val summary = detail.plot.orEmpty().replace(sitePromotion, "").trim()
-        detail.plot = Metadata.description(summary, detail.name).ifBlank { null }
+        // The site also generates whole descriptions with its hostname and rotating ad copy.
+        detail.plot = summary.takeUnless(siteBrand::containsMatchIn)
+            ?.let { Metadata.description(it, detail.name).ifBlank { null } }
         return detail
     }
 
