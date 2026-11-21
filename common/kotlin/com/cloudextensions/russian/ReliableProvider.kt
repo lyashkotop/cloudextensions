@@ -14,11 +14,15 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 
 private const val SEARCH_REVIEW_LIMIT = 10
 private const val SEARCH_PAGE_MINIMUM = 4
 private const val MAX_UPSTREAM_PAGES_PER_EXPANSION = 4
 private const val SEARCH_REVIEW_BUDGET_MS = 5_000L
+private const val LISTING_TIMEOUT_MS = 22_000L
+private const val RATING_REQUEST_TIMEOUT_MS = 6_500L
+private const val LISTING_COMPLETION_RESERVE_MS = 500L
 
 /** UI request bounds and one real preview shared by the search and detail response. */
 class ReliableProvider(
@@ -187,48 +191,62 @@ class ReliableProvider(
             }
         }.awaitAll()
     }
-    private val ratingPermits = Semaphore(3)
+    private val ratingPermits = Semaphore(4)
     private val listingScoreSource = (source as? ListingScoreSource) ?: (source as? AdaptedProvider)?.listingScoreSource
 
-    private suspend fun withListingScores(items: List<SearchResponse>): List<SearchResponse> {
-        val profile = ratingProfile?.takeIf(VideoScores::loadsListingScores) ?: return items
-        return coroutineScope {
-            items.mapIndexed { index, card ->
-                async {
-                    if (card !is MovieSearchResponse || card.score != null) return@async card
-                    val score = VideoScores.cachedDetail(profile, card.url) ?: if (index < 36) {
-                        RequestLimits.optional(3200) {
-                            ratingPermits.withPermit {
-                                VideoScores.cachedDetail(profile, card.url) ?: when (source) {
-                                    is RussianProvider -> source.readListingScore(card.url)
-                                    is NoodlePosterSource -> VideoScores.detail(profile, card.url, source.posterPage(card.url))
-                                    else -> if (listingScoreSource != null) listingScoreSource.readListingScore(card.url)
-                                    else VideoScores.detail(profile, card.url, Network.page(PageRequest(card.url), mainUrl))
-                                }?.also { VideoScores.rememberDetail(profile, card.url, it) }
-                            }
-                        }
-                    } else null
-                    if (score == null) card else card.copy(score = score)
-                }
-            }.awaitAll()
-        }
-    }
-
-    private suspend fun prepareListing(items: List<SearchResponse>, home: Boolean = false): List<SearchResponse> =
-        coroutineScope {
-            val ratings = async { withListingScores(items) }
-            val posters = withResolvedPosters(items, home = home)
-            ratings.await().zip(posters) { rated, poster ->
-                if (poster is MovieSearchResponse && rated.score != null && poster.score == null)
-                    poster.copy(score = rated.score)
-                else poster
+    private suspend fun readCardScore(profile: String, url: String): Score? =
+        VideoScores.cachedDetail(profile, url) ?: ratingPermits.withPermit {
+            VideoScores.cachedDetail(profile, url) ?: RequestLimits.optional(RATING_REQUEST_TIMEOUT_MS) {
+                when (source) {
+                    is RussianProvider -> source.readListingScore(url)
+                    is NoodlePosterSource -> VideoScores.detail(profile, url, source.posterPage(url))
+                    else -> if (listingScoreSource != null) listingScoreSource.readListingScore(url)
+                    else VideoScores.detail(profile, url, Network.page(PageRequest(url), mainUrl))
+                }?.also { VideoScores.rememberDetail(profile, url, it) }
             }
         }
 
-    override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная") {
+    private suspend fun listingScores(items: List<SearchResponse>, deadline: Long): Array<Score?> {
+        val scores = arrayOfNulls<Score>(items.size)
+        val profile = ratingProfile?.takeIf(VideoScores::loadsListingScores) ?: return scores
+        val missing = items.indices.filter { index ->
+            val card = items[index]
+            if (card !is MovieSearchResponse || card.score != null) return@filter false
+            val cached = VideoScores.cachedDetail(profile, card.url)
+            scores[index] = cached
+            cached == null
+        }
+        val remaining = (deadline - System.nanoTime()) / 1_000_000L - LISTING_COMPLETION_RESERVE_MS
+        if (remaining > 0 && missing.isNotEmpty()) withTimeoutOrNull(remaining) {
+            coroutineScope {
+                missing.forEach { index ->
+                    launch { scores[index] = readCardScore(profile, items[index].url) }
+                }
+            }
+        }
+        return scores
+    }
+
+    private suspend fun prepareListing(
+        items: List<SearchResponse>, deadline: Long, home: Boolean = false,
+    ): List<SearchResponse> = coroutineScope {
+        val ratings = async { listingScores(items, deadline) }
+        val posters = withResolvedPosters(items, home = home)
+        val scores = ratings.await()
+        posters.mapIndexed { index, poster ->
+            val score = scores[index]
+            if (poster is MovieSearchResponse && score != null && poster.score == null) poster.copy(score = score)
+            else poster
+        }
+    }
+
+    override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная", LISTING_TIMEOUT_MS) {
+        val deadline = System.nanoTime() + LISTING_TIMEOUT_MS * 1_000_000L
         val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
-        val rows = result.items.map {
-            it.copy(list = prepareListing(cards(it.list), home = true))
+        val rows = coroutineScope {
+            result.items.map { row ->
+                async { row.copy(list = prepareListing(cards(row.list), deadline, home = true)) }
+            }.awaitAll()
         }
         ImagePrefetch.warm(rows.flatMap{it.list})
         newHomePageResponse(rows,result.hasNext)
@@ -346,7 +364,8 @@ class ReliableProvider(
         newSearchResponseList(original.items + feeds.flatMap { it.items }, original.hasNext || feeds.any { it.hasNext })
     }
 
-    override suspend fun search(query: String, page: Int): SearchResponseList = RequestLimits.required("Поиск") {
+    override suspend fun search(query: String, page: Int): SearchResponseList = RequestLimits.required("Поиск", LISTING_TIMEOUT_MS) {
+        val listingDeadline = System.nanoTime() + LISTING_TIMEOUT_MS * 1_000_000L
         if (page < 1 || !ContentPolicy.accepts(query)) return@required newSearchResponseList(emptyList(), false)
         val history = synchronized(searchHistory) {
             if (page == 1) SearchHistory().also { searchHistory[query] = it }
@@ -371,7 +390,7 @@ class ReliableProvider(
                 if (cards.size >= SEARCH_PAGE_MINIMUM || !result.hasNext || limit == 0) break
                 result = RequestLimits.optional(remainingMillis(deadline)) { combinedSearch(query, upstream, history) } ?: break
             }
-            val response = searchPage(prepareListing(cards), page, result.hasNext)
+            val response = searchPage(prepareListing(cards, listingDeadline), page, result.hasNext)
             history.pages[page] = SavedSearchPage(response, upstream)
             response
         }
