@@ -10,4 +10,12 @@ class SickRProvider: RussianProvider(SiteSpec(
  tagSelector=".info-wrapper .info-tag",
  descriptionSelector=".info-row:has(.info-title:matchesOwn(Description)) .info-value",
  sections=listOf(Section("Latest","/"),Section("Popular","/most-popular/"))
-)){override var lang="en"}
+)) {
+    override var lang = "en"
+
+    override suspend fun page(request: PageRequest): org.jsoup.nodes.Document =
+        super.page(request.copy(headers = request.headers + mapOf(
+            "Cookie" to "kt_lang=ru",
+            "Accept-Language" to Network.RUSSIAN_LANGUAGE,
+        )))
+}

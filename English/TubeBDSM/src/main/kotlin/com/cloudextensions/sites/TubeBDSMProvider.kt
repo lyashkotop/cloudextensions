@@ -7,12 +7,14 @@ import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Interceptor
 import java.net.URI
 class TubeBDSMProvider: RussianProvider(SiteSpec(
- id="TubeBDSM",title="TubeBDSM",origin="https://www.tubebdsm.com",cards=".card.sub:has(img)",link="a.item-link[href]",titleSelector=".title,h2,h3",searchMode="get",
+ id="TubeBDSM",title="TubeBDSM",origin="https://www.tubebdsm.com",cards=".card.sub:has(img)",link="a.item-link[href]",titleSelector=".item-title,.title,h2,h3",titleLanguage="ru",searchMode="get",
  sections=listOf(Section("New videos","/new"),Section("Popular videos","/popular"),Section("Top rated videos","/rating"))
 )){
  override var lang="en"
+ private fun russian(request: PageRequest) =
+  request.copy(headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE))
  override suspend fun page(request:PageRequest):org.jsoup.nodes.Document {
-  val document=super.page(request)
+  val document=super.page(russian(request))
   return RequestLimits.optional(4500){AbxxxMetadata.enrich(document, includeRelated = false)} ?: document
  }
  private val interceptors=java.util.Collections.synchronizedMap(object:LinkedHashMap<String,Interceptor>(128,.75f,true){override fun removeEldestEntry(e:MutableMap.MutableEntry<String,Interceptor>?)=size>128})
@@ -25,7 +27,7 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
  }catch(_:Exception){null}catch(_:LinkageError){null}
  override fun readMetadata(document:org.jsoup.nodes.Document)=AggregatorPages.detail(document,spec)
  override suspend fun load(url:String):LoadResponse {
-  val page = super.page(PageRequest(url))
+  val page = super.page(russian(PageRequest(url)))
   val document = RequestLimits.optional(4500) { AbxxxMetadata.enrich(page, includeRelated = true) } ?: page
   val listingPoster=Metadata.savedPoster(url)
   val result=loadDocument(url, document)

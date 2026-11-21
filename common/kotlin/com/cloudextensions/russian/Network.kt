@@ -51,6 +51,7 @@ object Network {
     private val locks = ConcurrentHashMap<PageRequest, PageGate>()
     private val permits = Semaphore(4)
     const val USER_AGENT = "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
+    const val RUSSIAN_LANGUAGE = "ru-RU,ru;q=0.9,en;q=0.8"
     fun headers(referer: String) = mapOf("User-Agent" to USER_AGENT,"Referer" to referer)
     fun imageHeaders(image:String?,referer:String):Map<String,String> {
         val result=headers(referer).toMutableMap()

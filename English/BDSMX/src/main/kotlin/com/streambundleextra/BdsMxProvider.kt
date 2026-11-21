@@ -18,8 +18,10 @@ class BdsMxProvider:MainAPI() {
     override val hasDownloadSupport=true
     override val hasQuickSearch=false
     override val mainPage=mainPageOf("latest-updates" to "Videos","top-rated" to "Top rated")
-    private suspend fun json(url:String)=JSONObject(app.get(url,headers=Network.headers(mainUrl)).text)
-    private fun label(item:JSONObject,key:String):String=listOf(item.optString(key+"_en"),item.optString(key)).firstOrNull(Metadata::sourceValue).orEmpty()
+    private suspend fun json(url:String)=JSONObject(app.get(url,headers=Network.headers(mainUrl) + mapOf(
+        "Cookie" to "kt_lang=ru", "Accept-Language" to Network.RUSSIAN_LANGUAGE,
+    )).text)
+    private fun label(item:JSONObject,key:String):String=listOf(item.optString(key+"_ru"),item.optString(key+"_en"),item.optString(key)).firstOrNull(Metadata::sourceValue).orEmpty()
     private fun tags(item:JSONObject):List<String> {
         fun labels(raw:Any?):List<String> = when(raw) {
             is JSONObject->raw.keys().asSequence().mapNotNull{key->val v=raw.opt(key);when(v){is JSONObject->label(v,"title");is String->v;else->null}}.toList()

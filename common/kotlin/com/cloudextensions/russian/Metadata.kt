@@ -118,7 +118,10 @@ object Metadata {
             val link = if (card.tagName() == "a" && card.hasAttr("href")) card else card.selectFirst(spec.link) ?: continue
             val url = absolute(page.baseUri(),link.attr("href")) ?: continue
             val image = card.selectFirst("img")
-            val label = title(url,listOf(localizedTitle(card,spec.titleLanguage).orEmpty(),link.attr("title"),link.attr("aria-label"),image?.attr("alt").orEmpty(),card.selectFirst(spec.titleSelector)?.attr("title").orEmpty(),card.selectFirst(spec.titleSelector)?.text().orEmpty(),image?.attr("aria-label").orEmpty()))
+            val heading = card.selectFirst(spec.titleSelector)
+            val visible = heading?.text().orEmpty()
+            val preferred = visible.takeIf { spec.titleLanguage == "ru" && it.any { char -> char in 'А'..'я' || char == 'Ё' || char == 'ё' } }.orEmpty()
+            val label = title(url,listOf(localizedTitle(card,spec.titleLanguage).orEmpty(),preferred,link.attr("title"),link.attr("aria-label"),image?.attr("alt").orEmpty(),heading?.attr("title").orEmpty(),visible,image?.attr("aria-label").orEmpty()))
             if (label.isBlank()) continue
             val tags = (
                 card.select("[rel=tag], [data-tag]").flatMap { listOf(it.text(), it.attr("data-tag")) } +
