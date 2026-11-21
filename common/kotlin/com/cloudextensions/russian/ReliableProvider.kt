@@ -186,7 +186,10 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     }
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная") {
         val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
-        val rows=result.items.map{it.copy(list=withResolvedPosters(cards(it.list), home = true))}
+        val rows = result.items.map {
+            val posters = withResolvedPosters(cards(it.list), home = true)
+            it.copy(list = (source as? RussianProvider)?.withListingScores(posters) ?: posters)
+        }
         ImagePrefetch.warm(rows.flatMap{it.list})
         newHomePageResponse(rows,result.hasNext)
     }
@@ -328,7 +331,9 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 if (cards.size >= SEARCH_PAGE_MINIMUM || !result.hasNext || limit == 0) break
                 result = RequestLimits.optional(remainingMillis(deadline)) { combinedSearch(query, upstream, history) } ?: break
             }
-            val response = searchPage(withResolvedPosters(cards), page, result.hasNext)
+            val posters = withResolvedPosters(cards)
+            val rated = (source as? RussianProvider)?.withListingScores(posters) ?: posters
+            val response = searchPage(rated, page, result.hasNext)
             history.pages[page] = SavedSearchPage(response, upstream)
             response
         }

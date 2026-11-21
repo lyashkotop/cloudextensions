@@ -3,6 +3,7 @@ package com.cloudextensions.russian
 import com.lagradost.cloudstream3.Score
 import java.net.URI
 import java.util.Collections
+import java.util.concurrent.TimeUnit
 import org.json.JSONObject
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -10,6 +11,13 @@ import org.jsoup.nodes.Element
 /** Ratings published by the site for this video or its own listing card. */
 object VideoScores {
     private val listing = Collections.synchronizedMap(BoundedMap<Pair<String, String>, Score>(2048))
+    private val watched = Collections.synchronizedMap(BoundedMap<Pair<String, String>, Pair<Long, Score>>(512))
+
+    internal fun loadsListingScores(source: String): Boolean = source == "Perdol" || source == "Ebalka"
+
+    internal fun cachedDetail(source: String, url: String): Score? =
+        watched[source to videoKey(url)]?.takeIf { System.nanoTime() - it.first < TimeUnit.MINUTES.toNanos(5) }?.second
+
     private val percent = Regex("""^([0-9]{1,3}(?:[.,][0-9]+)?)\s*%(?:\s*\([0-9.,\s]+ votes?\))?$""", RegexOption.IGNORE_CASE)
     private val count = Regex("""[0-9]+(?:[,\s\u00a0\u202f][0-9]{3})*""")
 
@@ -37,6 +45,7 @@ object VideoScores {
         val selector = when (source) {
             "TubeBDSM" -> ".rating-badge .item-score, .rating-badge"
             "DarknessPorn", "PunishWorld" -> ".rating, .rating-nolike"
+            "Perdol" -> ".rating__counter"
             "Pervertium", "BoundHub", "Ebalka" -> ".rating"
             "EPorner" -> ".mbrate"
             "XRares" -> ".video-rating b"
@@ -108,6 +117,7 @@ object VideoScores {
             }
             else -> null
         }
+        if (score != null && loadsListingScores(source)) watched[source to videoKey(url)] = System.nanoTime() to score
         return score ?: listed
     }
 }

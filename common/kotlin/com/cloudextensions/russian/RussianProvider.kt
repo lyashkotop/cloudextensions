@@ -5,7 +5,12 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import java.net.URI
 import java.util.Collections
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.withLock
 import org.jsoup.nodes.Document
 
@@ -46,6 +51,29 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         score=card.score
         posterHeaders=Network.headers("${mainUrl.trimEnd('/')}/")
     }
+    // Only the first screenful needs a cold fetch. Reuse known scores throughout the page.
+    private val listingScorePermits = Semaphore(3)
+
+    internal suspend fun withListingScores(cards: List<SearchResponse>): List<SearchResponse> {
+        if (!VideoScores.loadsListingScores(spec.id)) return cards
+        return coroutineScope {
+            cards.mapIndexed { index, card ->
+                async {
+                    if (card !is MovieSearchResponse || card.score != null) return@async card
+                    val score = VideoScores.cachedDetail(spec.id, card.url) ?: if (index < 24) {
+                        RequestLimits.optional(3200) {
+                            listingScorePermits.withPermit {
+                                VideoScores.cachedDetail(spec.id, card.url)
+                                    ?: VideoScores.detail(spec.id, card.url, page(PageRequest(card.url)))
+                            }
+                        }
+                    } else null
+                    if (score == null) card else card.copy(score = score)
+                }
+            }.awaitAll()
+        }
+    }
+
     override suspend fun getMainPage(page: Int,request: MainPageRequest): HomePageResponse {
         require(page>=1)
         val key="${request.data}:$page"
