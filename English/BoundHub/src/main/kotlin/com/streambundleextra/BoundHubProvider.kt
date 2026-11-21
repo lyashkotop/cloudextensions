@@ -8,7 +8,6 @@ class BoundHubProvider: RussianProvider(SiteSpec(
  searchContainer="#list_videos_videos_list_search_result"
 )) {
     override var lang = "en"
-    override val translateQueries = false
     override val includeTaxonomyResults = false
 
     override suspend fun loadLinks(

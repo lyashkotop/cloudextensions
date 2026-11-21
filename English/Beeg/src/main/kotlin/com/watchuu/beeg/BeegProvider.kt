@@ -43,13 +43,12 @@ import org.jsoup.nodes.Element
  *   The metadata API (api-search.xv-cdn.net/id/<id>/) is now used ONLY for metadata, never as a
  *   playable source, and a preview is clearly labelled as such if nothing better is found.
  */
-class BeegProvider : MainAPI(), DetailTagSource, SearchPolicy {
+class BeegProvider : MainAPI(), DetailTagSource {
     override var mainUrl = "https://beeg.porn"
     override var name = "Beeg.porn"
     override var lang = "en"
     override val hasMainPage = true
     override val supportedTypes = setOf(TvType.NSFW)
-    override val translateQueries = false
 
     private val searchApiBase = "https://api-search.xv-cdn.net"
     private val nativeSearchBase = "https://search.beeg.porn/api"

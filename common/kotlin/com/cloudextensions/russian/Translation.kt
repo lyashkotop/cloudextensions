@@ -61,7 +61,8 @@ object Translation {
         val normalized=query.trim().lowercase(Locale.ROOT)
         val known=if(target=="ru")dictionary[normalized] else dictionary.entries.firstOrNull{it.value==normalized}?.key
         if(known!=null)return known
-        val key="$target:$normalized";cache[key]?.let{return it}
+        val source = if (target == "en" && Regex("[а-яё]+(?:[\\s'-]+[а-яё]+)*").matches(normalized)) "ru" else "auto"
+        val key="$source:$target:$normalized";cache[key]?.let{return it}
         val prefs=shared
         val digest=java.security.MessageDigest.getInstance("SHA-256").digest(key.toByteArray()).joinToString(""){"%02x".format(it)}
         val started=System.currentTimeMillis()
@@ -81,9 +82,9 @@ object Translation {
         try {
             val encoded=URLEncoder.encode(query,"UTF-8")
             val endpoints=listOf(
-                "https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=$target&q=$encoded",
-                "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=$target&dt=t&q=$encoded",
-                "https://translate.google.com/translate_a/single?client=gtx&sl=auto&tl=$target&dt=t&q=$encoded"
+                "https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=$source&tl=$target&q=$encoded",
+                "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$source&tl=$target&dt=t&q=$encoded",
+                "https://translate.google.com/translate_a/single?client=gtx&sl=$source&tl=$target&dt=t&q=$encoded"
             )
             for((index,url) in endpoints.withIndex()) {
                 val value=RequestLimits.optional(3000){
