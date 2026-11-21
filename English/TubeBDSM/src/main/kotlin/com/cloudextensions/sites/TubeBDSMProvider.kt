@@ -2,13 +2,17 @@ package com.cloudextensions.sites
 import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.ExtractorLinkType
+import com.lagradost.cloudstream3.utils.newExtractorLink
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Interceptor
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.net.URI
+import org.jsoup.nodes.Document
 class TubeBDSMProvider: RussianProvider(SiteSpec(
  id="TubeBDSM",title="TubeBDSM",origin="https://www.tubebdsm.com",cards=".card.sub:has(img)",link="a.item-link[href]",titleSelector=".item-title,.title,h2,h3",titleLanguage="ru",searchMode="get",
  sections=listOf(Section("New videos","/new"),Section("Popular videos","/popular"),Section("Top rated videos","/rating"))
@@ -67,6 +71,14 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
   if (PlayerConfig.requiresPaidAccess(document)) {
    throw ErrorLoadingException("FapHouse ограничил доступ к полной версии видео")
   }
+  if (URI(document.baseUri()).host?.removePrefix("www.") == "pawg.porn") {
+   val stream = pawgStream(document) ?: return false
+   callback(newExtractorLink(name, name, stream, ExtractorLinkType.M3U8) {
+    referer = document.baseUri()
+    headers = Network.headers(referer)
+   })
+   return true
+  }
   val target=native(document.baseUri())
   val emitted=java.util.concurrent.atomic.AtomicInteger()
   if(target!=null)try{withTimeoutOrNull(12000){target.loadLinks(document.baseUri(),isCasting,subtitleCallback){link->
@@ -76,6 +88,13 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
   if(emitted.get()>0)return true
   return Playback.linksFromPage(name, mainUrl, data, document, PlayerConfig.sources(document), subtitleCallback, callback)
  }
+ private fun pawgStream(page: Document): String? =
+  page.select("#video .video-player-container video[src], #video .video-player-container video source[src]")
+   .asSequence().mapNotNull { it.absUrl("src").toHttpUrlOrNull() }
+   .firstOrNull {
+    it.isHttps && it.host == "pawg.adultvideocdn.com" &&
+     it.encodedPath.startsWith("/videos/") && it.encodedPath.endsWith(".m3u8", ignoreCase = true)
+   }?.toString()
  override fun getVideoInterceptor(extractorLink:ExtractorLink):Interceptor? = interceptors[extractorLink.url]
  override suspend fun related(document:org.jsoup.nodes.Document,detail:VideoDetail,url:String):List<com.lagradost.cloudstream3.SearchResponse> {
   val cards=AggregatorPages.related(document,spec)
