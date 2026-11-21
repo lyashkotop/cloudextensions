@@ -5,6 +5,7 @@ import java.util.LinkedHashMap
 
 interface SearchPolicy {
     val translateQueries:Boolean get()=true
+    val includeTaxonomyResults: Boolean get() = true
     val minInitialSearchResults: Int get() = 1
     suspend fun fullTitle(url:String):String? = null
 }
@@ -27,6 +28,7 @@ data class SiteSpec(
     val related: String = "#related-videos, #relateddiv, .related-videos, .related, .related-videos-holder, #list_videos_related_videos",
     val detailTitleSelector: String = "", val durationSelector: String = "",
     val titleLanguage:String="",
+    val searchContainer: String = "",
 )
 data class VideoCard(val title: String, val url: String, val poster: String?, val duration: String = "", val tags: List<String> = emptyList())
 data class VideoDetail(val title: String, val poster: String?, val description: String, val tags: List<String>, val duration: String, val year: Int?)

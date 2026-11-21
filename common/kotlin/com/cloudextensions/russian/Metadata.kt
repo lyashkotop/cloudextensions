@@ -149,7 +149,7 @@ object Metadata {
     fun searchCards(page: Document, spec: SiteSpec, request: PageRequest): List<VideoCard> =
         searchCards(page, spec, emptySearch(page, request))
 
-    internal fun searchCards(page: Document, spec: SiteSpec, empty: Boolean): List<VideoCard> {
+    internal fun searchCards(page: Element, spec: SiteSpec, empty: Boolean): List<VideoCard> {
         if (empty) return emptyList()
         val searchSpec=if(spec.id=="ThisVid")spec.copy(cards="#list_videos_common_videos_list_items a.tumbpu:has(img)") else spec
         return cards(page,searchSpec)

@@ -122,14 +122,16 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
 
     private suspend fun fetchSearchPage(route: PageRequest, taxonomy: Boolean = false): SearchPage {
         val document = page(route.copy(allowNotFound = true))
-        val empty = Metadata.emptySearch(document, route) ||
+        if (Metadata.emptySearch(document, route) ||
             (taxonomy && URI(document.baseUri()).path.orEmpty().trim('/').isEmpty())
-        val cards = when {
-            empty -> emptyList()
-            taxonomy -> Metadata.cards(document, spec)
-            else -> Metadata.searchCards(document, spec, empty)
+        ) return SearchPage(emptyList(), null)
+        val results = if (!taxonomy && spec.searchContainer.isNotBlank()) {
+            document.selectFirst(spec.searchContainer) ?: return SearchPage(emptyList(), null)
+        } else {
+            document
         }
-        val next = if (empty) null else Pagination.next(document, route)?.takeUnless { it == route }
+        val cards = if (taxonomy) Metadata.cards(results, spec) else Metadata.searchCards(results, spec, empty = false)
+        val next = Pagination.next(results, route)?.takeUnless { it == route }
         return SearchPage(cards, next)
     }
 

@@ -8,10 +8,10 @@ import org.jsoup.nodes.Element
 
 object Pagination {
     private val nextText=Regex("(?iu)^(?:next(?: page)?|далее|дальше|следующ(?:ая|ая страница|ие)?|впер[её]д|показать ещ[её]|ещ[её]|[›»→>]+)$")
-    private fun address(page: Document,element: Element,attribute: String): String? = absolute(page.baseUri(),element.attr(attribute))?.takeIf { url ->
+    private fun address(page: Element,element: Element,attribute: String): String? = absolute(page.baseUri(),element.attr(attribute))?.takeIf { url ->
         URI(url).host.equals(URI(page.baseUri()).host,true) && url.substringBefore('#')!=page.baseUri().substringBefore('#')
     }
-    fun next(page: Document, current: PageRequest): PageRequest? {
+    fun next(page: Element, current: PageRequest): PageRequest? {
         val uri=URI(current.url)
         val parameters=uri.rawQuery.orEmpty().split('&').filter { it.isNotBlank() }.associate { URLDecoder.decode(it.substringBefore('='),"UTF-8") to URLDecoder.decode(it.substringAfter('=',""),"UTF-8") }
         // These routes and counters come from the sites' own scrolling scripts.

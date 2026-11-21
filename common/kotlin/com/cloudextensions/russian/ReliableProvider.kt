@@ -226,7 +226,9 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
 
     private suspend fun taxonomyResults(query: String, page: Int, history: SearchHistory): List<SearchResponseList> = coroutineScope {
         val terms = TaxonomySearch.terms(query)
-        if (terms.isEmpty() || source is NoodlePosterSource && (source as? SearchPolicy)?.translateQueries == false) {
+        val policy = source as? SearchPolicy
+        if (terms.isEmpty() || policy?.includeTaxonomyResults == false ||
+            source is NoodlePosterSource && policy?.translateQueries == false) {
             return@coroutineScope emptyList()
         }
         val native = source as? RussianProvider
