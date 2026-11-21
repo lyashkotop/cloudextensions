@@ -200,7 +200,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
 
     private fun searchKey(card: SearchResponse): String =
         if (source is NoodlePosterSource && (source as? SearchPolicy)?.translateQueries == true) NoodleCatalogue.identity(card.url)
-        else videoKey(card.url)
+        else Metadata.streakReuploadKey(card.url) ?: videoKey(card.url)
 
     private suspend fun upstreamSearch(
         query: String, page: Int, history: SearchHistory, aliases: Set<String>,
