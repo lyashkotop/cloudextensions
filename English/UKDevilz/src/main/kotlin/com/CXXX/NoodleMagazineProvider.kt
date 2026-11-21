@@ -17,6 +17,7 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
     override val hasMainPage = true
     override var lang = "en"
     override val translateQueries=false
+    override val expandSearchAliases = false
     override val hasDownloadSupport = true
     override val supportedTypes = setOf(TvType.NSFW)
     override val mainPage = mainPageOf(

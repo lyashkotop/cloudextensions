@@ -15,7 +15,9 @@ class ProstoPornoProvider: RussianProvider(SiteSpec(
     override val includeTaxonomyResults = false
 
     override suspend fun search(query: String, page: Int): SearchResponseList {
-        if (page < 1 || query.isBlank()) return super.search(query, page)
+        if (page < 1 || query.isBlank() || Translation.searchAliases(query).isNotEmpty()) {
+            return super.search(query, page)
+        }
         val original = super.search(query, 1)
         // Keep the site's original order and pagination once it finds matching videos.
         if (original.items.isNotEmpty() || original.hasNext) {

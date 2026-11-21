@@ -80,10 +80,10 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         return searchPages("taxonomy:$url", page, url)
     }
 
-    internal suspend fun taxonomyLinks(terms: Set<String>): List<Section> {
+    internal suspend fun taxonomyLinks(terms: Set<String>, allMatches: Boolean = false): List<Section> {
         val root = page(PageRequest(mainUrl.trimEnd('/') + "/"))
         val links = TaxonomySearch.links(root, terms)
-        if (links.any { TaxonomySearch.kind(it.path) == "tag" }) return links
+        if (!allMatches && links.any { TaxonomySearch.kind(it.path) == "tag" }) return links
         val directory = TaxonomySearch.tagDirectory(root) ?: return links
         val published = RequestLimits.optional(650) { TaxonomySearch.links(page(PageRequest(directory)), terms) }
         return links + published.orEmpty()

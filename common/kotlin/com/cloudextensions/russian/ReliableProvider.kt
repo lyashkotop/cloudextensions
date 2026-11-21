@@ -194,6 +194,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         val pages = mutableMapOf<Int, SavedSearchPage>()
         var taxonomy: List<Section>? = null
         val taxonomyEnds = mutableMapOf<String, Int>()
+        val aliasEnds = mutableMapOf<String, Int>()
     }
     private val searchHistory = BoundedMap<String, SearchHistory>(32)
 
@@ -201,9 +202,11 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         if (source is NoodlePosterSource && (source as? SearchPolicy)?.translateQueries == true) NoodleCatalogue.identity(card.url)
         else videoKey(card.url)
 
-    private suspend fun upstreamSearch(query: String, page: Int): SearchResponseList {
-        if (lang !in listOf("ru", "en") || (source as? SearchPolicy)?.translateQueries == false ||
-            (source as? AdaptedProvider)?.translateQueries == false) {
+    private suspend fun upstreamSearch(
+        query: String, page: Int, history: SearchHistory, aliases: Set<String>,
+    ): SearchResponseList {
+        if (aliases.isEmpty() && (lang !in listOf("ru", "en") || (source as? SearchPolicy)?.translateQueries == false ||
+            (source as? AdaptedProvider)?.translateQueries == false)) {
             return source.search(query, page) ?: newSearchResponseList(emptyList(), false)
         }
         data class Batch(val response: SearchResponseList?, val error: Exception? = null)
@@ -215,20 +218,35 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
             Batch(null, e)
         }
         val batches = coroutineScope {
-            val original = async { branch(query) }
-            val translated = async { Translation.translated(query)?.let { branch(it) } }
-            listOfNotNull(original.await(), translated.await())
+            if (aliases.isEmpty()) {
+                val original = async { branch(query) }
+                val translated = async { Translation.translated(query)?.let { branch(it) } }
+                listOfNotNull(original.await(), translated.await())
+            } else {
+                val terms = listOf(query) + aliases.filterNot { it.equals(Metadata.clean(query), ignoreCase = true) }
+                val replies = terms.filter { page <= (history.aliasEnds[it] ?: Int.MAX_VALUE) }.map { term ->
+                    async {
+                        term to if (term == query) branch(term) else RequestLimits.optional(4500) { branch(term) }
+                    }
+                }.awaitAll()
+                for ((term, batch) in replies) {
+                    if (batch?.response?.hasNext == false) history.aliasEnds[term] = page
+                }
+                replies.mapNotNull { it.second }
+            }
         }
         val responses = batches.mapNotNull { it.response }
         if (responses.isEmpty()) batches.firstNotNullOfOrNull { it.error }?.let { throw it }
         return newSearchResponseList(responses.flatMap { it.items }, responses.any { it.hasNext })
     }
 
-    private suspend fun taxonomyResults(query: String, page: Int, history: SearchHistory): List<SearchResponseList> = coroutineScope {
-        val terms = TaxonomySearch.terms(query)
+    private suspend fun taxonomyResults(
+        query: String, page: Int, history: SearchHistory, aliases: Set<String>,
+    ): List<SearchResponseList> = coroutineScope {
+        val terms = aliases.ifEmpty { TaxonomySearch.terms(query) }
         val policy = source as? SearchPolicy
-        if (terms.isEmpty() || policy?.includeTaxonomyResults == false ||
-            source is NoodlePosterSource && policy?.translateQueries == false) {
+        if (terms.isEmpty() || (aliases.isEmpty() && (policy?.includeTaxonomyResults == false ||
+            source is NoodlePosterSource && policy?.translateQueries == false))) {
             return@coroutineScope emptyList()
         }
         val native = source as? RussianProvider
@@ -237,8 +255,11 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 TaxonomySearch.matches(it.name, terms) &&
                     (TaxonomySearch.kind(it.data) != null || source is NoodlePosterSource && !it.data.startsWith('/'))
             }.map { Section(it.name, it.data) }
-            val linked = native?.let { RequestLimits.optional(1100) { it.taxonomyLinks(terms) } }.orEmpty()
-            (declared + linked).distinctBy { TaxonomySearch.kind(it.path) ?: "category" }.also { history.taxonomy = it }
+            val linked = native?.let { RequestLimits.optional(1100) { it.taxonomyLinks(terms, allMatches = aliases.isNotEmpty()) } }.orEmpty()
+            (declared + linked).distinctBy {
+                if (aliases.isEmpty()) TaxonomySearch.kind(it.path) ?: "category"
+                else absolute(mainUrl, it.path)?.trimEnd('/') ?: it.path
+            }.also { history.taxonomy = it }
         }
         val replies = sections.filter { page <= (history.taxonomyEnds[it.path] ?: Int.MAX_VALUE) }.map { section ->
             async {
@@ -257,8 +278,11 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     }
 
     private suspend fun combinedSearch(query: String, page: Int, history: SearchHistory): SearchResponseList = coroutineScope {
-        val matches = async { upstreamSearch(query, page) }
-        val taxonomy = async { taxonomyResults(query, page, history) }
+        val aliases = if (lang in listOf("ru", "en") && (source as? SearchPolicy)?.expandSearchAliases != false) {
+            Translation.searchAliases(query)
+        } else emptySet()
+        val matches = async { upstreamSearch(query, page, history, aliases) }
+        val taxonomy = async { taxonomyResults(query, page, history, aliases) }
         val original = matches.await()
         val feeds = taxonomy.await()
         newSearchResponseList(original.items + feeds.flatMap { it.items }, original.hasNext || feeds.any { it.hasNext })

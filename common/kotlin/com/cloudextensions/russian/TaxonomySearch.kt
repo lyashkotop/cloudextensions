@@ -6,7 +6,12 @@ import org.jsoup.nodes.Document
 internal object TaxonomySearch {
     private val word = Regex("""[\p{L}\p{N}]+(?:[-'][\p{L}\p{N}]+)*""")
     private val count = Regex("""\s+(?:\(\d[\d ,.]*\)|\d[\d ,.]*)(?:\s+(?:videos?|видео))?$""", RegexOption.IGNORE_CASE)
-    private val taxonomyPath = Regex("""/(tags?|categor(?:y|ies)|cat|free_porn|genres?)/[^/]+""", RegexOption.IGNORE_CASE)
+    private val taxonomyPath = Regex("""/(t|tags?|categor(?:y|ies)|cat|free_porn|genres?)/[^/]+""", RegexOption.IGNORE_CASE)
+    private val homemadeLabels = setOf(
+        "amateurs", "real homemade", "homemade videos", "amateur videos",
+        "домашнее видео", "домашнее порно", "домашнее порно видео",
+        "любительское", "любительское видео", "любительское порно",
+    )
 
     fun terms(query: String): Set<String> {
         val label = Metadata.clean(query).lowercase()
@@ -14,13 +19,15 @@ internal object TaxonomySearch {
         return if (label in setOf("бдсм", "bdsm")) setOf("бдсм", "bdsm") else setOf(label)
     }
 
-    fun matches(label: String, terms: Set<String>): Boolean =
-        count.replace(Metadata.clean(label), "").lowercase() in terms
+    fun matches(label: String, terms: Set<String>): Boolean {
+        val normalized = count.replace(Metadata.clean(label), "").lowercase()
+        return normalized in terms || ("amateur" in terms && normalized in homemadeLabels)
+    }
 
     fun kind(url: String): String? {
         val path = runCatching { URI(url).path }.getOrNull().orEmpty()
         val segment = taxonomyPath.find(path)?.groupValues?.get(1)?.lowercase() ?: return null
-        return if (segment.startsWith("tag")) "tag" else "category"
+        return if (segment == "t" || segment.startsWith("tag")) "tag" else "category"
     }
 
     fun links(page: Document, terms: Set<String>): List<Section> {
