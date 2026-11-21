@@ -15,7 +15,7 @@ from kotlin_build import LIBRARIES, compile_sources
 
 RUNTIME = ROOT / 'common/tools/probe-toolchain.json'
 FOCUSED = {
-    'DarknessPorn', 'EPorner', 'HurtSex', 'NoodleMagazine', 'Ro85', 'Strip2',
+    'DarknessPorn', 'EPorner', 'HurtSex', 'NoodleMagazine', 'Strip2',
     'ThisVid', 'TubeBDSM', 'TubeSafari', 'UKDevilz',
 }
 QUERIES = {'en': 'woman', 'ru': 'женщина', 'ja': 'カップル'}

@@ -65,7 +65,7 @@ class BdsMxProvider:MainAPI() {
         val title=label(item,"title");val labels=tags(item)
         if(!ContentPolicy.accepts(title,labels))throw ErrorLoadingException("Video hidden by category filter")
         val related=RequestLimits.optional { labels.firstOrNull()?.let{catalogue(it,1).items.filter{r->r.url!=url}} }.orEmpty()
-        return newMovieLoadResponse(Metadata.title(url,listOf(title)),url,TvType.NSFW,url){
+        return newMovieLoadResponse(Metadata.title(url,listOf(title),fromDetail=true),url,TvType.NSFW,url){
             posterUrl=image(item);posterHeaders=Network.headers(mainUrl);plot=label(item,"description");tags=labels;recommendations=related
             applyVideoDuration(item.optString("duration"))
         }

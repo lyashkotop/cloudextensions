@@ -11,6 +11,7 @@ import org.jsoup.nodes.Document
 
 /** Native Kotlin implementation shared by source profiles across all language groups. No legacy provider delegation. */
 open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMetadataSource {
+    override val preferredTitleLanguage get() = spec.titleLanguage
     override var name=spec.title
     override var mainUrl=spec.origin
     override var lang="ru"

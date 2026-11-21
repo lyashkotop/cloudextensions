@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit
 
 interface PosterSource {
     val posterTimeoutMs: Long get() = 3500
+    val reuseConfirmedPosters: Boolean get() = false
     suspend fun resolvePoster(url: String, poster: String?, headers: Map<String, String>): String?
 }
 
@@ -19,10 +20,16 @@ internal object PosterRequests {
     suspend fun available(url: String, headers: Map<String, String>, timeoutMs: Long): Boolean =
         check(url, headers, timeoutMs) == true
 
+    fun confirmed(url: String, headers: Map<String, String>): Boolean =
+        cached(ImageCheck(url, headers)) == true
+
+    private fun cached(key: ImageCheck): Boolean? =
+        checked[key]?.takeIf { System.nanoTime() < it.expires }?.available
+
     /** A timeout or a temporary CDN failure leaves the image's availability unknown. */
     suspend fun check(url: String, headers: Map<String, String>, timeoutMs: Long): Boolean? {
         val key = ImageCheck(url, headers.toMap())
-        checked[key]?.takeIf { System.nanoTime() < it.expires }?.let { return it.available }
+        cached(key)?.let { return it }
         return RequestLimits.optional(timeoutMs) {
             val request = Request.Builder().url(url)
             key.headers.forEach { (name, value) -> request.header(name, value) }

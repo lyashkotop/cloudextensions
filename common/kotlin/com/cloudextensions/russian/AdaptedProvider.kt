@@ -52,7 +52,7 @@ class AdaptedProvider(private val source: MainAPI): MainAPI() {
     override suspend fun load(url:String):LoadResponse {
         val result=source.load(url) ?: throw ErrorLoadingException("Video metadata is missing")
         if(!ContentPolicy.accepts(result.name,result.tags.orEmpty(),result.plot))throw ErrorLoadingException("Video hidden by category filter")
-        if(result is MovieLoadResponse)result.name=Metadata.title(url,listOf(result.name))
+        if(result is MovieLoadResponse)result.name=Metadata.title(url,listOf(result.name),fromDetail=true)
         result.plot=Metadata.description(result.plot,result.name)
         result.tags=result.tags.orEmpty().mapNotNull(Metadata::tag).distinctBy{it.lowercase()}
         if(result.plot.isNullOrBlank() || result.tags.isNullOrEmpty() || result.duration==null || Metadata.imageUrl(url,result.posterUrl)==null) {

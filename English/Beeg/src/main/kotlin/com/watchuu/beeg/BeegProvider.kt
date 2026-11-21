@@ -199,9 +199,9 @@ class BeegProvider : MainAPI(), DetailTagSource {
         val markup = html.await()
         val doc=Jsoup.parse(markup,url)
         val meta=api.await()
-        val title=Metadata.title(url,listOf(meta?.optString("title").orEmpty(),doc.selectFirst("h1")?.text().orEmpty(),doc.selectFirst("meta[property=og:title]")?.attr("content").orEmpty()))
-        if(title.isBlank())throw ErrorLoadingException("Video metadata is missing")
         val detail = Metadata.detail(doc, spec)
+        val title=Metadata.title(url,listOf(meta?.optString("title").orEmpty(),doc.selectFirst("h1")?.text().orEmpty(),doc.selectFirst("meta[property=og:title]")?.attr("content").orEmpty()),fromDetail=true)
+        if(title.isBlank())throw ErrorLoadingException("Video metadata is missing")
         val declaredTags = meta?.optString("cats")?.takeUnless { it == "[]" }?.split(',')
             ?.mapNotNull { Metadata.tag(it.trim().trim('*')) }.orEmpty().ifEmpty { detail.tags }
         val tags = if (declaredTags.isNotEmpty()) {

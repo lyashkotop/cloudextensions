@@ -32,26 +32,27 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     override val hasDownloadSupport get()=source.hasDownloadSupport
     override val hasChromecastSupport get()=source.hasChromecastSupport
     override val vpnStatus get()=source.vpnStatus
+    private val titleLanguage get() = (source as? SearchPolicy)?.preferredTitleLanguage.orEmpty()
     private val titlePermits = Semaphore(4)
 
     private fun normalizeCard(
         card: SearchResponse,
         image: String? = Metadata.rememberPoster(card.url, card.posterUrl),
-        title: String = Metadata.title(card.url, listOf(card.name)),
+        title: String = Metadata.title(card.url, listOf(card.name), language = titleLanguage),
     ): SearchResponse {
         if (card !is MovieSearchResponse) return card
         val headers = Network.imageHeaders(image, mainUrl.trimEnd('/') + "/") + card.posterHeaders.orEmpty()
         return card.copy(name = title, posterUrl = image, posterHeaders = headers)
     }
 
-    private suspend fun expandTitle(card: SearchResponse, deadline: Long): String = titlePermits.withPermit {
+    private suspend fun expandTitle(card: SearchResponse, deadline: Long): String? = titlePermits.withPermit {
         val budget = minOf(2500L, ((deadline - System.nanoTime()) / 1_000_000).coerceAtLeast(1))
         RequestLimits.optional(budget) {
             if (source is SearchPolicy) source.fullTitle(card.url) else {
                 val page = Network.page(PageRequest(card.url), mainUrl)
                 Metadata.detail(page, SiteSpec("title", name, mainUrl, ".none", "a", "h1", emptyList())).title
             }
-        }?.takeIf { it.isNotBlank() } ?: card.name
+        }?.takeIf { it.isNotBlank() }
     }
 
     private suspend fun cards(items: List<SearchResponse>, expandTitles: Boolean = true): List<SearchResponse> = coroutineScope {
@@ -63,7 +64,8 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
             if (expandTitles && Metadata.isTruncatedTitle(card.name)) async { expandTitle(card, deadline) } else null
         }
         posters.mapIndexedNotNull { index, card ->
-            val title = titles[index]?.await() ?: Metadata.title(card.url, listOf(card.name))
+            val expanded = titles[index]?.await()
+            val title = Metadata.title(card.url, listOf(expanded ?: card.name), language = titleLanguage, fromDetail = expanded != null)
             if (!ContentPolicy.accepts(title, Metadata.cardTags(card.url))) return@mapIndexedNotNull null
             if (card is MovieSearchResponse && title != card.name) card.copy(name = title) else card
         }
@@ -97,7 +99,12 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         items.mapIndexed { index, item -> async {
             if (item !is MovieSearchResponse || (missingOnly && !item.posterUrl.isNullOrBlank())) return@async item
             val headers = item.posterHeaders.orEmpty()
-            val poster = resolvePoster(provider, item.url, item.posterUrl, headers)
+            val original = item.posterUrl
+            val poster = if (provider.reuseConfirmedPosters && original != null && PosterRequests.confirmed(original, headers)) {
+                original
+            } else {
+                resolvePoster(provider, item.url, original, headers)
+            }
             val ready = if (poster == null || poster == item.posterUrl) item else {
                 Metadata.rememberPoster(item.url, poster)
                 item.copy(posterUrl = poster, posterHeaders = resolvedPosterHeaders(poster, item.url, headers))
@@ -150,7 +157,9 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 async {
                     val checked = review(card, deadline) ?: return@async null
                     if (!checked.allowed) return@async null
-                    val full = checked.title?.let { Metadata.title(card.url, listOf(it)) } ?: card.name
+                    val full = checked.title?.let {
+                        Metadata.title(card.url, listOf(it), language = titleLanguage, fromDetail = true)
+                    } ?: card.name
                     val ready = if (card is MovieSearchResponse) card.copy(name = full) else card
                     if (source !is PosterSource) ImagePrefetch.warm(listOf(ready))
                     ready
@@ -168,7 +177,8 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
             async {
                 if (card !is MovieSearchResponse || !Metadata.isTruncatedTitle(card.name)) return@async card
                 val title = RequestLimits.optional(remainingMillis(deadline)) { expandTitle(card, deadline) }
-                card.copy(name = Metadata.title(card.url, listOf(card.name, title.orEmpty())))
+                if (title == null) card
+                else card.copy(name = Metadata.title(card.url, listOf(title), language = titleLanguage, fromDetail = true))
             }
         }.awaitAll()
     }

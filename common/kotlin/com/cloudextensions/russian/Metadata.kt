@@ -12,7 +12,10 @@ import org.jsoup.nodes.Element
 
 /** Parses source fields only. Never derives tags from title words or a description from a URL. */
 object Metadata {
-    private val titles = Collections.synchronizedMap(BoundedMap<String,String>(1024))
+    private data class CachedTitle(val text: String, val fromDetail: Boolean)
+    private val titles = BoundedMap<String, MutableMap<String, CachedTitle>>(1024)
+    private val russianTitle = Regex("[А-Яа-яЁё]")
+    private val genericDetailTitle = Regex("(?i)^(?:video|watch video|watch online|loading|video (?:not found|unavailable|deleted)|404|not found|видео|смотреть онлайн)[.!…]*$")
     private val posters = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val posterTimes = Collections.synchronizedMap(BoundedMap<String,Long>(1024))
     private val durations = Collections.synchronizedMap(BoundedMap<String,String>(1024))
@@ -45,7 +48,13 @@ object Metadata {
     }
     fun alias(from: String,to: String) {
         val a=videoKey(from);val b=videoKey(to)
-        titles[a]?.let{titles[b]=it};posters[a]?.let{posters[b]=it;posterTimes[a]?.let{stamp->posterTimes[b]=stamp}};durations[a]?.let{durations[b]=it}
+        if (a != b) synchronized(titles) {
+            titles[a]?.let { aliases ->
+                val target = titles.getOrPut(b) { mutableMapOf() }
+                for ((language, title) in aliases) target.putIfAbsent(language, title)
+            }
+        }
+        posters[a]?.let{posters[b]=it;posterTimes[a]?.let{stamp->posterTimes[b]=stamp}};durations[a]?.let{durations[b]=it}
     }
     fun imageUrl(base:String,raw:String?):String? = raw?.trim()?.takeUnless { it.isBlank() || it.lowercase(Locale.ROOT) in setOf("null","undefined","false") }?.let { absolute(base,it.replace("\\/","/").replace("&amp;","&")) }?.takeUnless {
         val path=java.net.URI(it).path.orEmpty().lowercase(Locale.ROOT)
@@ -65,19 +74,32 @@ object Metadata {
     internal fun cardTags(url: String): List<String> = listedTags[videoKey(url)].orEmpty()
     internal fun streakReuploadKey(url: String): String? = streakListingKeys[videoKey(url)]
 
-    fun title(url: String, candidates: List<String>): String {
-        val key = videoKey(url)
-        val old = titles[key]?.takeIf(::sourceValue)
-        val values = candidates.map(::clean).filter(::sourceValue)
-        fun stem(v:String)=v.replace(truncated,"").trim()
-        var chosen = values.firstOrNull { !truncated.containsMatchIn(it) } ?: values.firstOrNull().orEmpty()
-        for(v in values)if(v.length>chosen.length && v.startsWith(stem(chosen),true))chosen=v
-        if(!old.isNullOrBlank()) {
-            val longer=values.filter{it.length>old.length && it.startsWith(stem(old),true)}.maxByOrNull{it.length}
-            chosen=longer ?: if(!truncated.containsMatchIn(old))old else chosen
+    fun title(url: String, candidates: List<String>, language: String = "", fromDetail: Boolean = false): String {
+        val values = candidates.map(::clean).filter { sourceValue(it) && !(fromDetail && genericDetailTitle.matches(it)) }
+        val preferred = if (language == "ru") values.filter(russianTitle::containsMatchIn).ifEmpty { values } else values
+        fun isExtension(full: String, prefix: String) =
+            full.length > prefix.length && full.startsWith(prefix.replace(truncated, "").trim(), ignoreCase = true)
+        var candidate = preferred.firstOrNull { !isTruncatedTitle(it) } ?: preferred.firstOrNull().orEmpty()
+        for (value in preferred) if (isExtension(value, candidate)) candidate = value
+
+        return synchronized(titles) {
+            val key = videoKey(url)
+            val cached = titles[key]?.get(language)
+            if (candidate.isBlank()) return@synchronized cached?.text.orEmpty()
+            val localized = language == "ru" && russianTitle.containsMatchIn(candidate)
+            val cachedLocalized = language == "ru" && russianTitle.containsMatchIn(cached?.text.orEmpty())
+            val selected = when {
+                cached == null || localized && !cachedLocalized -> CachedTitle(candidate, fromDetail)
+                cachedLocalized && !localized -> cached
+                fromDetail && !isTruncatedTitle(candidate) -> CachedTitle(candidate, true)
+                cached.fromDetail && !isTruncatedTitle(cached.text) -> cached
+                isExtension(candidate, cached.text) && !isTruncatedTitle(candidate) -> CachedTitle(candidate, cached.fromDetail || fromDetail)
+                isTruncatedTitle(cached.text) -> CachedTitle(candidate, fromDetail)
+                else -> cached
+            }
+            titles.getOrPut(key) { mutableMapOf() }[language] = selected
+            selected.text
         }
-        if (chosen.isNotEmpty()) titles[key] = chosen
-        return chosen
     }
     fun poster(element: Element, base: String): String? {
         val images=if(element.tagName() in listOf("img","video"))listOf(element) else element.select("img,video[poster]").toList()
@@ -120,8 +142,7 @@ object Metadata {
             val image = card.selectFirst("img")
             val heading = card.selectFirst(spec.titleSelector)
             val visible = heading?.text().orEmpty()
-            val preferred = visible.takeIf { spec.titleLanguage == "ru" && it.any { char -> char in 'А'..'я' || char == 'Ё' || char == 'ё' } }.orEmpty()
-            val label = title(url,listOf(localizedTitle(card,spec.titleLanguage).orEmpty(),preferred,link.attr("title"),link.attr("aria-label"),image?.attr("alt").orEmpty(),heading?.attr("title").orEmpty(),visible,image?.attr("aria-label").orEmpty()))
+            val label = title(url,listOf(localizedTitle(card,spec.titleLanguage).orEmpty(),link.attr("title"),link.attr("aria-label"),image?.attr("alt").orEmpty(),heading?.attr("title").orEmpty(),visible,image?.attr("aria-label").orEmpty()), language = spec.titleLanguage)
             if (label.isBlank()) continue
             val tags = (
                 card.select("[rel=tag], [data-tag]").flatMap { listOf(it.text(), it.attr("data-tag")) } +
@@ -192,7 +213,8 @@ object Metadata {
         val data=ownVideo(page)
         val heading=(if(spec.detailTitleSelector.isNotBlank())page.selectFirst(spec.detailTitleSelector) else null)?.text() ?: page.selectFirst("h1[itemprop=name], h1.video-page-title, h1.single-entry-title, main h1, h1:not(.site-title)")?.text().orEmpty()
         val titleFields=listOf(localizedTitle(page.selectFirst("h1"),spec.titleLanguage).orEmpty(),heading,data?.optString("name").orEmpty()).filter(String::isNotBlank)
-        val rawTitle=title(page.baseUri(),titleFields.ifEmpty{listOf(page.selectFirst("meta[property=og:title]")?.attr("content").orEmpty())})
+        val rawTitle=title(page.baseUri(),titleFields.ifEmpty{listOf(page.selectFirst("meta[property=og:title]")?.attr("content").orEmpty())},
+            language = spec.titleLanguage, fromDetail = titleFields.any(::sourceValue))
         val tags=mutableListOf<String>()
         fun add(raw: String?) {
             val label = raw?.let(::tag) ?: return

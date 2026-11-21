@@ -3,7 +3,7 @@
 
 **[План развития и список задач → ROADMAP.md](ROADMAP.md)**
 
-31 отдельное расширение CloudStream на Kotlin: **8 Russian, 2 Japanese, 21 English**.
+30 отдельных расширений CloudStream на Kotlin: **8 Russian, 2 Japanese, 20 English**.
 Один сайт — один устанавливаемый `.cs3`. Общая логика не копирует в пакет другие сайты
 или библиотеки приложения.
 
@@ -57,7 +57,7 @@ CloudStream, Kotlin, HTTP и JSON-библиотеки предоставляе�
 ## Проверка источников
 
 [Check CloudStream sources](https://github.com/lyashkotop/cloudextensions/actions/workflows/site-health.yml)
-ежедневно проверяет десять источников. Запусти workflow с параметром `all` для всех активных плагинов.
+ежедневно проверяет девять источников. Запусти workflow с параметром `all` для всех активных плагинов.
 По умолчанию проверяются две разные карточки на источник. Для ручного прогона укажи `samples: 10`
 в GitHub Actions или `--samples 10` в `scripts/check_sites.py`.
 Отчёт содержит результаты открытия главной, поиска, второй страницы, обложек, тегов, рекомендаций

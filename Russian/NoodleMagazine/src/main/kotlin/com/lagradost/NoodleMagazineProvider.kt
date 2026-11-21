@@ -12,6 +12,8 @@ import okhttp3.Interceptor
 import org.jsoup.nodes.Document
 
 class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
+    override val preferredTitleLanguage = "ru"
+    override val reuseConfirmedPosters = true
     override var mainUrl="https://tyler-brown.com"
     override var name="Noodle Magazine"
     override var lang="ru"
@@ -26,7 +28,7 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         "студентки" to "Студентки","naked in public" to "На публике",
         "fetish" to "Фетиш","anal" to "Анал","milf" to "MILF"
     )
-    private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage="ru")
+    private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)
     private val homePages = NoodleCatalogue()
     private val homeOrders = ConcurrentHashMap<String, List<Int>>()
     private val searchPages = NoodleCatalogue()
