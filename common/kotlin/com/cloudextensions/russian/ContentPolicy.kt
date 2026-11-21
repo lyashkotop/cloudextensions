@@ -38,6 +38,7 @@ object ContentPolicy {
         "3d animated",
         "3danimated",
         "black man",
+        "bbc",
         "pregnant",
         "furry",
         "femboy",
