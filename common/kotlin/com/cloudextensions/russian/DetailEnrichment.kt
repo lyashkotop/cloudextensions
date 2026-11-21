@@ -65,6 +65,12 @@ object DetailEnrichment {
         return read(target, spec, budget, page.baseUri())?.let { merge(detail, it) } ?: detail
     }
 
+    internal suspend fun score(page: Document, spec: SiteSpec): com.lagradost.cloudstream3.Score? {
+        val target = originalPage(page) ?: return null
+        if (URI(target.url).host == "www.pornhub.com") return null
+        return read(target, spec, budget = 2800, referer = page.baseUri())?.score
+    }
+
     suspend fun xvideosTags(id: String, spec: SiteSpec, budget: Long): List<String> {
         val original = xvideos(id) ?: return emptyList()
         return read(original, spec, budget, original.url)?.tags.orEmpty()

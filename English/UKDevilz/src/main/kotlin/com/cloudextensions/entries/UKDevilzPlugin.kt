@@ -10,6 +10,6 @@ class UKDevilzPlugin:Plugin(){
     override fun load(context:Context){
         com.cloudextensions.russian.ImagePrefetch.configure(context)
         com.cloudextensions.russian.Translation.configure(context)
-        registerMainAPI(com.cloudextensions.russian.ReliableProvider(NoodleMagazineProvider().apply{name="3. UKDevilz"}))
+        registerMainAPI(com.cloudextensions.russian.ReliableProvider(NoodleMagazineProvider().apply{name="3. UKDevilz"}, "UKDevilz"))
     }
 }

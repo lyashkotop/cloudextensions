@@ -5,12 +5,7 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import java.net.URI
 import java.util.Collections
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.withLock
 import org.jsoup.nodes.Document
 
@@ -51,27 +46,10 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         score=card.score
         posterHeaders=Network.headers("${mainUrl.trimEnd('/')}/")
     }
-    // Only the first screenful needs a cold fetch. Reuse known scores throughout the page.
-    private val listingScorePermits = Semaphore(3)
-
-    internal suspend fun withListingScores(cards: List<SearchResponse>): List<SearchResponse> {
-        if (!VideoScores.loadsListingScores(spec.id)) return cards
-        return coroutineScope {
-            cards.mapIndexed { index, card ->
-                async {
-                    if (card !is MovieSearchResponse || card.score != null) return@async card
-                    val score = VideoScores.cachedDetail(spec.id, card.url) ?: if (index < 24) {
-                        RequestLimits.optional(3200) {
-                            listingScorePermits.withPermit {
-                                VideoScores.cachedDetail(spec.id, card.url)
-                                    ?: VideoScores.detail(spec.id, card.url, page(PageRequest(card.url)))
-                            }
-                        }
-                    } else null
-                    if (score == null) card else card.copy(score = score)
-                }
-            }.awaitAll()
-        }
+    internal suspend fun readListingScore(url: String): Score? {
+        val document = page(PageRequest(url))
+        return if (spec.id == "TubeSafari") DetailEnrichment.score(document, spec)
+        else VideoScores.detail(spec.id, url, document)
     }
 
     override suspend fun getMainPage(page: Int,request: MainPageRequest): HomePageResponse {
@@ -175,6 +153,10 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         if(spec.id=="ThisVid" && document.selectFirst(".box ul.description")==null)throw ErrorLoadingException("Не удалось проверить категории ThisVid")
         val base = readMetadata(document)
         val meta = if (includeOriginal) reviewMetadata(document, base) else base
+        if (VideoScores.loadsListingScores(spec.id)) {
+            val score = meta.score ?: VideoScores.detail(spec.id, url, document)
+            VideoScores.rememberDetail(spec.id, url, score)
+        }
         val heading=document.selectFirst("h1")?.text().orEmpty()
         if(!ContentPolicy.accepts(heading,meta.tags + Metadata.cardTags(url),meta.description))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         if(meta.title.isBlank())throw ErrorLoadingException("Название не получено")

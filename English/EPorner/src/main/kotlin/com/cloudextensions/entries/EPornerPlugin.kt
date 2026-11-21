@@ -5,5 +5,5 @@ import com.byayzen.EPorner
 import com.byayzen.registerEPornerExtractors
 @CloudstreamPlugin
 class EPornerPlugin: Plugin(){
- override fun load(context:Context){com.cloudextensions.russian.ImagePrefetch.configure(context);com.cloudextensions.russian.Translation.configure(context);registerMainAPI(com.cloudextensions.russian.ReliableProvider(com.cloudextensions.russian.AdaptedProvider(EPorner().apply { name = "3. EPorner" })));registerEPornerExtractors(this)}
+ override fun load(context:Context){com.cloudextensions.russian.ImagePrefetch.configure(context);com.cloudextensions.russian.Translation.configure(context);registerMainAPI(com.cloudextensions.russian.ReliableProvider(com.cloudextensions.russian.AdaptedProvider(EPorner().apply { name = "3. EPorner" }), "EPorner"));registerEPornerExtractors(this)}
 }

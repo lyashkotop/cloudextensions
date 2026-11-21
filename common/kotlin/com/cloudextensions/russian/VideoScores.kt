@@ -13,10 +13,23 @@ object VideoScores {
     private val listing = Collections.synchronizedMap(BoundedMap<Pair<String, String>, Score>(2048))
     private val watched = Collections.synchronizedMap(BoundedMap<Pair<String, String>, Pair<Long, Score>>(512))
 
-    internal fun loadsListingScores(source: String): Boolean = source == "Perdol" || source == "Ebalka"
+    private val detailProfiles = setOf(
+        "BDSMStreak", "BoundHub", "DarknessPorn", "Ebalka", "EPorner", "HeavyR", "NoodleMagazine",
+        "Perdol", "Pervertium", "ProstoPorno", "PunishWorld", "Semyana", "SickR", "Strip2", "ThisVid",
+        "TubeBDSM", "TubeSafari", "UKDevilz", "Vpoisk", "Xnxx", "XRares",
+    )
+
+    internal fun loadsListingScores(source: String?): Boolean = source in detailProfiles
+
+    // A TubeBDSM outbound URL carries the identity in its signed query.
+    private fun detailKey(source: String, url: String) = source to if (source == "TubeBDSM") url else videoKey(url)
+
+    internal fun rememberDetail(source: String, url: String, score: Score?) {
+        if (score != null && loadsListingScores(source)) watched[detailKey(source, url)] = System.nanoTime() to score
+    }
 
     internal fun cachedDetail(source: String, url: String): Score? =
-        watched[source to videoKey(url)]?.takeIf { System.nanoTime() - it.first < TimeUnit.MINUTES.toNanos(5) }?.second
+        watched[detailKey(source, url)]?.takeIf { System.nanoTime() - it.first < TimeUnit.MINUTES.toNanos(5) }?.second
 
     private val percent = Regex("""^([0-9]{1,3}(?:[.,][0-9]+)?)\s*%(?:\s*\([0-9.,\s]+ votes?\))?$""", RegexOption.IGNORE_CASE)
     private val count = Regex("""[0-9]+(?:[,\s\u00a0\u202f][0-9]{3})*""")
@@ -117,7 +130,7 @@ object VideoScores {
             }
             else -> null
         }
-        if (score != null && loadsListingScores(source)) watched[source to videoKey(url)] = System.nanoTime() to score
+        rememberDetail(source, url, score)
         return score ?: listed
     }
 }

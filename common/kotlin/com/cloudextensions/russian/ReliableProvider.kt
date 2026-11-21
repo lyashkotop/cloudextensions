@@ -21,7 +21,10 @@ private const val MAX_UPSTREAM_PAGES_PER_EXPANSION = 4
 private const val SEARCH_REVIEW_BUDGET_MS = 5_000L
 
 /** UI request bounds and one real preview shared by the search and detail response. */
-class ReliableProvider(private val source:MainAPI):MainAPI() {
+class ReliableProvider(
+    private val source: MainAPI,
+    private val ratingProfile: String? = (source as? RussianProvider)?.spec?.id,
+): MainAPI() {
     override var name:String get()=source.name;set(value){source.name=value}
     override var mainUrl:String get()=source.mainUrl;set(value){source.mainUrl=value}
     override var lang:String get()=source.lang;set(value){source.lang=value}
@@ -184,11 +187,46 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
             }
         }.awaitAll()
     }
+    private val ratingPermits = Semaphore(3)
+
+    private suspend fun withListingScores(items: List<SearchResponse>): List<SearchResponse> {
+        val profile = ratingProfile?.takeIf(VideoScores::loadsListingScores) ?: return items
+        return coroutineScope {
+            items.mapIndexed { index, card ->
+                async {
+                    if (card !is MovieSearchResponse || card.score != null) return@async card
+                    val score = VideoScores.cachedDetail(profile, card.url) ?: if (index < 36) {
+                        RequestLimits.optional(3200) {
+                            ratingPermits.withPermit {
+                                VideoScores.cachedDetail(profile, card.url) ?: when (source) {
+                                    is RussianProvider -> source.readListingScore(card.url)
+                                    is NoodlePosterSource -> VideoScores.detail(profile, card.url, source.posterPage(card.url))
+                                    else -> VideoScores.detail(profile, card.url, Network.page(PageRequest(card.url), mainUrl))
+                                }?.also { VideoScores.rememberDetail(profile, card.url, it) }
+                            }
+                        }
+                    } else null
+                    if (score == null) card else card.copy(score = score)
+                }
+            }.awaitAll()
+        }
+    }
+
+    private suspend fun prepareListing(items: List<SearchResponse>, home: Boolean = false): List<SearchResponse> =
+        coroutineScope {
+            val ratings = async { withListingScores(items) }
+            val posters = withResolvedPosters(items, home = home)
+            ratings.await().zip(posters) { rated, poster ->
+                if (poster is MovieSearchResponse && rated.score != null && poster.score == null)
+                    poster.copy(score = rated.score)
+                else poster
+            }
+        }
+
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная") {
         val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
         val rows = result.items.map {
-            val posters = withResolvedPosters(cards(it.list), home = true)
-            it.copy(list = (source as? RussianProvider)?.withListingScores(posters) ?: posters)
+            it.copy(list = prepareListing(cards(it.list), home = true))
         }
         ImagePrefetch.warm(rows.flatMap{it.list})
         newHomePageResponse(rows,result.hasNext)
@@ -331,9 +369,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 if (cards.size >= SEARCH_PAGE_MINIMUM || !result.hasNext || limit == 0) break
                 result = RequestLimits.optional(remainingMillis(deadline)) { combinedSearch(query, upstream, history) } ?: break
             }
-            val posters = withResolvedPosters(cards)
-            val rated = (source as? RussianProvider)?.withListingScores(posters) ?: posters
-            val response = searchPage(rated, page, result.hasNext)
+            val response = searchPage(prepareListing(cards), page, result.hasNext)
             history.pages[page] = SavedSearchPage(response, upstream)
             response
         }
@@ -372,6 +408,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
             if (!ContentPolicy.accepts(result.name, tags + listedTags, result.plot)) throw ErrorLoadingException("Видео скрыто фильтром категорий")
             if (result is MovieLoadResponse) ImagePrefetch.warm(result.posterUrl, result.posterHeaders.orEmpty())
         }
+        ratingProfile?.let { VideoScores.rememberDetail(it, url, result.score) }
         result.tags = tags.mapNotNull(Metadata::tag).distinctBy { it.lowercase() }
         result.recommendations = recommendations.await()
         ImagePrefetch.warm(result.recommendations.orEmpty())
