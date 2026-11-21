@@ -1,12 +1,12 @@
 {
-  "version": 149,
-  "sourceCommit": "33d1254dc5707904a625a133ee1e39e1681d2f1b",
+  "version": 150,
+  "sourceCommit": "c012ce2a018aec435aa7b5c606e414708e638528",
   "packageLayout": "versioned",
   "plugins": 31,
   "rebuilt": [
-    "NoodleMagazine"
+    "TubeBDSM"
   ],
-  "dexClasses": 7416,
+  "dexClasses": 7418,
   "entryRegistrationsValidated": 31,
   "kotlinProviders": 31
 }
