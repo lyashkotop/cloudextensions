@@ -9,6 +9,7 @@ import com.lagradost.cloudstream3.app
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
+import org.json.JSONTokener
 import org.jsoup.nodes.Document
 
 /** These HTML players fetch the current video's files from a same-origin JSON endpoint. */
@@ -20,6 +21,8 @@ internal object PlayerConfig {
     private val quality = Regex("""['"]?(lq|hq)['"]?\s*:\s*['"](\d{3,4}p)['"]""")
     private val hex = Regex("[a-fA-F0-9]+")
     private val digits = Regex("[0-9]+")
+    private val fluidSource = Regex("""\bsetAttribute\(\s*['"]src['"]\s*,\s*("(?:[^"\\]|\\.)+")\s*\)""")
+    private val fluidQuality = Regex("""_(\d{3,4}p)\.mp4/?$""")
 
     private data class Config(val url: HttpUrl, val labels: Map<String, String> = emptyMap())
 
@@ -67,12 +70,29 @@ internal object PlayerConfig {
         }
     }
 
+    private fun fluidSources(page: Document): List<Playback.Source> {
+        val player = page.selectFirst(".player-holder:has(video#pll)") ?: return emptyList()
+        return player.select("script:not([src])").asSequence().map { it.data() }
+            .filter { it.contains("document.getElementById('pll')") && it.contains("pll.appendChild(") }
+            .flatMap { fluidSource.findAll(it) }
+            .mapNotNull { match ->
+                val source = try { JSONTokener(match.groupValues[1]).nextValue() as? String }
+                    catch (_: org.json.JSONException) { null }
+                val url = source?.toHttpUrlOrNull() ?: return@mapNotNull null
+                if (!url.isHttps || url.host.removePrefix("www.") != "fapnado.com" ||
+                    !url.encodedPath.startsWith("/get_file/")) return@mapNotNull null
+                val label = fluidQuality.find(url.encodedPath)?.groupValues?.get(1) ?: return@mapNotNull null
+                Playback.Source(url.toString(), label)
+            }.distinctBy { it.url }.toList()
+    }
+
     suspend fun sources(page: Document): List<Playback.Source> {
         val address = page.baseUri().toHttpUrlOrNull() ?: return emptyList()
-        return when (address.host) {
-            "drtuber.com", "www.drtuber.com" -> request(desktopDrTuber(page, address), page.baseUri())
-            "m.drtuber.com", "viptube.com", "www.viptube.com", "m.viptube.com" -> mobileSources(page, address)
-            "eporner.com", "www.eporner.com" -> EPornerPlayer.sources(page)
+        return when (address.host.removePrefix("www.")) {
+            "drtuber.com" -> request(desktopDrTuber(page, address), page.baseUri())
+            "m.drtuber.com", "viptube.com", "m.viptube.com" -> mobileSources(page, address)
+            "eporner.com" -> EPornerPlayer.sources(page)
+            "rainblow.xxx", "thepornstar.com" -> fluidSources(page)
             else -> emptyList()
         }
     }
@@ -83,7 +103,7 @@ internal object PlayerConfig {
         val current = page.selectFirst("script#view-state-data[type=application/json]")?.data() ?: return false
         val video = try { JSONObject(current).optJSONObject("video") } catch (_: org.json.JSONException) { null }
         return video?.opt("videoViewAllowed") == false &&
-            video.optString("videoAccessType") in setOf("premium", "paid")
+            video.optString("videoAccessType") in setOf("premium", "paid", "fan")
     }
 
     private suspend fun mobileSources(page: Document, address: HttpUrl): List<Playback.Source> {
