@@ -25,8 +25,15 @@ fun main(args:Array<String>) {
     verify(VideoScores.detail("Vpoisk", "https://m.vpoisk.xyz", ratedVpoisk)?.toString(10) == "6", "Vpoisk prefers the published percentage")
     val prostoRating = Jsoup.parse("<div class='rate-tab' itemprop='aggregateRating'><meta itemprop='ratingValue' content='4.5'><meta itemprop='bestRating' content='5'><span itemprop='ratingCount'>2</span></div>")
     verify(VideoScores.detail("ProstoPorno", "https://prostoporno.dev", prostoRating)?.toString(10) == "9", "ProstoPorno uses the voted rating and its published maximum")
-    verify(videoKey("https://www.pervertium.com/videos/123/old/?ref=feed") == videoKey("https://pervertium.com/videos/123/new/"), "Pervertium aliases identify one video")
-    verify(videoKey("https://pervertium.com/videos/123/video/") != videoKey("https://pervertium.com/videos/124/video/"), "Pervertium distinct video IDs remain distinct")
+    val aliases = Jsoup.parse(
+        "<a class=card href='/videos/123/old/?ref=feed' title='First Video'></a>" +
+            "<a class=card href='https://pervertium.com/videos/123/new/' title='Duplicate Video'></a>" +
+            "<a class=card href='/videos/124/video/' title='Distinct Video'></a>",
+        "https://www.pervertium.com/",
+    )
+    val pervertium = SiteSpec("Pervertium", "Pervertium", aliases.baseUri(), ".card", "a", ".title", emptyList())
+    verify(Metadata.cards(aliases, pervertium).map { it.title } == listOf("First Video", "Distinct Video"),
+        "Pervertium aliases collapse while distinct video IDs remain")
     val embedPage=Jsoup.parse("""<script>window.initials={"sharingComponent":{"shareLink":"https://xhamster.com/videos/source-123"},"xplayerSettings":{"sources":{"hls":{"h264":{"url":"encrypted-value"}},"standard":{"h264":[{"url":"https://cdn.example.org/source.mp4","quality":"720p"}]}}}};</script>""","https://xhamster.com/embed/123")
     verify(EmbeddedPlayers.original(embedPage)=="https://xhamster.com/videos/source-123","embed fallback uses its source-declared public permalink")
     verify(EmbeddedPlayers.sources(embedPage).single().label=="720p","only declared HTTP sources are emitted; encrypted strings are not URLs")
