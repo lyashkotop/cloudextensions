@@ -367,13 +367,6 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
             if (!ContentPolicy.accepts(result.name, tags + listedTags, result.plot)) throw ErrorLoadingException("Видео скрыто фильтром категорий")
             if (result is MovieLoadResponse) ImagePrefetch.warm(result.posterUrl, result.posterHeaders.orEmpty())
         }
-        result.score?.let { score ->
-            // Some clients do not surface the native rating field. Keep the same score visible in video details.
-            val rating = "Оценка: ${score.toString(10)}/10"
-            if (result.plot?.lineSequence()?.firstOrNull() != rating) {
-                result.plot = listOfNotNull(rating, result.plot?.takeIf(String::isNotBlank)).joinToString("\n\n")
-            }
-        }
         result.tags = tags.mapNotNull(Metadata::tag).distinctBy { it.lowercase() }
         result.recommendations = recommendations.await()
         ImagePrefetch.warm(result.recommendations.orEmpty())
