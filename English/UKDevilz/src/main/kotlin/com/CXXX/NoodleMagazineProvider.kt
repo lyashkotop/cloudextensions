@@ -116,6 +116,7 @@ class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
         val categories=englishTags(document)
         val recommendations = NoodleCatalogue.distinct(document.select("div.item").mapNotNull { it.toSearchResult() }, url)
         return newMovieLoadResponse(title,url,TvType.NSFW,url) {
+            score = VideoScores.detail("UKDevilz",url,document)
             posterUrl=metadata.poster
             posterHeaders=Network.imageHeaders(metadata.poster,url)
             tags=categories

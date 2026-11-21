@@ -1,5 +1,6 @@
 package com.byayzen
 
+import com.cloudextensions.russian.VideoScores
 import com.lagradost.cloudstream3.*
 import com.cloudextensions.russian.EPornerPlayer
 import com.cloudextensions.russian.Network
@@ -58,6 +59,7 @@ class EPorner : MainAPI() {
             TvType.NSFW
         ) {
             this.posterUrl = poster
+            score = VideoScores.card("EPorner", url, this@toSearchResult)
         }
     }
 
@@ -82,6 +84,7 @@ class EPorner : MainAPI() {
         val actors = document.select("span.valor a").map { Actor(it.text()) }
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
+            score = VideoScores.detail("EPorner",url,document)
             this.posterUrl = poster
             this.plot = description
             this.year = year
@@ -104,6 +107,7 @@ class EPorner : MainAPI() {
             TvType.NSFW
         ) {
             this.posterUrl = posterUrl
+            score = VideoScores.card("EPorner", url, this@toRecommendationResult)
         }
     }
 

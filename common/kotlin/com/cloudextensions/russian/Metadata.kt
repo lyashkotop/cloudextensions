@@ -166,7 +166,7 @@ object Metadata {
                 }
             }
             val picture=poster(link,page.baseUri()) ?: poster(card,page.baseUri());if(picture!=null)rememberPoster(url,picture)
-            if(!result.containsKey(videoKey(url)))result[videoKey(url)]=VideoCard(label,url,picture,duration,tags)
+            if(!result.containsKey(videoKey(url)))result[videoKey(url)]=VideoCard(label,url,picture,duration,tags,VideoScores.card(spec.id,url,card))
         }
         return result.values.toList()
     }

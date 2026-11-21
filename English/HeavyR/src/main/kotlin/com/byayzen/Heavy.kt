@@ -2,6 +2,7 @@
 
 package com.byayzen
 
+import com.cloudextensions.russian.VideoScores
 import com.cloudextensions.russian.Metadata
 import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.PageRequest
@@ -137,6 +138,7 @@ class Heavy : MainAPI() {
         }.distinctBy { it.url }.filter { it.url != url }
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
+            score = VideoScores.detail("HeavyR",url,document)
             this.posterUrl = poster
             this.plot = description
             this.tags = tags

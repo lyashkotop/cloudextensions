@@ -2,6 +2,7 @@
 
 package com.kraptor
 
+import com.cloudextensions.russian.VideoScores
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.lagradost.api.Log
@@ -45,11 +46,10 @@ class XRares : MainAPI() {
         val title     = this.selectFirst("span.video-title")?.text() ?: return null
         val href      = fixUrlNull(this.selectFirst("a")?.attr("href")) ?: return null
         val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(this.selectFirst("img")?.attr("src"))
-        val rating    = this.selectFirst("div.video-rating b")?.text()?.replace("%","")
 
         return newMovieSearchResponse(title, href, TvType.NSFW) {
             this.posterUrl = posterUrl
-            this.score     = Score.from100(rating)
+            this.score     = VideoScores.card("XRares", href, this@toMainPageResult)
         }
     }
 
@@ -87,6 +87,7 @@ class XRares : MainAPI() {
         }.getOrElse { emptyList() }
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
+            score = VideoScores.detail("XRares",url,document)
             this.posterUrl = poster
             this.plot = description
             this.year = year
@@ -115,7 +116,6 @@ class XRares : MainAPI() {
         val href      = fixUrlNull(this.selectFirst("a")?.attr("href")) ?: return null
         val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(this.selectFirst("img")?.attr("src"))
         val private   = this.selectFirst("div.label-private")?.text() ?: ""
-        val rating    = this.selectFirst("div.video-rating b")?.text()?.replace("%","")
 
         if (private.contains("private", true)){
             return null
@@ -123,7 +123,7 @@ class XRares : MainAPI() {
 
         return newMovieSearchResponse(title, href, TvType.NSFW) {
             this.posterUrl = posterUrl
-            this.score     = Score.from100(rating)
+            this.score     = VideoScores.card("XRares", href, this@toRecommendationResult)
         }
     }
 

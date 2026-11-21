@@ -12,6 +12,17 @@ fun main(args:Array<String>) {
     for(encoded in listOf("0157e0a7f8a2d5f80bed5faff0","024f7dd1e4fb9d4315a494f00b","073595aa60711b77d27926347c","059c27f8b6659ca81889344976"))verify(PlayerUrls.decode(encoded)=="https://","real player URL prefix matches the source JavaScript decoder")
     verify(EmbeddedPlayers.decodeAb("L2dldF9maWxlLzЕvdmlkZW8ubXА0")=="/get_file/1/video.mp4","public player alphabet preserves the real media path")
     verify(EmbeddedPlayers.decodeAb("garbage")==null,"invalid encoded strings never become media URLs")
+    val ratedCard = Jsoup.parse("<span class='rating-badge'><span class='item-score'>63%</span></span>")
+    val target = "https://www.tubebdsm.com/out/?l=first"
+    val other = "https://www.tubebdsm.com/out/?l=second"
+    verify(VideoScores.card("TubeBDSM", target, ratedCard)?.toString(10) == "6.3", "catalogue uses the site's percentage")
+    verify(VideoScores.detail("TubeBDSM", target, ratedCard)?.toString(10) == "6.3", "detail keeps this card's catalogue rating")
+    verify(VideoScores.detail("TubeBDSM", other, ratedCard) == null, "outbound links never share a rating")
+    verify(VideoScores.api(JSONObject().put("likes", 0).put("dislikes", 0)) == null, "unvoted videos have no rating")
+    verify(VideoScores.api(JSONObject().put("likes", 0).put("dislikes", 6))?.toString(10) == "1", "a rated video never falls below 1")
+    verify(VideoScores.api(JSONObject().put("likes", 3).put("dislikes", 1))?.toString(10) == "7.5", "both vote counts determine the score")
+    val ratedVpoisk = Jsoup.parse("<div class='video_vote'><div id='dislike'>2</div><span id='rate-value' class='like'>60%</span><div id='like'>3</div></div>")
+    verify(VideoScores.detail("Vpoisk", "https://m.vpoisk.xyz", ratedVpoisk)?.toString(10) == "6", "Vpoisk prefers the published percentage")
     val embedPage=Jsoup.parse("""<script>window.initials={"sharingComponent":{"shareLink":"https://xhamster.com/videos/source-123"},"xplayerSettings":{"sources":{"hls":{"h264":{"url":"encrypted-value"}},"standard":{"h264":[{"url":"https://cdn.example.org/source.mp4","quality":"720p"}]}}}};</script>""","https://xhamster.com/embed/123")
     verify(EmbeddedPlayers.original(embedPage)=="https://xhamster.com/videos/source-123","embed fallback uses its source-declared public permalink")
     verify(EmbeddedPlayers.sources(embedPage).single().label=="720p","only declared HTTP sources are emitted; encrypted strings are not URLs")

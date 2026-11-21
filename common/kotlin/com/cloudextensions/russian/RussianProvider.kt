@@ -43,6 +43,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
     }
     private fun response(card: VideoCard): SearchResponse = newMovieSearchResponse(card.title,card.url,TvType.NSFW) {
         posterUrl=card.poster
+        score=card.score
         posterHeaders=Network.headers("${mainUrl.trimEnd('/')}/")
     }
     override suspend fun getMainPage(page: Int,request: MainPageRequest): HomePageResponse {
@@ -166,6 +167,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
             this.posterHeaders=posterHeaders
             plot=Metadata.plot(detail)
             tags=detail.tags
+            score=detail.score ?: VideoScores.detail(spec.id,url,document)
             year=detail.year
             this.recommendations=recommendations
             // No rounded minute value is reused as an exact duration.

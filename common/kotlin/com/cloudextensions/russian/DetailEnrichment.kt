@@ -58,7 +58,7 @@ object DetailEnrichment {
     fun merge(detail:VideoDetail,source:VideoDetail)=detail.copy(
         description=detail.description.ifBlank{source.description},
         tags=detail.tags.ifEmpty{source.tags},duration=detail.duration.ifBlank{source.duration},
-        poster=detail.poster ?: source.poster,year=detail.year ?: source.year
+        poster=detail.poster ?: source.poster,year=detail.year ?: source.year,score=detail.score ?: source.score
     )
     suspend fun complete(page: Document, spec: SiteSpec, detail: VideoDetail, budget: Long = 3000): VideoDetail {
         val target = originalPage(page) ?: return detail
@@ -92,9 +92,12 @@ object DetailEnrichment {
                 val id = video.substringAfterLast('/')
                 val actual = uri.path.trimEnd('/').removePrefix("/videos/")
                 if ('/' in actual || (actual != id && !actual.endsWith("-$id"))) return@optional null
-                AggregatorPages.detail(source, spec)
+                AggregatorPages.detail(source, spec).copy(score = VideoScores.detail("XHamster", video, source))
             } else {
-                Metadata.detail(source, spec.copy(tagSelector = target.tags, descriptionSelector = target.description))
+                Metadata.detail(source, spec.copy(tagSelector = target.tags, descriptionSelector = target.description)).copy(
+                    score = if (URI(video).host == "www.xvideos.com" && URI(source.baseUri()).host == "www.xvideos.com")
+                        VideoScores.detail("XVideos", video, source) else null,
+                )
             }
         }
 }
