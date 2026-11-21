@@ -21,10 +21,10 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     override val hasDownloadSupport=true
     override val mainPage=mainPageOf(
         "/popular/month" to "Popular","/popular/trending" to "Trending",
-        "bdsm" to "БДСМ","homemade" to "Домашнее","anal" to "Анал",
+        "bdsm" to "БДСМ","homemade" to "Домашнее",
         "lesbian" to "Лесбиянки","spanking" to "Порка",
-        "milf" to "MILF","студентки" to "Студентки",
-        "naked in public" to "На публіці","fetish" to "Фетиш"
+        "студентки" to "Студентки","naked in public" to "На публике",
+        "fetish" to "Фетиш","anal" to "Анал","milf" to "MILF"
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage="ru")
     private val homePages = NoodleCatalogue()
