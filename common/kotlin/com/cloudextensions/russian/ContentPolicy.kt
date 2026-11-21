@@ -94,7 +94,7 @@ object ContentPolicy {
         word.split(' ').joinToString("[\\s_-]+", transform = Regex::escape)
     }
     private val blocked = Regex("""(?iu)(?<![\p{L}\p{N}])(?:$blockedPatterns)(?![\p{L}\p{N}])""")
-    private val blockedTag = Regex("""(?iu)(?<![\p{L}\p{N}])drain(?![\p{L}\p{N}])""")
+    private val blockedTag = Regex("""(?iu)(?<![\p{L}\p{N}])(?:drain|farting)(?![\p{L}\p{N}])""")
     private val blockedDescription = Regex("""(?iu)(?<![\p{L}\p{N}])hentai(?![\p{L}\p{N}])""")
     fun accepts(title: String, tags: List<String> = emptyList(), description: String? = null): Boolean {
         if (!enabled) return true

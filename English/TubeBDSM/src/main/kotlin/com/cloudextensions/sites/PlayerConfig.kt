@@ -79,7 +79,7 @@ internal object PlayerConfig {
 
     fun requiresPaidAccess(page: Document): Boolean {
         val host = page.baseUri().toHttpUrlOrNull()?.host?.removePrefix("www.")
-        if (host != "faphouse.com") return false
+        if (host != "faphouse.com" && host?.endsWith(".faphouse.com") != true) return false
         val current = page.selectFirst("script#view-state-data[type=application/json]")?.data() ?: return false
         val video = try { JSONObject(current).optJSONObject("video") } catch (_: org.json.JSONException) { null }
         return video?.opt("videoViewAllowed") == false &&

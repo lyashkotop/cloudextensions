@@ -19,13 +19,15 @@ object AggregatorPages {
         (labels(item.opt("tags")) + labels(item.opt("categories"))).distinctBy { it.lowercase() }
 
     private fun pageTags(page: Document): List<String> {
-        val host = URI(page.baseUri()).host.orEmpty().removePrefix("www.")
+        val address = URI(page.baseUri()).host.orEmpty().removePrefix("www.")
+        val host = if (address.endsWith(".faphouse.com")) "faphouse.com" else address
         val selector = when (host) {
             "m.drtuber.com", "drtuber.com" -> ".watch .tools_cat a[href*=/tags/], .watch .tools_cat a[href*=/categories/], .video_box .categories_list a[href*=/tags/], .video_box .categories_list a[href*=/categories/]"
             "m.viptube.com", "viptube.com" -> ".data_name .list a.selected"
             "faphouse.com" -> ".video-info-details__categories a[href^=/c/]"
             "pornezy.com", "fapvana.com", "pornvio.com", "bondagenest.com", "sexpester.com",
-            "matur3.com", "w4nkr.com", "extremehoes.com" -> ".vp-i .taxl a[href^=/tag/], .vp-i .taxl a.tx-c"
+            "matur3.com", "w4nkr.com", "extremehoes.com", "threesomerz.com" -> ".vp-i .taxl a[href^=/tag/], .vp-i .taxl a[href^=/tags/], .vp-i .taxl a.tx-c"
+            "yesvids.com" -> ".chips-row a[href^=/categories/]"
             "reflectivedesire.com" -> ".video-tags .video-tags-list a, .video-tags-line .video-tags-links a"
             "fapcat.com" -> ".block-details .item a[href*=/tags/], .block-details .item a[href*=/categories/]"
             "vrporn.com" -> ".list.mt2-6 a[href^=/tag/]"
@@ -61,6 +63,10 @@ object AggregatorPages {
         val meta=item.optJSONObject("metadata")
         val duration=Metadata.timing(meta?.optString("duration")).ifBlank{Metadata.timing(item.optString("duration"))}
         return base.copy(
+            title = base.title.ifBlank {
+                Metadata.title(page.baseUri(), listOf(meta?.optString("title").orEmpty(), item.optString("title")),
+                    language = spec.titleLanguage, fromDetail = true)
+            },
             tags=tags,
             duration=duration.ifBlank{base.duration},
             description=Metadata.description(item.optString("description"),base.title),

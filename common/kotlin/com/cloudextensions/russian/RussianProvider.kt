@@ -115,7 +115,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         }
     }
 
-    private suspend fun searchRequest(term: String): PageRequest {
+    protected open suspend fun searchRequest(term: String): PageRequest {
         Pagination.pathSearch(spec, mainUrl, term)?.let { return it }
         val root = page(PageRequest(mainUrl.trimEnd('/') + "/"))
         return Pagination.search(root, spec, mainUrl, term)

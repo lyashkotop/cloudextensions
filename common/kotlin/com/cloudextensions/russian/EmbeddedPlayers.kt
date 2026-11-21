@@ -32,10 +32,14 @@ object EmbeddedPlayers {
         if(standard!=null)for(i in 0 until standard.length())standard.optJSONObject(i)?.let(::add)
         return result
     }
-    internal fun abId(page:Document):String? {
+    internal fun abOrigin(page: Document): String? {
         val uri=try{URI(page.baseUri())}catch(_:Exception){return null}
-        if(uri.host.orEmpty().removePrefix("www.")!="abxxx.com")return null
-        return Regex("^/video/(\\d+)/").find(uri.path.orEmpty())?.groupValues?.get(1)
+        val host = uri.host.orEmpty().removePrefix("www.")
+        return "https://$host".takeIf { host in setOf("abxxx.com", "bdsmx-porn.com", "bdsmx.tube") }
+    }
+    internal fun abId(page:Document):String? {
+        if (abOrigin(page) == null) return null
+        return Regex("^/video/(\\d+)(?:/|$)").find(URI(page.baseUri()).path.orEmpty())?.groupValues?.get(1)
     }
     fun decodeAb(value:String):String? = try {
         val alphabet="АВСDЕFGHIJKLМNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,~"
@@ -53,8 +57,9 @@ object EmbeddedPlayers {
     }catch(_:Exception){null}
     suspend fun abSources(page:Document):List<Playback.Source> {
         val id=abId(page) ?: return emptyList()
-        val endpoint="https://abxxx.com/api/videofile.php?video_id=$id&lifetime=8640000"
-        val raw=Network.page(PageRequest(endpoint),page.baseUri()).wholeText()
+        val origin = abOrigin(page) ?: return emptyList()
+        val endpoint="$origin/api/videofile.php?video_id=$id&lifetime=8640000"
+        val raw = RequestLimits.optional(5000) { Network.page(PageRequest(endpoint),page.baseUri()).wholeText() } ?: return emptyList()
         val files=try{JSONArray(raw)}catch(_:Exception){return emptyList()}
         return (0 until files.length()).mapNotNull { i ->
             val file=files.optJSONObject(i) ?: return@mapNotNull null

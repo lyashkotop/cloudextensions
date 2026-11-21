@@ -23,7 +23,7 @@ class TubeSafariProvider: RussianProvider(SiteSpec(
   val detail = super.readMetadata(document)
   if (detail.title.isNotBlank() || document.selectFirst("iframe#video2") == null) return detail
   val title = document.title().replace(Regex("(?i)\\s+-\\s+tubesafari\\.com$"), "")
-  return detail.copy(title = Metadata.title(document.baseUri(), listOf(title)))
+  return detail.copy(title = Metadata.title(document.baseUri(), listOf(title), fromDetail = true))
  }
  override suspend fun resolvePoster(url: String, poster: String?, headers: Map<String, String>): String? =
   TubeSafariPosters.resolve(url, poster, headers)

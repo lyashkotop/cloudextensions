@@ -35,12 +35,19 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
  override fun readMetadata(document:org.jsoup.nodes.Document)=AggregatorPages.detail(document,spec)
  override suspend fun load(url:String):LoadResponse {
   val page = super.page(russian(PageRequest(url)))
-  val document = RequestLimits.optional(4500) { AbxxxMetadata.enrich(page, includeRelated = true) } ?: page
+  var document = RequestLimits.optional(4200) { AbxxxMetadata.enrich(page, includeRelated = true) } ?: page
+  val listingTitle = Metadata.title(url, emptyList(), language = spec.titleLanguage)
+  if (readMetadata(document).title.isBlank() && Metadata.usableDetailTitle(listingTitle)) {
+   document = document.clone().also { it.body().prependElement("h1").text(listingTitle) }
+  }
   val listingPoster=Metadata.savedPoster(url)
   val result=loadDocument(url, document)
   val target=native(document.baseUri())
-  val extra=if(target==null)null else try{withTimeoutOrNull(3000){target.load(document.baseUri())}}
+  val needsDetails = result.tags.isNullOrEmpty() || result.plot.isNullOrBlank() ||
+   result.duration == null || result.recommendations.isNullOrEmpty()
+  val extra=if(target==null || !needsDetails)null else try{withTimeoutOrNull(2300){target.load(document.baseUri())}}
    catch(e:CancellationException){throw e}catch(e:ErrorLoadingException){if(Regex("(?iu)скрыто фильтром|hidden by category filter|приватн|private video").containsMatchIn(e.message.orEmpty()))throw e else null}catch(_:Exception){null}
+   catch(_:LinkageError){null}
   if(extra!=null){
    if(result.plot.isNullOrBlank())result.plot=Metadata.description(extra.plot,result.name)
    result.tags=(result.tags.orEmpty()+extra.tags.orEmpty()).distinctBy{it.lowercase()}
@@ -84,7 +91,7 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
   if(target!=null)try{withTimeoutOrNull(12000){target.loadLinks(document.baseUri(),isCasting,subtitleCallback){link->
    target.getVideoInterceptor(link)?.let{interceptors[link.url]=it}
    callback(link);emitted.incrementAndGet()
-  }}}catch(e:CancellationException){throw e}catch(_:Exception){}
+   }}}catch(e:CancellationException){throw e}catch(_:Exception){}catch(_:LinkageError){}
   if(emitted.get()>0)return true
   return Playback.linksFromPage(name, mainUrl, data, document, PlayerConfig.sources(document), subtitleCallback, callback)
  }

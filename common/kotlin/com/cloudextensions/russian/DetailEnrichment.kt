@@ -9,6 +9,7 @@ object DetailEnrichment {
     private data class Original(val url: String, val tags: String, val description: String = "", val desktop: Boolean = false)
     private val xvideosId = Regex("^/embedframe/([A-Za-z0-9]+)/?$")
     private val pornhubId = Regex("^/embed/(ph[A-Za-z0-9]+|[0-9a-fA-F]{13})/?$")
+    private val xhamsterId = Regex("^/(?:p|embed)/(xh[A-Za-z0-9]+)/?$")
     private val desktopAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
     fun xvideosPage(id: String): String? {
@@ -39,6 +40,10 @@ object DetailEnrichment {
                     "https://www.pornhub.com/view_video.php?viewkey=$id", ".tagsWrapper a.isTag", desktop = true,
                 )
             }
+            if (host == "xh.partners" || host == "xhamster.com") {
+                val id = xhamsterId.matchEntire(path)?.groupValues?.get(1) ?: continue
+                return Original("https://xhamster.com/videos/$id", "", desktop = true)
+            }
         }
         return null
     }
@@ -65,7 +70,15 @@ object DetailEnrichment {
             // The desktop Pornhub layout publishes the video's tag list in the HTML.
             val request = PageRequest(target.url, headers = if (target.desktop) mapOf("User-Agent" to desktopAgent) else emptyMap())
             val source = RequestLimits.optional(budget) { Network.page(request, target.url) } ?: return null
-            Metadata.detail(source, spec.copy(tagSelector = target.tags, descriptionSelector = target.description))
+            if (URI(target.url).host == "xhamster.com") {
+                if (URI(source.baseUri()).host?.removePrefix("www.") != "xhamster.com") return null
+                val id = target.url.substringAfterLast('/')
+                val actual = URI(source.baseUri()).path.trimEnd('/').substringAfterLast('/')
+                if (actual != id && !actual.endsWith("-$id")) return null
+                AggregatorPages.detail(source, spec)
+            } else {
+                Metadata.detail(source, spec.copy(tagSelector = target.tags, descriptionSelector = target.description))
+            }
         } catch(e:CancellationException) {
             throw e
         } catch(_:Exception) {

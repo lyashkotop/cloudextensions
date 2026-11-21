@@ -15,7 +15,10 @@ object Metadata {
     private data class CachedTitle(val text: String, val fromDetail: Boolean)
     private val titles = BoundedMap<String, MutableMap<String, CachedTitle>>(1024)
     private val russianTitle = Regex("[А-Яа-яЁё]")
-    private val genericDetailTitle = Regex("(?i)^(?:video|watch video|watch online|loading|video (?:not found|unavailable|deleted)|404|not found|видео|смотреть онлайн)[.!…]*$")
+    private val unavailableTitle = Regex("(?iu)^(?:video (?:is )?(?:not found|unavailable|deleted)|unavailable video|недоступное видео|видео недоступно|видео не найдено)[.!…]*$")
+    private val genericDetailTitle = Regex("(?iu)^(?:video|watch video|watch online|loading|404|not found|видео|смотреть онлайн)[.!…]*$")
+    fun usableDetailTitle(value: String): Boolean =
+        sourceValue(value) && !unavailableTitle.matches(clean(value)) && !genericDetailTitle.matches(clean(value))
     private val posters = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val posterTimes = Collections.synchronizedMap(BoundedMap<String,Long>(1024))
     private val durations = Collections.synchronizedMap(BoundedMap<String,String>(1024))
@@ -75,7 +78,9 @@ object Metadata {
     internal fun streakReuploadKey(url: String): String? = streakListingKeys[videoKey(url)]
 
     fun title(url: String, candidates: List<String>, language: String = "", fromDetail: Boolean = false): String {
-        val values = candidates.map(::clean).filter { sourceValue(it) && !(fromDetail && genericDetailTitle.matches(it)) }
+        val values = candidates.map(::clean).filter {
+            sourceValue(it) && !unavailableTitle.matches(it) && (!fromDetail || !genericDetailTitle.matches(it))
+        }
         val preferred = if (language == "ru") values.filter(russianTitle::containsMatchIn).ifEmpty { values } else values
         fun isExtension(full: String, prefix: String) =
             full.length > prefix.length && full.startsWith(prefix.replace(truncated, "").trim(), ignoreCase = true)
