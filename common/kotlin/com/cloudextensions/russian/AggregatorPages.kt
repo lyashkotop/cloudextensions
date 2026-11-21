@@ -49,7 +49,10 @@ object AggregatorPages {
         }
     }
     fun detail(page:Document,spec:SiteSpec):VideoDetail {
-        val base=Metadata.detail(page,spec.copy(descriptionSelector=".VideoDescription, .video-desc, .vp-description"))
+        val mobileDrTuber = URI(page.baseUri()).host == "m.drtuber.com"
+        val titleSelector = if (mobileDrTuber) ".video_play > .container > .thumbs_result:not(#footer-lc) .heading h2"
+            else spec.detailTitleSelector
+        val base=Metadata.detail(page,spec.copy(descriptionSelector=".VideoDescription, .video-desc, .vp-description", detailTitleSelector=titleSelector))
         val item=video(page)
         val tags = (item?.let(::tags).orEmpty() + pageTags(page) + base.tags.flatMap(::labels)).distinctBy { it.lowercase() }
         if(item==null) {
@@ -79,7 +82,14 @@ object AggregatorPages {
             result+=VideoCard(Metadata.title(url,listOf(title)),url,Metadata.rememberPoster(url,poster),Metadata.timing(meta?.optString("duration")),labels)
         }
         if(result.isEmpty()) {
-            val selectors=".RelatedVideos a[href*=/video/]:has(img), main article.card a[href*=/video/]:has(img)"
+            val selectors = listOf(
+                ".RelatedVideos a[href*=/video/]:has(img)",
+                "main article.card a[href*=/video/]:has(img)",
+                "#list_videos_related_videos_items a[href*=/videos/]:has(img)",
+                "#list_videos_related_videos_items a[href*=/video/]:has(img)",
+                "#relateddiv a[href*=/video-]:has(img)",
+                ".video_play > .thumbs_result a[href*=/video/]:has(img)",
+            ).joinToString(",")
             result+=Metadata.cards(page,spec.copy(cards=selectors,link="a[href]",titleSelector=".card-t,.title,h2,h3"))
         }
         return result.filter{videoKey(it.url)!=videoKey(page.baseUri()) && URI(it.url).host==URI(page.baseUri()).host}.distinctBy{videoKey(it.url)}

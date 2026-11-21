@@ -3,6 +3,9 @@ import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Interceptor
 import java.net.URI
@@ -40,10 +43,25 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
    if(result.duration==null)result.duration=extra.duration
    if(result.recommendations.isNullOrEmpty())result.recommendations=extra.recommendations
   }
+  if (result.recommendations.isNullOrEmpty()) {
+   result.recommendations = relatedBySearch(result, url, document.baseUri())
+  }
   val fromListing=URI(url).host==URI(mainUrl).host && listingPoster!=null && result.posterUrl==listingPoster
   if(result is MovieLoadResponse)result.posterHeaders=Network.imageHeaders(result.posterUrl,if(fromListing)mainUrl else document.baseUri())
   return result
  }
+ private suspend fun relatedBySearch(detail: LoadResponse, original: String, sourceUrl: String): List<SearchResponse> =
+  coroutineScope {
+   val current = setOf(original.substringBefore('?').trimEnd('/'), sourceUrl.substringBefore('?').trimEnd('/'))
+   val terms = detail.tags.orEmpty().filter { ContentPolicy.accepts(it) }.distinctBy { it.lowercase() }.take(3)
+    .ifEmpty { listOf(detail.name).filter { it.count(Char::isLetter) >= 8 && ContentPolicy.accepts(it) } }
+   val matches = terms.map { term ->
+    async { RequestLimits.optional(3500) { search(term, 1).items }.orEmpty() }
+   }.awaitAll().flatten()
+   matches.distinctBy { it.url.substringBefore('?').trimEnd('/') }
+    .filterNot { it.url.substringBefore('?').trimEnd('/') in current }
+    .take(24)
+  }
  override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean {
   val document=super.page(PageRequest(data))
   if (PlayerConfig.requiresPaidAccess(document)) {
