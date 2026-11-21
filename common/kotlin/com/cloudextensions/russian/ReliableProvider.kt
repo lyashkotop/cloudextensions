@@ -188,6 +188,7 @@ class ReliableProvider(
         }.awaitAll()
     }
     private val ratingPermits = Semaphore(3)
+    private val listingScoreSource = (source as? ListingScoreSource) ?: (source as? AdaptedProvider)?.listingScoreSource
 
     private suspend fun withListingScores(items: List<SearchResponse>): List<SearchResponse> {
         val profile = ratingProfile?.takeIf(VideoScores::loadsListingScores) ?: return items
@@ -201,7 +202,8 @@ class ReliableProvider(
                                 VideoScores.cachedDetail(profile, card.url) ?: when (source) {
                                     is RussianProvider -> source.readListingScore(card.url)
                                     is NoodlePosterSource -> VideoScores.detail(profile, card.url, source.posterPage(card.url))
-                                    else -> VideoScores.detail(profile, card.url, Network.page(PageRequest(card.url), mainUrl))
+                                    else -> if (listingScoreSource != null) listingScoreSource.readListingScore(card.url)
+                                    else VideoScores.detail(profile, card.url, Network.page(PageRequest(card.url), mainUrl))
                                 }?.also { VideoScores.rememberDetail(profile, card.url, it) }
                             }
                         }

@@ -43,7 +43,7 @@ import org.jsoup.nodes.Element
  *   The metadata API (api-search.xv-cdn.net/id/<id>/) is now used ONLY for metadata, never as a
  *   playable source, and a preview is clearly labelled as such if nothing better is found.
  */
-class BeegProvider : MainAPI(), DetailTagSource {
+class BeegProvider : MainAPI(), DetailTagSource, ListingScoreSource {
     override var mainUrl = "https://beeg.porn"
     override var name = "Beeg.porn"
     override var lang = "en"
@@ -182,6 +182,18 @@ class BeegProvider : MainAPI(), DetailTagSource {
         } else player.toString()
     }
 
+    private fun ratingVideoId(url: String, markup: String? = null): String? {
+        url.toHttpUrlOrNull()?.queryParameter("e")?.takeIf { it.matches(Regex("[A-Za-z0-9]+")) }?.let { return it }
+        val player = markup?.let(::originalVideo)?.toHttpUrlOrNull() ?: return null
+        if (player.host.removePrefix("www.") !in setOf("xvideos.com", "e.xv-cdn.net")) return null
+        return player.pathSegments.takeIf { it.firstOrNull() == "embedframe" }?.getOrNull(1)
+    }
+
+    override suspend fun readListingScore(url: String): Score? {
+        val id = ratingVideoId(url) ?: ratingVideoId(url, fetchPage(url)) ?: return null
+        return DetailEnrichment.xvideosScore(id, budget = 2300)
+    }
+
     override suspend fun missingTags(url: String): List<String> {
         val embed = Regex("[?&]e=([A-Za-z0-9]+)").find(url)?.groupValues?.get(1) ?: return emptyList()
         return DetailEnrichment.xvideosTags(embed, detailSpec, budget = 5500)
@@ -197,6 +209,9 @@ class BeegProvider : MainAPI(), DetailTagSource {
         val html=async { RequestLimits.optional(7000){fetchPage(url)}.orEmpty() }
         val api=async { if(id==null)null else RequestLimits.optional(3500){JSONObject(app.get("$searchApiBase/id/$id/?format=ajax&e=$encode",headers=Network.headers(mainUrl)).text)} }
         val markup = html.await()
+        val score = async {
+            ratingVideoId(url, markup)?.let { DetailEnrichment.xvideosScore(it, budget = 2300) }
+        }
         val doc=Jsoup.parse(markup,url)
         val meta=api.await()
         val detail = Metadata.detail(doc, spec)
@@ -226,7 +241,9 @@ class BeegProvider : MainAPI(), DetailTagSource {
             if(rid.isBlank()||label.isBlank())return@mapNotNull null
             newMovieSearchResponse(label,"$mainUrl/xid/$rid/?e=$e",TvType.NSFW){posterUrl=Metadata.imageUrl(mainUrl,item.optString("thumb"))}
         }
+        val sourceScore = score.await()
         newMovieLoadResponse(title,url,TvType.NSFW,url) {
+            this.score = sourceScore
             posterUrl=Metadata.choosePoster(url,meta?.optString("thumb"),detail.poster)
             plot=detail.description;this.tags=tags;this.recommendations=recommendations
             val seconds=meta?.optInt("dur",0)?:0

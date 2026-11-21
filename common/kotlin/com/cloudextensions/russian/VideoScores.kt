@@ -8,13 +8,17 @@ import org.json.JSONObject
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
+interface ListingScoreSource {
+    suspend fun readListingScore(url: String): Score?
+}
+
 /** Ratings published by the site for this video or its own listing card. */
 object VideoScores {
     private val listing = Collections.synchronizedMap(BoundedMap<Pair<String, String>, Score>(2048))
     private val watched = Collections.synchronizedMap(BoundedMap<Pair<String, String>, Pair<Long, Score>>(512))
 
     private val detailProfiles = setOf(
-        "BDSMStreak", "BoundHub", "DarknessPorn", "Ebalka", "EPorner", "HeavyR", "NoodleMagazine",
+        "BDSMStreak", "Beeg", "BoundHub", "DarknessPorn", "Ebalka", "EPorner", "HeavyR", "NoodleMagazine",
         "Perdol", "Pervertium", "ProstoPorno", "PunishWorld", "Semyana", "SickR", "Strip2", "ThisVid",
         "TubeBDSM", "TubeSafari", "UKDevilz", "Vpoisk", "Xnxx", "XRares",
     )

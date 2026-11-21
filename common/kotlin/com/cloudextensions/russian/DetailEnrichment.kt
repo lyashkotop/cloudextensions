@@ -71,6 +71,16 @@ object DetailEnrichment {
         return read(target, spec, budget = 2800, referer = page.baseUri())?.score
     }
 
+    suspend fun xvideosScore(id: String, budget: Long): com.lagradost.cloudstream3.Score? {
+        val target = xvideosPage(id) ?: return null
+        val expected = URI(target).path.substringBeforeLast('/')
+        val source = RequestLimits.optional(budget) { Network.page(PageRequest(target), target) } ?: return null
+        val resolved = URI(source.baseUri())
+        if (resolved.host.orEmpty().removePrefix("www.") != "xvideos.com") return null
+        val identity = "/" + resolved.path.trimStart('/').substringBefore('/')
+        return if (identity == expected) VideoScores.detail("XVideos", target, source) else null
+    }
+
     suspend fun xvideosTags(id: String, spec: SiteSpec, budget: Long): List<String> {
         val original = xvideos(id) ?: return emptyList()
         return read(original, spec, budget, original.url)?.tags.orEmpty()
