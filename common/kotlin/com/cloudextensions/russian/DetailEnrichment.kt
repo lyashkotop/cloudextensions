@@ -1,7 +1,6 @@
 package com.cloudextensions.russian
 
 import java.net.URI
-import kotlinx.coroutines.CancellationException
 import org.jsoup.nodes.Document
 
 /** An aggregator's declared embed identifies the actual source; metadata remains source-provided. */
@@ -9,7 +8,8 @@ object DetailEnrichment {
     private data class Original(val url: String, val tags: String, val description: String = "", val desktop: Boolean = false)
     private val xvideosId = Regex("^/embedframe/([A-Za-z0-9]+)/?$")
     private val pornhubId = Regex("^/embed/(ph[A-Za-z0-9]+|[0-9a-fA-F]{13})/?$")
-    private val xhamsterId = Regex("^/(?:p|embed)/(xh[A-Za-z0-9]+)/?$")
+    private val xhamsterEmbed = Regex("^/embed/(xh[A-Za-z0-9]+|[0-9]+)/?$")
+    private val xhamsterPartner = Regex("^/[ep]/([A-Za-z0-9]{3,24})/?$")
     private val desktopAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
     fun xvideosPage(id: String): String? {
@@ -40,9 +40,14 @@ object DetailEnrichment {
                     "https://www.pornhub.com/view_video.php?viewkey=$id", ".tagsWrapper a.isTag", desktop = true,
                 )
             }
-            if (host == "xh.partners" || host == "xhamster.com") {
-                val id = xhamsterId.matchEntire(path)?.groupValues?.get(1) ?: continue
-                return Original("https://xhamster.com/videos/$id", "", desktop = true)
+            if (host == "xhamster.com") {
+                val target = xhamsterPlayerVideo(url) ?: continue
+                return Original(target, "", desktop = true)
+            }
+            if (host == "xh.partners") {
+                val id = xhamsterPartner.matchEntire(path)?.groupValues?.get(1) ?: continue
+                val target = if (id.startsWith("xh")) "https://xhamster.com/videos/$id" else "https://xh.partners/e/$id"
+                return Original(target, "", desktop = true)
             }
         }
         return null
@@ -57,32 +62,39 @@ object DetailEnrichment {
     )
     suspend fun complete(page: Document, spec: SiteSpec, detail: VideoDetail, budget: Long = 3000): VideoDetail {
         val target = originalPage(page) ?: return detail
-        return read(target, spec, budget)?.let { merge(detail, it) } ?: detail
+        return read(target, spec, budget, page.baseUri())?.let { merge(detail, it) } ?: detail
     }
 
     suspend fun xvideosTags(id: String, spec: SiteSpec, budget: Long): List<String> {
         val original = xvideos(id) ?: return emptyList()
-        return read(original, spec, budget)?.tags.orEmpty()
+        return read(original, spec, budget, original.url)?.tags.orEmpty()
     }
 
-    private suspend fun read(target: Original, spec: SiteSpec, budget: Long): VideoDetail? {
-        return try {
-            // The desktop Pornhub layout publishes the video's tag list in the HTML.
-            val request = PageRequest(target.url, headers = if (target.desktop) mapOf("User-Agent" to desktopAgent) else emptyMap())
-            val source = RequestLimits.optional(budget) { Network.page(request, target.url) } ?: return null
-            if (URI(target.url).host == "xhamster.com") {
-                if (URI(source.baseUri()).host?.removePrefix("www.") != "xhamster.com") return null
-                val id = target.url.substringAfterLast('/')
-                val actual = URI(source.baseUri()).path.trimEnd('/').substringAfterLast('/')
-                if (actual != id && !actual.endsWith("-$id")) return null
+    private fun xhamsterPlayerVideo(url: String): String? {
+        val uri = URI(url)
+        if (uri.host?.removePrefix("www.") != "xhamster.com") return null
+        val id = xhamsterEmbed.matchEntire(uri.path.orEmpty())?.groupValues?.get(1) ?: return null
+        return "https://xhamster.com/videos/$id"
+    }
+
+    private suspend fun read(target: Original, spec: SiteSpec, budget: Long, referer: String): VideoDetail? =
+        RequestLimits.optional(budget) {
+            val headers = if (target.desktop) mapOf("User-Agent" to desktopAgent) else emptyMap()
+            val video = if (URI(target.url).host == "xh.partners") {
+                // Legacy partner codes are aliases. Only the player redirect identifies their video.
+                val player = Network.page(PageRequest(target.url, headers = headers), referer)
+                xhamsterPlayerVideo(player.baseUri()) ?: return@optional null
+            } else target.url
+            val source = Network.page(PageRequest(video, headers = headers), video)
+            if (URI(video).host == "xhamster.com") {
+                val uri = URI(source.baseUri())
+                if (uri.host?.removePrefix("www.") != "xhamster.com" || !uri.path.startsWith("/videos/")) return@optional null
+                val id = video.substringAfterLast('/')
+                val actual = uri.path.trimEnd('/').removePrefix("/videos/")
+                if ('/' in actual || (actual != id && !actual.endsWith("-$id"))) return@optional null
                 AggregatorPages.detail(source, spec)
             } else {
                 Metadata.detail(source, spec.copy(tagSelector = target.tags, descriptionSelector = target.description))
             }
-        } catch(e:CancellationException) {
-            throw e
-        } catch(_:Exception) {
-            null
         }
-    }
 }
