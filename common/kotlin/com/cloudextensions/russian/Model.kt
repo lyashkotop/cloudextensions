@@ -51,6 +51,8 @@ internal fun videoKey(url: String): String = try {
     val host = u.host.orEmpty().removePrefix("www.")
     val hcVideo = path.takeIf { host == "hcbdsm.com" && it.startsWith("/video/") }
         ?.removePrefix("/video/")?.substringBefore('/')?.takeIf { it.isNotEmpty() && it.all { char -> char in '0'..'9' } }
+    val pervertiumVideo = path.takeIf { host == "pervertium.com" && it.startsWith("/videos/") }
+        ?.removePrefix("/videos/")?.substringBefore('/')?.takeIf { it.isNotEmpty() && it.all { char -> char in '0'..'9' } }
     val outboundTubeBDSM = host == "tubebdsm.com" && path.startsWith("/out/")
     // Every migrated provider uses a path ID. Strip only tracking parameters; retain meaningful query IDs.
     val tracking = setOf("Li", "Lii", "Lt", "Sn", "utm_source", "utm_medium", "utm_campaign")
@@ -59,5 +61,6 @@ internal fun videoKey(url: String): String = try {
         param.isNotBlank() && key !in tracking && !(outboundTubeBDSM && key in setOf("l", "c"))
     }.joinToString("&")
     if (hcVideo != null) "$host/video/$hcVideo"
+    else if (pervertiumVideo != null) "$host/videos/$pervertiumVideo"
     else "$host$path" + if (query.isEmpty()) "" else "?$query"
 } catch (_: Exception) { url.substringBefore('#') }

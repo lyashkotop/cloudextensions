@@ -53,7 +53,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
             ?: return newHomePageResponse(HomePageList(request.name,emptyList(),true),false)
         val document=page(route)
         val cards=Metadata.cards(document,spec)
-        val deduplicatePages = spec.id == "TubeBDSM" || spec.id == "HcBDSMX"
+        val deduplicatePages = spec.id in setOf("TubeBDSM", "HcBDSMX", "Pervertium")
         val fingerprint=cards.map { videoKey(it.url) }.toSet()
         val (repeats, earlierCards) = synchronized(homeFingerprints) {
             val previous = homeFingerprints[request.data to (page - 1)]

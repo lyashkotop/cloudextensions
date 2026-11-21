@@ -91,6 +91,13 @@ object VideoScores {
                     api(rating)?.let { fromValue(rating.optDouble("value"), 100.0) ?: it }
                 } else null
             }
+            "ProstoPorno" -> page.selectFirst(".rate-tab[itemprop=aggregateRating]")?.let { rating ->
+                val count = rating.selectFirst("[itemprop=ratingCount]")?.text()?.toIntOrNull()
+                val max = rating.selectFirst("meta[itemprop=bestRating]")?.attr("content")?.toDoubleOrNull()
+                if (count != null && count > 0 && max == 5.0) {
+                    fromValue(rating.selectFirst("meta[itemprop=ratingValue]")?.attr("content")?.toDoubleOrNull(), max)
+                } else null
+            }
             "ThisVid" -> fromValue(text("li:has(>#rating_container) > .title strong")?.toDoubleOrNull()?.takeIf { it > 0 }, 5.0)
             "HeavyR" -> page.select(".video_rating > .fa-star").takeIf { it.size == 5 }?.let { stars ->
                 fromValue(stars.count { !it.hasClass("grey") }.takeIf { it > 0 }?.toDouble(), 5.0)
