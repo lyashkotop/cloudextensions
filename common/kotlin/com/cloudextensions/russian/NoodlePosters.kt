@@ -15,6 +15,11 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 interface NoodlePosterSource : PosterSource {
     override val posterTimeoutMs: Long get() = 5300
+    val fastHomeCovers: Boolean get() = false
+    override suspend fun resolveHomePoster(url: String, poster: String?, headers: Map<String, String>): String? =
+        if (fastHomeCovers) NoodlePosters.resolve(this, url, poster, headers, fastHome = true)
+        else resolvePoster(url, poster, headers)
+
     suspend fun searchCategoryPage(category: String, page: Int): SearchResponseList? = null
 
     override suspend fun resolvePoster(url: String, poster: String?, headers: Map<String, String>): String? =
@@ -112,7 +117,7 @@ internal object NoodlePosters {
     }
 
     suspend fun resolve(
-        source: NoodlePosterSource, url: String, poster: String?, headers: Map<String, String>
+        source: NoodlePosterSource, url: String, poster: String?, headers: Map<String, String>, fastHome: Boolean = false,
     ): String? {
         StoryboardPosters.cached(url)?.let { return it }
         val saved = alternatives[videoKey(url)]?.takeIf {
@@ -120,7 +125,8 @@ internal object NoodlePosters {
         }?.second
         val tried = mutableSetOf<String>()
         var slowOriginal: String? = null
-        suspend fun verified(candidates: List<String>): String? = coroutineScope {
+        var listingTimedOut = false
+        suspend fun verified(candidates: List<String>, timeout: Long = 1200): String? = coroutineScope {
             val sources = candidates.associateWith(::imageSources)
             val originals = sources.flatMap { (image, options) -> options.filter { it != image } }.toSet()
             val images = sources.values.flatten().distinct().filterNot(tried::contains).take(5)
@@ -129,13 +135,14 @@ internal object NoodlePosters {
                 tried += image
                 launch {
                     val requestHeaders = if (image == poster) headers else Network.replacementImageHeaders(image, url, headers)
-                    results.send(image to PosterRequests.check(image, requestHeaders, 1200))
+                    results.send(image to PosterRequests.check(image, requestHeaders, timeout))
                 }
             }
             try {
                 repeat(checks.size) {
                     val (image, available) = results.receive()
                     if (available == true) return@coroutineScope image
+                    if (image == poster && available == null) listingTimedOut = true
                     if (available == null && image in originals) {
                         if (slowOriginal == null) slowOriginal = image
                     }
@@ -147,7 +154,11 @@ internal object NoodlePosters {
         }
         // Keep the listing size when it works. Check the alternatives together so a slow CDN
         // cannot consume the entire budget before a valid cover is tried.
-        verified(listOfNotNull(poster) + saved?.images.orEmpty())?.let { return it }
+        // On the home feed a slow CDN can still serve its declared image to the host loader.
+        // Missing or rejected listing covers keep the full detail and storyboard fallback.
+        val quickCheck = fastHome && poster != null && imageSources(poster).size == 1 && saved == null
+        verified(listOfNotNull(poster) + saved?.images.orEmpty(), if (quickCheck) 700 else 1200)?.let { return it }
+        if (quickCheck && listingTimedOut) return poster
         val declared = saved ?: RequestLimits.optional(1800) { remember(url, source.posterPage(url)) }
         verified(declared?.images.orEmpty())?.let { return it }
         if (declared?.track != null && ImagePrefetch.cacheDirectory() != null) {

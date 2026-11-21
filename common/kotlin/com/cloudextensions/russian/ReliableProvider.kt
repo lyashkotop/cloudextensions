@@ -75,7 +75,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     private val resolvedPosters = java.util.Collections.synchronizedMap(BoundedMap<PosterKey, Pair<Long, String>>(256))
 
     private suspend fun resolvePoster(
-        provider: PosterSource, url: String, poster: String?, headers: Map<String, String>,
+        provider: PosterSource, url: String, poster: String?, headers: Map<String, String>, home: Boolean = false,
     ): String? {
         val key = PosterKey(videoKey(url), poster, headers.toMap())
         resolvedPosters[key]?.takeIf {
@@ -83,7 +83,9 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
                 (!it.second.startsWith("file:") || runCatching { File(URI(it.second)).isFile }.getOrDefault(false))
         }?.let { return it.second }
         val resolved = RequestLimits.optional(provider.posterTimeoutMs) {
-            posterPermits.withPermit { provider.resolvePoster(url, poster, headers) }
+            posterPermits.withPermit {
+                if (home) provider.resolveHomePoster(url, poster, headers) else provider.resolvePoster(url, poster, headers)
+            }
         }
         if (resolved != null && resolved != poster) resolvedPosters[key] = System.nanoTime() to resolved
         return resolved
@@ -93,7 +95,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
         if (poster.startsWith("file:")) emptyMap() else Network.replacementImageHeaders(poster, url, headers)
 
     private suspend fun withResolvedPosters(
-        items: List<SearchResponse>, missingOnly: Boolean = false,
+        items: List<SearchResponse>, missingOnly: Boolean = false, home: Boolean = false,
     ): List<SearchResponse> = coroutineScope {
         val provider = source as? PosterSource ?: return@coroutineScope items
         items.mapIndexed { index, item -> async {
@@ -103,7 +105,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
             val poster = if (provider.reuseConfirmedPosters && original != null && PosterRequests.confirmed(original, headers)) {
                 original
             } else {
-                resolvePoster(provider, item.url, original, headers)
+                resolvePoster(provider, item.url, original, headers, home)
             }
             val ready = if (poster == null || poster == item.posterUrl) item else {
                 Metadata.rememberPoster(item.url, poster)
@@ -184,7 +186,7 @@ class ReliableProvider(private val source:MainAPI):MainAPI() {
     }
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная") {
         val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
-        val rows=result.items.map{it.copy(list=withResolvedPosters(cards(it.list)))}
+        val rows=result.items.map{it.copy(list=withResolvedPosters(cards(it.list), home = true))}
         ImagePrefetch.warm(rows.flatMap{it.list})
         newHomePageResponse(rows,result.hasNext)
     }

@@ -14,6 +14,7 @@ import org.jsoup.nodes.Document
 class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     override val preferredTitleLanguage = "ru"
     override val reuseConfirmedPosters = true
+    override val fastHomeCovers = true
     override var mainUrl="https://tyler-brown.com"
     override var name="Noodle Magazine"
     override var lang="ru"

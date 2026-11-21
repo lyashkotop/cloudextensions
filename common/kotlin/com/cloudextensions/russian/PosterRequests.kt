@@ -10,6 +10,8 @@ interface PosterSource {
     val posterTimeoutMs: Long get() = 3500
     val reuseConfirmedPosters: Boolean get() = false
     suspend fun resolvePoster(url: String, poster: String?, headers: Map<String, String>): String?
+    suspend fun resolveHomePoster(url: String, poster: String?, headers: Map<String, String>): String? =
+        resolvePoster(url, poster, headers)
 }
 
 internal object PosterRequests {
