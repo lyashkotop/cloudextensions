@@ -60,7 +60,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         val document=page(route)
         val cards=Metadata.cards(document,spec)
         val deduplicatePages = spec.id in setOf("TubeBDSM", "HcBDSMX", "Pervertium")
-        val fingerprint=cards.map { videoKey(it.url) }.toSet()
+        val fingerprint=cards.map { Metadata.catalogueKey(spec.id, it.url) }.toSet()
         val (repeats, earlierCards) = synchronized(homeFingerprints) {
             val previous = homeFingerprints[request.data to (page - 1)]
             val earlier = if (deduplicatePages && page > 1) {
@@ -74,7 +74,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         }
         val next=if(repeats)null else Pagination.next(document,route)?.takeUnless { it==route }
         if(next!=null)homeCursors["${request.data}:${page+1}"]=next else homeCursors.remove("${request.data}:${page+1}")
-        val fresh = if (repeats) emptyList() else cards.filterNot { videoKey(it.url) in earlierCards }
+        val fresh = if (repeats) emptyList() else cards.filterNot { Metadata.catalogueKey(spec.id, it.url) in earlierCards }
         return newHomePageResponse(HomePageList(request.name,fresh.map(::response),true),next!=null)
     }
     override suspend fun search(query: String): List<SearchResponse> = search(query,1).items
@@ -112,10 +112,10 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
                 val route = if (number == 1) taxonomyUrl?.let { PageRequest(it) } ?: searchRequest(term) else state.next
                 if (route == null) return@withLock newSearchResponseList(emptyList(), false)
                 val result = fetchSearchPage(route, taxonomyUrl != null)
-                val fingerprint = result.cards.map { videoKey(it.url) }.toSet()
+                val fingerprint = result.cards.map { Metadata.catalogueKey(spec.id, it.url) }.toSet()
                 val repeats = fingerprint.isNotEmpty() && !state.fingerprints.add(fingerprint)
                 state.next = result.next.takeUnless { repeats }
-                val fresh = if (repeats) emptyList() else result.cards.filter { state.seen.add(videoKey(it.url)) }
+                val fresh = if (repeats) emptyList() else result.cards.filter { state.seen.add(Metadata.catalogueKey(spec.id, it.url)) }
                 state.pages[number] = newSearchResponseList(fresh.map(::response), state.next != null)
             }
             state.pages.getValue(page)

@@ -64,14 +64,14 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
  }
  private suspend fun relatedBySearch(detail: LoadResponse, original: String, sourceUrl: String): List<SearchResponse> =
   coroutineScope {
-   val current = setOf(original.substringBefore('?').trimEnd('/'), sourceUrl.substringBefore('?').trimEnd('/'))
+   val current = setOf(Metadata.catalogueKey(spec.id, original), Metadata.catalogueKey(spec.id, sourceUrl))
    val terms = detail.tags.orEmpty().filter { ContentPolicy.accepts(it) }.distinctBy { it.lowercase() }.take(3)
     .ifEmpty { listOf(detail.name).filter { it.count(Char::isLetter) >= 8 && ContentPolicy.accepts(it) } }
    val matches = terms.map { term ->
     async { RequestLimits.optional(3500) { search(term, 1).items }.orEmpty() }
    }.awaitAll().flatten()
-   matches.distinctBy { it.url.substringBefore('?').trimEnd('/') }
-    .filterNot { it.url.substringBefore('?').trimEnd('/') in current }
+   matches.distinctBy { Metadata.catalogueKey(spec.id, it.url) }
+    .filterNot { Metadata.catalogueKey(spec.id, it.url) in current }
     .take(24)
   }
  override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean {

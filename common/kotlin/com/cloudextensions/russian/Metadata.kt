@@ -23,6 +23,30 @@ object Metadata {
     private val posterTimes = Collections.synchronizedMap(BoundedMap<String,Long>(1024))
     private val durations = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val streakListingKeys = Collections.synchronizedMap(BoundedMap<String,String>(1024))
+    private val tubeListingKeys = Collections.synchronizedMap(BoundedMap<String, String>(4096))
+    private val tubeErrorPrefix = Regex("""(?iu)^(?:видео недоступно|video (?:is )?unavailable)(?:[\s:!.–—-]+|$)""")
+    private val tubeClock = Regex("""(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}""")
+    private val tubePublicId = Regex("[A-Za-z0-9]{6,32}")
+
+    fun catalogueKey(source: String?, url: String): String =
+        if (source == "TubeBDSM") tubeListingKeys[url] ?: videoKey(url) else videoKey(url)
+
+    private fun tubeDuration(card: Element): String =
+        card.selectFirst(".item-meta-container .badge:not(.rating-badge)")?.text()
+            ?.substringAfterLast('/')?.let { tubeClock.find(it)?.value }?.let(::timing).orEmpty()
+
+    private fun rememberTubeKey(card: Element, url: String, title: String, duration: String) {
+        val partner = card.selectFirst("a.item-source")?.text()?.lowercase(Locale.ROOT).orEmpty()
+        val label = title.lowercase(Locale.ROOT)
+        val key = when {
+            duration.isNotBlank() && !isTruncatedTitle(title) && titleWord.findAll(label).take(3).count() == 3 ->
+                "tubebdsm:clip:$duration:$label"
+            duration.isNotBlank() && partner.isNotBlank() && !isTruncatedTitle(title) ->
+                "tubebdsm:partner:$partner:$duration:$label"
+            else -> card.attr("data-public-id").takeIf(tubePublicId::matches)?.let { "tubebdsm:id:$it" }
+        }
+        if (key != null) tubeListingKeys[url] = key
+    }
     private val streakStudioPrefix = Regex("""(?i)^sex\s+and\s+submission\s*[-–—:]\s*""")
     private val titleWord = Regex("""[\p{L}\p{N}]+""")
     private val listedTags = Collections.synchronizedMap(BoundedMap<String, List<String>>(1024))
@@ -147,8 +171,17 @@ object Metadata {
             val url = absolute(page.baseUri(),link.attr("href")) ?: continue
             val image = card.selectFirst("img")
             val heading = card.selectFirst(spec.titleSelector)
-            val visible = heading?.text().orEmpty()
-            val label = title(url,listOf(localizedTitle(card,spec.titleLanguage).orEmpty(),link.attr("title"),link.attr("aria-label"),image?.attr("alt").orEmpty(),heading?.attr("title").orEmpty(),visible,image?.attr("aria-label").orEmpty()), language = spec.titleLanguage)
+            val tube = spec.id == "TubeBDSM"
+            val visible = if (tube && heading != null) {
+                val title = heading.clone()
+                val notice = heading.attr("data-error-title")
+                if (notice.isNotBlank()) title.children().filter { it.text() == notice }.forEach { it.remove() }
+                title.text()
+            } else heading?.text().orEmpty()
+            val candidates = listOf(localizedTitle(card,spec.titleLanguage).orEmpty(),link.attr("title"),
+                link.attr("aria-label"),image?.attr("alt").orEmpty(),heading?.attr("title").orEmpty(),visible,image?.attr("aria-label").orEmpty())
+            val label = title(url, if (tube) candidates.map { clean(it).replaceFirst(tubeErrorPrefix, "") } else candidates,
+                language = spec.titleLanguage)
             if (label.isBlank()) continue
             val tags = (
                 card.select("[rel=tag], [data-tag]").flatMap { listOf(it.text(), it.attr("data-tag")) } +
@@ -158,7 +191,9 @@ object Metadata {
             if (!ContentPolicy.accepts(label,tags)) continue
             val clocks=card.select(".prop span,.video_length,.m_time").map { clean(it.text()) }.filter { it.matches(Regex("(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}")) }
             val duration = (card.select(".duration, .card__duration, .video-duration, .time, [data-duration]").asSequence().map { timing(it.attr("data-duration").ifBlank { it.text() }) }.toList()+clocks.map(::timing)).firstOrNull(String::isNotBlank).orEmpty()
-            if (duration.isNotBlank()) durations[videoKey(url)] = duration
+            val fullDuration = if (tube) tubeDuration(card).ifBlank { duration } else duration
+            if (fullDuration.isNotBlank()) durations[videoKey(url)] = fullDuration
+            if (tube) rememberTubeKey(card, url, label, fullDuration)
             if (spec.id == "BDSMStreak") {
                 val exactDuration = timing(card.selectFirst(".duration-pill")?.text())
                 val words = titleWord.findAll(streakStudioPrefix.replaceFirst(label, "").lowercase(Locale.ROOT)).take(5).map { it.value }.toList()
@@ -167,10 +202,10 @@ object Metadata {
                 }
             }
             val picture=poster(link,page.baseUri()) ?: poster(card,page.baseUri());if(picture!=null)rememberPoster(url,picture)
-            val key = videoKey(url)
+            val key = catalogueKey(spec.id, url)
             if (key !in result) {
                 val score = hcScores[key] ?: VideoScores.card(spec.id, url, card)
-                result[key] = VideoCard(label, url, picture, duration, tags, score)
+                result[key] = VideoCard(label, url, picture, fullDuration, tags, score)
             }
         }
         return result.values.toList()
