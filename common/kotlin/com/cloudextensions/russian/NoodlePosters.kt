@@ -15,6 +15,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 interface NoodlePosterSource : PosterSource {
     override val posterTimeoutMs: Long get() = 5300
+    val posterPlaybackReferer: String get() = ""
     val fastHomeCovers: Boolean get() = false
     override suspend fun resolveHomePoster(url: String, poster: String?, headers: Map<String, String>): String? =
         if (fastHomeCovers) NoodlePosters.resolve(this, url, poster, headers, fastHome = true)
@@ -34,7 +35,7 @@ interface NoodlePosterSource : PosterSource {
 
 /** Both language variants use the same catalogue and detail image fields. */
 internal object NoodlePosters {
-    data class Candidates(val images: List<String>, val track: String?, val video: String? = null)
+    data class Candidates(val images: List<String>, val track: String?, val videos: List<String> = emptyList())
     private val alternatives = Collections.synchronizedMap(BoundedMap<String, Pair<Long, Candidates>>(256))
     // The image proxy includes the upstream image host and path in the preview URL.
     private val wrappedPreview = Regex("""^/preview/[^/]+/[^/]+/[0-9]+/(sun[0-9]+(?:-[0-9]+)?\.(?:vkuserphoto\.ru|userapi\.com)|i\.mycdn\.me|iv\.okcdn\.ru)(/[^/].*)$""")
@@ -111,7 +112,7 @@ internal object NoodlePosters {
                 }?.toString()
             }
         }
-        val video = playlists.asSequence().flatMap { playlist ->
+        val videos = playlists.asSequence().flatMap { playlist ->
             val sources = playlist.optJSONArray("sources") ?: return@flatMap emptySequence()
             (0 until sources.length()).asSequence().mapNotNull(sources::optJSONObject)
         }.mapNotNull { entry ->
@@ -120,8 +121,8 @@ internal object NoodlePosters {
             val height = entry.optString("label").trim().removeSuffix("p").toIntOrNull() ?: return@mapNotNull null
             if (height !in 1..QualityLinks.MAX_HEIGHT) return@mapNotNull null
             height to media.toString()
-        }.minByOrNull { it.first }?.second
-        return Candidates(images.mapNotNull { Metadata.imageUrl(base, it) }.distinct(), track, video).also {
+        }.sortedBy { it.first }.map { it.second }.distinct().toList()
+        return Candidates(images.mapNotNull { Metadata.imageUrl(base, it) }.distinct(), track, videos).also {
             alternatives[videoKey(url)] = System.nanoTime() to it
         }
     }
@@ -135,7 +136,6 @@ internal object NoodlePosters {
         }?.second
         val tried = mutableSetOf<String>()
         var slowOriginal: String? = null
-        var listingTimedOut = false
         suspend fun verified(candidates: List<String>, timeout: Long = 1200): String? = coroutineScope {
             val sources = candidates.associateWith(::imageSources)
             val originals = sources.flatMap { (image, options) -> options.filter { it != image } }.toSet()
@@ -152,7 +152,6 @@ internal object NoodlePosters {
                 repeat(checks.size) {
                     val (image, available) = results.receive()
                     if (available == true) return@coroutineScope image
-                    if (image == poster && available == null) listingTimedOut = true
                     if (available == null && image in originals) {
                         if (slowOriginal == null) slowOriginal = image
                     }
@@ -164,25 +163,29 @@ internal object NoodlePosters {
         }
         // Keep the listing size when it works. Check the alternatives together so a slow CDN
         // cannot consume the entire budget before a valid cover is tried.
-        // On the home feed a slow CDN can still serve its declared image to the host loader.
-        // Missing or rejected listing covers keep the full detail and storyboard fallback.
         val quickCheck = fastHome && poster != null && imageSources(poster).size == 1 && saved == null
         verified(listOfNotNull(poster) + saved?.images.orEmpty(), if (quickCheck) 700 else 1200)?.let { return it }
-        if (quickCheck && listingTimedOut) return poster
         val declared = saved ?: RequestLimits.optional(1800) { remember(url, source.posterPage(url)) }
         verified(declared?.images.orEmpty())?.let { return it }
-        if (declared?.track != null && ImagePrefetch.cacheDirectory() != null) {
-            val fallback = RequestLimits.optional(1300) {
-                val text = Network.page(PageRequest(declared.track), url).wholeText()
-                val frames = StoryboardPosters.frames(text, declared.track)
-                // Try sheets from different points in the video. One sheet can be gone while later ones still work.
+        if (declared != null && ImagePrefetch.cacheDirectory() != null) coroutineScope {
+            val results = Channel<String?>(2)
+            val track = launch { results.send(RequestLimits.optional(1700) {
+                val trackUrl = declared.track ?: return@optional null
+                val text = Network.page(PageRequest(trackUrl), url).wholeText()
+                val frames = StoryboardPosters.frames(text, trackUrl)
                 storyboardFrame(url, frames, headers)
+            }) }
+            val frame = launch { results.send(RequestLimits.optional(4000) {
+                if (declared.videos.isEmpty()) null
+                else StoryboardPosters.fromVideo(url, declared.videos, source.posterPlaybackReferer)
+            }) }
+            try {
+                results.receive() ?: results.receive()
+            } finally {
+                track.cancel()
+                frame.cancel()
             }
-            if (fallback != null) return fallback
-        }
-        if (declared?.video != null) {
-            RequestLimits.optional(1700) { StoryboardPosters.fromVideo(url, declared.video, url) }?.let { return it }
-        }
+        }?.let { return it }
         return slowOriginal ?: poster
     }
 }

@@ -6,12 +6,18 @@ import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.Playback
 import com.cloudextensions.russian.PosterSource
 import com.cloudextensions.russian.RussianProvider
+import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
 import com.cloudextensions.russian.VideoDetail
 import com.lagradost.cloudstream3.ErrorLoadingException
+import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Collections
@@ -62,9 +68,33 @@ class ShowCamRipsProvider : RussianProvider(SiteSpec(
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > 256
     })
 
-    override suspend fun searchRequest(term: String): PageRequest =
-        PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search.php")
+    private fun namedSection(term: String): String? = spec.sections.firstOrNull { section ->
+        section.name.equals(term, ignoreCase = true) &&
+            (section.path.startsWith("/cat/en/") || section.path.startsWith("/site/en/"))
+    }?.path
+
+    override suspend fun searchRequest(term: String): PageRequest {
+        val address = mainUrl.toHttpUrl()
+        namedSection(term)?.let { return PageRequest(address.resolve(it).toString()) }
+        return PageRequest(address.newBuilder().encodedPath("/search.php")
             .addQueryParameter("Src", term).addQueryParameter("lg", "en").build().toString())
+    }
+
+    override suspend fun search(query: String, page: Int): SearchResponseList = coroutineScope {
+        val term = Metadata.clean(query)
+        val exact = super.search(term, page)
+        if (exact.items.isNotEmpty() || page != 1 || term.length < 2 || namedSection(term) != null) return@coroutineScope exact
+        val words = term.split(' ')
+        val matches = listOf("/en/", "/en/2-pg/", "/en/3-pg/").map { path ->
+            async {
+                RequestLimits.optional(3500) {
+                    getMainPage(1, MainPageRequest("Latest", path, true)).items.flatMap { it.list }
+                        .filter { card -> words.all { card.name.contains(it, ignoreCase = true) } }
+                }.orEmpty()
+            }
+        }.awaitAll().flatten().distinctBy { it.url }
+        newSearchResponseList(matches, false)
+    }
 
     override suspend fun page(request: PageRequest): Document {
         val document = super.page(request)

@@ -12,9 +12,9 @@ object MediaDuration {
     private const val MOOV = 0x6d6f6f76
     private const val MVHD = 0x6d766864
 
-    private data class Atom(val kind: Int, val size: Long, val header: Int)
+    internal data class Atom(val kind: Int, val size: Long, val header: Int)
 
-    private fun atom(data: ByteBuffer, start: Int): Atom? {
+    internal fun atom(data: ByteBuffer, start: Int): Atom? {
         if (start < 0 || start > data.limit() - 8) return null
         val kind = data.getInt(start + 4)
         val shortSize = data.getInt(start).toLong() and 0xffffffffL

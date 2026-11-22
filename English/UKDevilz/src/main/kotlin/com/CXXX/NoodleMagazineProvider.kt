@@ -13,6 +13,7 @@ import org.json.JSONObject
 
 class NoodleMagazineProvider : MainAPI(),SearchPolicy,NoodlePosterSource {
     override var mainUrl = "https://tyler-brown.com"
+    override val posterPlaybackReferer get() = "$mainUrl/"
     override var name = "Noodle Magazine"
     override val hasMainPage = true
     override var lang = "en"

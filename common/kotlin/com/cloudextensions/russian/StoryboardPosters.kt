@@ -8,9 +8,10 @@ import com.lagradost.cloudstream3.app
 import java.io.File
 import java.security.MessageDigest
 import java.util.concurrent.Executors
-import java.util.concurrent.Semaphore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import kotlin.coroutines.resume
@@ -70,36 +71,52 @@ internal object StoryboardPosters {
         }
     }
 
-    suspend fun fromVideo(video: String, media: String, referer: String): String? {
+    suspend fun fromVideo(video: String, sources: List<String>, referer: String): String? {
         val file = destination(video) ?: return null
         cached(video)?.let { return it }
-        if (!mediaSlots.tryAcquire()) return null
-        return suspendCancellableCoroutine { pending ->
-            mediaWorkers.execute {
-                val result = try {
-                    if (!pending.isActive) null else captureFrame(file, media, referer)
-                } catch (_: Exception) {
-                    null
-                } catch (_: LinkageError) {
-                    null
-                } finally {
-                    mediaSlots.release()
+        return mediaSlots.withPermit {
+            cached(video)?.let { return@withPermit it }
+            val input = withContext(Dispatchers.IO) { File.createTempFile("frame-", ".mp4", file.parentFile?.parentFile) }
+            try {
+                for (media in sources) {
+                    val ready = RequestLimits.optional(1800) { Mp4PosterInput.prepare(input, media, referer) }
+                    if (ready != true) continue
+                    val bitmap = decodeFrame(input)
+                    if (bitmap != null) {
+                        return@withPermit try {
+                            withContext(Dispatchers.IO) { saveBitmap(file, bitmap) }
+                        } finally { bitmap.recycle() }
+                    }
                 }
-                if (pending.isActive) pending.resume(result)
+                null
+            } finally {
+                input.delete()
             }
         }
     }
 
-    private fun captureFrame(file: File, media: String, referer: String): String? {
-        val retriever = MediaMetadataRetriever()
-        try {
-            retriever.setDataSource(media, mapOf("User-Agent" to NoodlePlayback.USER_AGENT, "Referer" to referer))
-            val bitmap = retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC) ?: return null
-            return try { saveBitmap(file, bitmap) } finally { bitmap.recycle() }
-        } finally {
-            retriever.release()
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private suspend fun decodeFrame(input: File): Bitmap? =
+        suspendCancellableCoroutine { pending ->
+            mediaWorkers.execute {
+                if (!pending.isActive) return@execute
+                val bitmap = try {
+                    val retriever = MediaMetadataRetriever()
+                    try {
+                        retriever.setDataSource(input.path)
+                        retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    } finally {
+                        retriever.release()
+                    }
+                } catch (_: Exception) {
+                    null
+                } catch (_: LinkageError) {
+                    null
+                }
+                if (pending.isActive) pending.resume(bitmap) { bitmap?.recycle() }
+                else bitmap?.recycle()
+            }
         }
-    }
 
     suspend fun save(video: String, frame: Frame, headers: Map<String, String>): String? {
         val destination = destination(video) ?: return null

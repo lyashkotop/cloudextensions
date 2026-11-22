@@ -284,10 +284,10 @@ class ReliableProvider(
     }
 
     private suspend fun prepareListing(
-        items: List<SearchResponse>, deadline: Long, home: Boolean = false,
+        items: List<SearchResponse>, deadline: Long, home: Boolean = false, missingPostersOnly: Boolean = false,
     ): List<SearchResponse> = coroutineScope {
         val ratings = async { listingScores(items, deadline) }
-        val posters = withResolvedPosters(items, home = home)
+        val posters = withResolvedPosters(items, missingOnly = missingPostersOnly, home = home)
         val scores = ratings.await()
         posters.mapIndexed { index, poster ->
             val score = scores[index]
@@ -476,7 +476,9 @@ class ReliableProvider(
             val checked = if (requiresListingReview) {
                 reviewedCards(visible, System.nanoTime() + SEARCH_REVIEW_BUDGET_MS * 1_000_000L)
             } else visible
-            withResolvedPosters(checked, missingOnly = true)
+            if (ratingProfile == "UKDevilz") {
+                prepareListing(checked, System.nanoTime() + 2_000_000_000L, missingPostersOnly = true)
+            } else withResolvedPosters(checked, missingOnly = true)
         }
         if(result is MovieLoadResponse) {
             val headers = Network.imageHeaders(result.posterUrl, url) + result.posterHeaders.orEmpty()
