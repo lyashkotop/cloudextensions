@@ -18,9 +18,43 @@ fun main(args:Array<String>) {
     verify(VideoScores.card("TubeBDSM", target, ratedCard)?.toString(10) == "6.3", "catalogue uses the site's percentage")
     verify(VideoScores.detail("TubeBDSM", target, ratedCard)?.toString(10) == "6.3", "detail keeps this card's catalogue rating")
     verify(VideoScores.detail("TubeBDSM", other, ratedCard) == null, "outbound links never share a rating")
+    fun partnerRating(url: String, html: String): String? = VideoScores.detail("TubeBDSM", other, Jsoup.parse(html, url))?.toString(10)
+    val youPornVotePanel = "<div id=js_videoLikeDislikeWrapper><div id=js_videoLike data-videoid=123></div>" +
+        "<span class=tm_rating_percent>89%</span></div>"
+    verify(partnerRating("https://www.youporn.com/watch/123/", youPornVotePanel) == "8.9", "TubeBDSM uses the current YouPorn video's percentage")
+    verify(partnerRating("https://www.youporn.com/watch/456/", youPornVotePanel) == null &&
+        partnerRating("https://www.youporn.com/watch/123/", youPornVotePanel.replace("89%", "0%")) == null,
+        "TubeBDSM ignores unrelated YouPorn controls and an ambiguous zero placeholder")
+    val partnerPage = "https://partner.example/video/123/"
+    val kvsVotes = "<div class=video-info><div class=rating-container><a class=rate-like></a><a class=rate-dislike></a>" +
+        "<div class=rating><span class=voters>9 | 3</span></div></div></div>"
+    verify(partnerRating(partnerPage, kvsVotes) == "7.5", "TubeBDSM calculates partner player votes")
+    verify(partnerRating(partnerPage, "<div class=related><span class=rating>99%</span></div>") == null,
+        "TubeBDSM ignores unrelated thumbnail percentages")
+    val publishedScore = """<script type="application/ld+json">{"@type":"VideoObject","url":"$partnerPage",
+        "aggregateRating":{"ratingValue":3,"bestRating":5,"ratingCount":8}}</script>"""
+    verify(partnerRating(partnerPage, publishedScore) == "6" && partnerRating(partnerPage.replace("123", "456"), publishedScore) == null,
+        "TubeBDSM uses structured scores for their own video identity")
     verify(VideoScores.api(JSONObject().put("likes", 0).put("dislikes", 0)) == null, "unvoted videos have no rating")
     verify(VideoScores.api(JSONObject().put("likes", 0).put("dislikes", 6))?.toString(10) == "1", "a rated video never falls below 1")
     verify(VideoScores.api(JSONObject().put("likes", 3).put("dislikes", 1))?.toString(10) == "7.5", "both vote counts determine the score")
+    fun hcChunk(payload: String) = "<script>self.__next_f.push(${JSONArray().put(1).put(payload)});</script>"
+    val hcUrl = "https://hcbdsm.com/video/123/current/"
+    val hcPage = Jsoup.parse(
+        "<a class=clip href='/video/123/alias/' title='First'></a><a class=clip href='/video/124/other/' title='Second'></a>" +
+            hcChunk("""1:[{"id":124,"title":"Second","path":"/video/124/other/","likes":0,"dislikes":0},""" +
+                """{"id":123,"title":"First","path":"/video/123/current/","likes":4,"dis""") +
+            hcChunk("""likes":1}]
+                2:[{"id":123,"likes":49,"dislikes":16,"initialVote":null}]"""),
+        hcUrl,
+    )
+    val hcSpec = SiteSpec("HcBDSMX", "hcBDSM", "https://hcbdsm.com", ".clip", "a", "h3", emptyList())
+    val hcListing = Jsoup.parse(hcPage.html(), "https://hcbdsm.com/latest-updates/")
+    verify(Metadata.cards(hcListing, hcSpec).map { it.score?.toString(10) } == listOf("8", null),
+        "hcBDSM matches votes to numeric video IDs, handles split chunks, and omits scores with zero votes")
+    verify(VideoScores.detail("HcBDSMX", hcUrl, hcPage)?.toString(10) == "7.5" &&
+        VideoScores.detail("HcBDSMX", "https://hcbdsm.com/video/124/other/", hcPage) == null,
+        "hcBDSM reads the current video's votes without borrowing votes from related videos")
     val ratedVpoisk = Jsoup.parse("<div class='video_vote'><div id='dislike'>2</div><span id='rate-value' class='like'>60%</span><div id='like'>3</div></div>")
     verify(VideoScores.detail("Vpoisk", "https://m.vpoisk.xyz", ratedVpoisk)?.toString(10) == "6", "Vpoisk prefers the published percentage")
     val prostoRating = Jsoup.parse("<div class='rate-tab' itemprop='aggregateRating'><meta itemprop='ratingValue' content='4.5'><meta itemprop='bestRating' content='5'><span itemprop='ratingCount'>2</span></div>")

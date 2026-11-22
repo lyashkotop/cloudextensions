@@ -140,6 +140,7 @@ object Metadata {
     }
     fun cards(page: Element, spec: SiteSpec): List<VideoCard> {
         val result = LinkedHashMap<String,VideoCard>()
+        val hcScores = if (spec.id == "HcBDSMX") VideoScores.hcScores(page) else emptyMap()
         for (card in page.select(spec.cards)) {
             if(spec.id=="ThisVid" && card.selectFirst(".private,.icon-private,.svg-icon-private,img[src*=bg_private_video]")!=null)continue
             val link = if (card.tagName() == "a" && card.hasAttr("href")) card else card.selectFirst(spec.link) ?: continue
@@ -166,7 +167,11 @@ object Metadata {
                 }
             }
             val picture=poster(link,page.baseUri()) ?: poster(card,page.baseUri());if(picture!=null)rememberPoster(url,picture)
-            if(!result.containsKey(videoKey(url)))result[videoKey(url)]=VideoCard(label,url,picture,duration,tags,VideoScores.card(spec.id,url,card))
+            val key = videoKey(url)
+            if (key !in result) {
+                val score = hcScores[key] ?: VideoScores.card(spec.id, url, card)
+                result[key] = VideoCard(label, url, picture, duration, tags, score)
+            }
         }
         return result.values.toList()
     }

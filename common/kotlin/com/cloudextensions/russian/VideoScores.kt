@@ -4,7 +4,10 @@ import com.lagradost.cloudstream3.Score
 import java.net.URI
 import java.util.Collections
 import java.util.concurrent.TimeUnit
+import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
+import org.json.JSONTokener
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
@@ -71,6 +74,52 @@ object VideoScores {
 
     fun api(item: JSONObject): Score? = votes(item.optString("likes"), item.optString("dislikes"))
 
+    internal fun structuredRating(rating: JSONObject?): Score? {
+        if (rating == null || maxOf(rating.optLong("ratingCount", 0), rating.optLong("reviewCount", 0)) <= 0) return null
+        val best = rating.optDouble("bestRating", 5.0)
+        if (!best.isFinite() || best <= 0) return null
+        return fromValue(rating.optDouble("ratingValue"), best)
+    }
+
+    private const val NEXT_PUSH = "self.__next_f.push("
+    private val hcVideoObject = Regex("""\{"id"\s*:\s*[0-9]+\s*,\s*"(?:title|likes)"\s*:""")
+
+    internal fun hcScores(page: Element): Map<String, Score?> {
+        val document = page.ownerDocument() ?: return emptyMap()
+        // The site splits video objects across successive Next.js data chunks.
+        val payload = buildString {
+            for (script in document.select("script")) {
+                val code = script.data().trimStart()
+                if (!code.startsWith(NEXT_PUSH)) continue
+                val chunk = try {
+                    JSONTokener(code.substring(NEXT_PUSH.length)).nextValue() as? JSONArray
+                } catch (_: JSONException) {
+                    null
+                }
+                if (chunk?.optInt(0) == 1) append(chunk.optString(1))
+            }
+        }
+        val cards = mutableMapOf<String, Score?>()
+        val videoVotes = mutableMapOf<String, Score?>()
+        val current = videoKey(document.baseUri())
+        for (candidate in hcVideoObject.findAll(payload)) {
+            val video = try {
+                JSONObject(payload.substring(candidate.range.first))
+            } catch (_: JSONException) {
+                continue
+            }
+            val id = video.optLong("id", -1).takeIf { it > 0 } ?: continue
+            if (!video.has("likes") || !video.has("dislikes")) continue
+            val key = "hcbdsm.com/video/$id"
+            if (video.has("initialVote") && key == current) {
+                videoVotes[key] = api(video)
+            } else if (absolute(document.baseUri(), video.optString("path"))?.let(::videoKey) == key) {
+                cards[key] = api(video)
+            }
+        }
+        return cards + videoVotes
+    }
+
     fun card(source: String, url: String, card: Element): Score? {
         val selector = when (source) {
             "TubeBDSM" -> ".rating-badge .item-score, .rating-badge"
@@ -89,18 +138,12 @@ object VideoScores {
     fun detail(source: String, url: String, page: Document): Score? {
         val listed = listing[source to url]
         if (source == "TubeBDSM") {
-            return listed ?: when (URI(page.baseUri()).host.orEmpty().removePrefix("www.")) {
-                "eporner.com" -> detail("EPorner", page.baseUri(), page)
-                "abxxx.com", "bdsmx.tube", "bdsmx-porn.com" -> page.selectFirst("meta[data-source-votes]")?.let {
-                    votes(it.attr("data-likes"), it.attr("data-dislikes"))
-                }
-                "xhamster.com" -> detail("XHamster", page.baseUri(), page)
-                else -> null
-            }
+            return listed ?: partnerScore(page)
         }
         fun text(selector: String) = page.selectFirst(selector)?.text()
         fun pair(up: String, down: String) = votes(text(up), text(down))
         val score = when (source) {
+            "HcBDSMX" -> if (videoKey(url) == videoKey(page.baseUri())) hcScores(page)[videoKey(url)] else null
             "NoodleMagazine", "UKDevilz" -> votes(
                 page.selectFirst(".meta .like [data-count]")?.attr("data-count"),
                 page.selectFirst(".meta .dislike [data-count]")?.attr("data-count"),
@@ -153,5 +196,64 @@ object VideoScores {
         }
         rememberDetail(source, url, score)
         return score ?: listed
+    }
+
+    private val youPornWatch = Regex("""^/watch/([0-9]+)(?:/.*)?$""")
+    private val votePair = Regex("""^([0-9][0-9, ]*)\s*\|\s*([0-9][0-9, ]*)$""")
+    private val voteLabel = Regex("""(?i)^([0-9][0-9, ]*)\s+(likes?|dislikes?)$""")
+    private val countedPercentage = Regex("""(?i)^([0-9]+(?:[.,][0-9]+)?%)\s*\(([0-9, ]+) votes?\)$""")
+
+    private fun partnerScore(page: Document): Score? {
+        val uri = URI(page.baseUri())
+        val address = uri.toString()
+        fun pair(up: String, down: String) = votes(page.selectFirst(up)?.text(), page.selectFirst(down)?.text())
+        val score = when (uri.host.orEmpty().removePrefix("www.")) {
+            "youporn.com" -> {
+                val id = youPornWatch.matchEntire(uri.path.orEmpty())?.groupValues?.get(1)
+                if (id == null) null else page.selectFirst("#js_videoLikeDislikeWrapper:has(#js_videoLike[data-videoid=$id]) .tm_rating_percent")
+                    ?.text()?.takeUnless { it == "0%" }?.let(::percentage)
+            }
+            "eporner.com" -> detail("EPorner", address, page)
+            "xvideos.com" -> detail("XVideos", address, page)
+            "xhamster.com" -> detail("XHamster", address, page)
+            "xnxx.com" -> detail("Xnxx", address, page)
+            "hcbdsm.com" -> detail("HcBDSMX", address, page)
+            "abxxx.com", "bdsmx.tube", "bdsmx-porn.com" -> page.selectFirst("meta[data-source-votes]")?.let {
+                votes(it.attr("data-likes"), it.attr("data-dislikes"))
+            }
+            "fetishpapa.com", "pornoxo.com" -> pair("#item-info .js-likes-count", "#item-info .js-dislikes-count")
+            "winporn.com" -> pair("#like-video-data", "#not-like-video-data")
+            "fapcat.com" -> pair(".btn-rate-drop .rate-like", ".btn-rate-drop .rate-dislike")
+            else -> null
+        }
+        return score ?: templateRating(page) ?: structuredRating(Metadata.ownVideo(page)?.optJSONObject("aggregateRating"))
+    }
+
+    /** These voting controls belong to the player details, outside the related cards and comments. */
+    private fun templateRating(page: Document): Score? {
+        val up = page.selectFirst("#flag_like_this_video")
+        val down = page.selectFirst("#flag_dislike_this_video")
+        votes(up?.text(), down?.text())?.let { return it }
+        for (panel in page.select(".video-info .rating-container, .player_tools .rating-container, .block-video .rating-container")) {
+            val like = panel.selectFirst(".rate-like")
+            val dislike = panel.selectFirst(".rate-dislike")
+            if (like == null || dislike == null) continue
+            votes(like.text(), dislike.text())?.let { return it }
+            votes(
+                panel.selectFirst(".vote-wrapper:has(.rate-like) .vote-wrapper__count")?.text(),
+                panel.selectFirst(".vote-wrapper:has(.rate-dislike) .vote-wrapper__count")?.text(),
+            )?.let { return it }
+            val counts = panel.select(".rating-info .text").mapNotNull { voteLabel.matchEntire(it.text()) }
+                .associate { it.groupValues[2].lowercase().trimEnd('s') to it.groupValues[1] }
+            votes(counts["like"], counts["dislike"])?.let { return it }
+            val text = panel.selectFirst(".rating .voters")?.text().orEmpty()
+            votePair.matchEntire(text)?.destructured?.let { (positive, negative) ->
+                votes(positive, negative)?.let { return it }
+            }
+            countedPercentage.matchEntire(text)?.destructured?.let { (value, count) ->
+                if ((voteCount(count, compact = false) ?: 0.0) > 0) percentage(value)?.let { return it }
+            }
+        }
+        return null
     }
 }

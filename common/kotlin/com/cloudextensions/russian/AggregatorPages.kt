@@ -70,7 +70,8 @@ object AggregatorPages {
             tags=tags,
             duration=duration.ifBlank{base.duration},
             description=Metadata.description(item.optString("description"),base.title),
-            poster=Metadata.choosePoster(page.baseUri(),base.poster,item.optString("poster"))
+            poster=Metadata.choosePoster(page.baseUri(),base.poster,item.optString("poster")),
+            score=VideoScores.api(item) ?: base.score,
         )
     }
     fun related(page:Document,spec:SiteSpec):List<VideoCard> {
@@ -85,7 +86,10 @@ object AggregatorPages {
             val labels=tags(item)
             if(!ContentPolicy.accepts(title,labels))continue
             val poster=item.optJSONObject("thumbnails")?.optString("md").orEmpty().ifBlank{item.optString("poster")}
-            result+=VideoCard(Metadata.title(url,listOf(title)),url,Metadata.rememberPoster(url,poster),Metadata.timing(meta?.optString("duration")),labels)
+            result += VideoCard(
+                Metadata.title(url, listOf(title)), url, Metadata.rememberPoster(url, poster),
+                Metadata.timing(meta?.optString("duration")), labels, VideoScores.api(item),
+            )
         }
         if(result.isEmpty()) {
             val selectors = listOf(
