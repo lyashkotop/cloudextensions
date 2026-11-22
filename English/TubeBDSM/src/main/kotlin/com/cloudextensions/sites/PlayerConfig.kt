@@ -4,10 +4,12 @@ import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.EPornerPlayer
 import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.Playback
+import com.cloudextensions.russian.QualityLinks
 import com.cloudextensions.russian.RequestLimits
 import com.lagradost.cloudstream3.app
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
 import org.jsoup.nodes.Document
@@ -23,6 +25,7 @@ internal object PlayerConfig {
     private val digits = Regex("[0-9]+")
     private val fluidSource = Regex("""\bsetAttribute\(\s*['"]src['"]\s*,\s*("(?:[^"\\]|\\.)+")\s*\)""")
     private val fluidQuality = Regex("""_(\d{3,4}p)\.mp4/?$""")
+    private val mediaDefinitions = Regex("""["']?mediaDefinitions["']?\s*:\s*""")
 
     private data class Config(val url: HttpUrl, val labels: Map<String, String> = emptyMap())
 
@@ -86,12 +89,43 @@ internal object PlayerConfig {
             }.distinctBy { it.url }.toList()
     }
 
+    private suspend fun youPornSources(page: Document, address: HttpUrl): List<Playback.Source> {
+        val script = page.selectFirst(":is(#videoWrapper, #player-placeholder) script#tm_pc_player_setup")?.data() ?: return emptyList()
+        val start = mediaDefinitions.find(script)?.range?.last?.plus(1) ?: return emptyList()
+        val definitions = try { JSONTokener(script.substring(start)).nextValue() as? JSONArray }
+            catch (_: org.json.JSONException) { null } ?: return emptyList()
+        for ((format, suffix) in listOf("mp4" to ".mp4", "hls" to ".m3u8")) {
+            val endpoint = (0 until definitions.length()).firstNotNullOfOrNull { index ->
+                val item = definitions.optJSONObject(index) ?: return@firstNotNullOfOrNull null
+                address.resolve(item.optString("videoUrl"))?.takeIf {
+                    item.optString("format") == format && it.isHttps && it.host == address.host &&
+                        it.encodedPath == "/media/$format/"
+                }
+            } ?: continue
+            val files = RequestLimits.optional(4500) {
+                val response = Network.page(PageRequest(endpoint.toString(), headers = mapOf("Accept" to "application/json")), page.baseUri())
+                JSONArray(response.wholeText())
+            } ?: continue
+            val sources = (0 until files.length()).mapNotNull { index ->
+                val file = files.optJSONObject(index) ?: return@mapNotNull null
+                val height = file.optString("quality").toIntOrNull() ?: return@mapNotNull null
+                val url = file.optString("videoUrl").toHttpUrlOrNull() ?: return@mapNotNull null
+                if (height !in 1..QualityLinks.MAX_HEIGHT || !url.isHttps ||
+                    !url.host.endsWith(".ypncdn.com") || !url.encodedPath.endsWith(suffix, true)) return@mapNotNull null
+                Playback.Source(url.toString(), "${height}p")
+            }.distinctBy { it.url }
+            if (sources.isNotEmpty()) return sources
+        }
+        return emptyList()
+    }
+
     suspend fun sources(page: Document): List<Playback.Source> {
         val address = page.baseUri().toHttpUrlOrNull() ?: return emptyList()
         return when (address.host.removePrefix("www.")) {
             "drtuber.com" -> request(desktopDrTuber(page, address), page.baseUri())
             "m.drtuber.com", "viptube.com", "m.viptube.com" -> mobileSources(page, address)
             "eporner.com" -> EPornerPlayer.sources(page)
+            "youporn.com" -> youPornSources(page, address)
             "rainblow.xxx", "thepornstar.com" -> fluidSources(page)
             else -> emptyList()
         }

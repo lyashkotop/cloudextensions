@@ -154,6 +154,28 @@ fun main(args:Array<String>) {
     verify(AggregatorPages.detail(nextPage,aggSpec).tags==listOf("Bondage"),"only declared Next video tags")
     verify(AggregatorPages.detail(nextPage,aggSpec).description.isEmpty(),"Next SEO advertising never substitutes a missing description")
     verify(AggregatorPages.detail(nextPage,aggSpec).duration=="00:23","Next metadata duration replaces zero numeric field")
+    val youPorn = Jsoup.parse("""
+        <h1>Actual video</h1>
+        <script type="application/ld+json">{"@graph":[{"@type":"VideoObject","name":"Actual video","duration":"PT3M7S",
+        "description":"Watch Actual video online on YouPorn.com. YouPorn is the biggest video site."}]}</script>
+        <a class=tm_carousel_tag href="/category/other/">Unrelated category</a>
+        <div class=watch-container><div class=videoTags>
+          <a class=tm_carousel_tag href="/category/1/">Studio</a>
+          <a class=tm_carousel_tag href="/porntags/2/">Behind the scenes</a>
+        </div></div>
+        <div id=relatedVideos><article class=video-box>
+          <img data-src="/cover.jpg"><a class=video-title-text href="/watch/456/second/">Another full title</a>
+        </article></div>
+        <div id=show-next><article class=video-box>
+          <img data-src="/ad.jpg"><a class=video-title-text href="/watch/789/sidebar/">Outside the related list</a>
+        </article></div>
+    """.trimIndent(), "https://www.youporn.com/watch/123/first/")
+    val youPornDetail = AggregatorPages.detail(youPorn, aggSpec)
+    verify(youPornDetail.tags == listOf("Studio", "Behind the scenes") && youPornDetail.description.isEmpty(),
+        "TubeBDSM uses the original YouPorn tag carousel and discards promotional copy")
+    val youPornRelated = AggregatorPages.related(youPorn, aggSpec).single()
+    verify(youPornRelated.title == "Another full title" && youPornRelated.poster == "https://www.youporn.com/cover.jpg",
+        "TubeBDSM uses YouPorn's related videos and their original thumbnails")
     nextPage.setBaseUri("https://example.org/video/999")
     verify(AggregatorPages.video(nextPage)==null,"unrelated Next feed video is rejected")
     val times=mapOf("123" to "02:03","PT2M3S" to "02:03","PT1H2M3.5S" to "1:02:03.5","01:02:03" to "1:02:03","12:34" to "12:34","0" to "","1:99" to "","unknown" to "","" to "")

@@ -32,6 +32,7 @@ object AggregatorPages {
             "fapcat.com" -> ".block-details .item a[href*=/tags/], .block-details .item a[href*=/categories/]"
             "vrporn.com" -> ".list.mt2-6 a[href^=/tag/]"
             "lujuriax.com" -> ".xv-tags-box a"
+            "youporn.com" -> ":is(#watch-container, .watch-container) .videoTags a.tm_carousel_tag:is([href^=/category/], [href^=/porntags/])"
             else -> ".VideoDetailArea .VideoQuickLinks a[href*=/category/], .VideoDetailArea .VideoQuickLinks a[href*=/tag/]"
         }
         val visible = page.select(selector).mapNotNull { Metadata.tag(it.text()) }
@@ -75,6 +76,7 @@ object AggregatorPages {
         )
     }
     fun related(page:Document,spec:SiteSpec):List<VideoCard> {
+        val host = URI(page.baseUri()).host
         val data=AggregatorVideo.props(page)?.optJSONObject("initialRelatedVideos")?.optJSONArray("data")
         val result=mutableListOf<VideoCard>()
         if(video(page)!=null && data!=null)for(i in 0 until data.length()) {
@@ -91,6 +93,13 @@ object AggregatorPages {
                 Metadata.timing(meta?.optString("duration")), labels, VideoScores.api(item),
             )
         }
+        if (result.isEmpty() && host.orEmpty().removePrefix("www.") == "youporn.com") {
+            result += Metadata.cards(page, spec.copy(
+                cards = ":is(#relatedVideosWrapper, #relatedVideos) article.video-box:has(img)",
+                link = "a.video-title-text[href^=/watch/]",
+                titleSelector = "a.video-title-text",
+            ))
+        }
         if(result.isEmpty()) {
             val selectors = listOf(
                 ".RelatedVideos a[href*=/video/]:has(img)",
@@ -102,6 +111,6 @@ object AggregatorPages {
             ).joinToString(",")
             result+=Metadata.cards(page,spec.copy(cards=selectors,link="a[href]",titleSelector=".card-t,.title,h2,h3"))
         }
-        return result.filter{videoKey(it.url)!=videoKey(page.baseUri()) && URI(it.url).host==URI(page.baseUri()).host}.distinctBy{videoKey(it.url)}
+        return result.filter{videoKey(it.url)!=videoKey(page.baseUri()) && URI(it.url).host==host}.distinctBy{videoKey(it.url)}
     }
 }
