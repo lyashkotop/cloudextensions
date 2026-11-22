@@ -265,7 +265,11 @@ object Metadata {
             val label = raw?.let(::tag) ?: return
             if (tags.none { it.equals(label, true) }) tags += label
         }
-        for(e in page.select(spec.tagSelector.ifBlank{tagSelector})) if(e.closest("nav,header,aside,.related,.related-videos,#related-videos,#relateddiv,.tax-extra") == null && (e.closest("footer")==null || e.closest("article .single-entry-footer,article .entry-footer")!=null)) add(e.text())
+        for (e in page.select(spec.tagSelector.ifBlank { tagSelector })) {
+            if (e.closest("nav,header,aside,.related,.related-videos,#related-videos,#relateddiv,.tax-extra") == null &&
+                (e.closest("footer") == null || e.closest("article .single-entry-footer,article .entry-footer") != null)
+            ) add(if (e.tagName() == "meta") e.attr("content") else e.text())
+        }
         if(tags.isEmpty() && data != null) for(key in listOf("genre")) {
             when(val item=data.opt(key)) { is JSONArray -> for(i in 0 until item.length())add(item.optString(i)); is String -> item.split(',',';').forEach(::add) }
         }
@@ -292,7 +296,7 @@ object Metadata {
     fun plot(detail: VideoDetail) = detail.description
 
     fun timing(raw: String?): String {
-        val text=clean(raw)
+        val text=clean(raw).let { if (it.startsWith("T", true)) "P$it" else it }
         if(text.isBlank())return ""
         return try {
             val seconds=when {

@@ -18,7 +18,7 @@ object AggregatorPages {
     private fun tags(item: JSONObject): List<String> =
         (labels(item.opt("tags")) + labels(item.opt("categories"))).distinctBy { it.lowercase() }
 
-    private fun pageTags(page: Document): List<String> {
+    private fun pageTags(page: Document, state: JSONObject?): List<String> {
         val address = URI(page.baseUri()).host.orEmpty().removePrefix("www.")
         val host = if (address.endsWith(".faphouse.com")) "faphouse.com" else address
         val selector = when (host) {
@@ -40,7 +40,7 @@ object AggregatorPages {
             .select("meta[property=video:tag], meta[name=video:tag], meta[property=og:video:tag]")
             .flatMap { labels(it.attr("content")) }
 
-        val state = EmbeddedPlayers.initials(page) ?: return visible
+        if (state == null) return visible
         val component = state.optJSONObject("videoTagsComponent") ?: return visible
         val id = state.optJSONObject("videoEntity")?.optString("id").orEmpty()
         if (id.isBlank() || component.optString("videoId") != id) return visible
@@ -52,14 +52,24 @@ object AggregatorPages {
         }
     }
     fun detail(page:Document,spec:SiteSpec):VideoDetail {
-        val mobileDrTuber = URI(page.baseUri()).host == "m.drtuber.com"
+        val address = URI(page.baseUri())
+        val mobileDrTuber = address.host == "m.drtuber.com"
         val titleSelector = if (mobileDrTuber) ".video_play > .container > .thumbs_result:not(#footer-lc) .heading h2"
             else spec.detailTitleSelector
         val base=Metadata.detail(page,spec.copy(descriptionSelector=".VideoDescription, .video-desc, .vp-description", detailTitleSelector=titleSelector))
         val item=video(page)
-        val tags = (item?.let(::tags).orEmpty() + pageTags(page) + base.tags.flatMap(::labels)).distinctBy { it.lowercase() }
+        val state = if (address.host.orEmpty().removePrefix("www.") == "xhamster.com") EmbeddedPlayers.initials(page) else null
+        val tags = (item?.let(::tags).orEmpty() + pageTags(page, state) + base.tags.flatMap(::labels)).distinctBy { it.lowercase() }
         if(item==null) {
-            return base.copy(tags = tags)
+            val xHamsterVideo = state?.optJSONObject("videoEntity")?.takeIf { entity ->
+                val hash = entity.optString("idHashSlug")
+                hash.isNotBlank() && address.path.orEmpty().trimEnd('/').endsWith("-$hash")
+            }
+            return base.copy(
+                tags = tags,
+                duration = Metadata.timing(xHamsterVideo?.optString("duration")).ifBlank { base.duration },
+                description = base.description.ifBlank { Metadata.description(xHamsterVideo?.optString("description"), base.title) },
+            )
         }
         val meta=item.optJSONObject("metadata")
         val duration=Metadata.timing(meta?.optString("duration")).ifBlank{Metadata.timing(item.optString("duration"))}

@@ -2,9 +2,11 @@ package com.cloudextensions.russian
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.Qualities
 import okhttp3.Interceptor
 import java.io.File
 import java.net.URI
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitAll
@@ -446,6 +448,7 @@ class ReliableProvider(
     override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = RequestLimits.required("Плеер",45_000) {
         val emitted = java.util.concurrent.atomic.AtomicBoolean()
         val rejected = java.util.concurrent.atomic.AtomicReference<Int>()
+        val resolutions = if (ratingProfile == "TubeBDSM") ConcurrentHashMap.newKeySet<Int>() else null
         coroutineScope {
             source.loadLinks(data, isCasting, subtitleCallback) { link ->
                 launch(start = CoroutineStart.UNDISPATCHED) {
@@ -453,6 +456,9 @@ class ReliableProvider(
                     val result = QualityLinks.select(link, interceptor)
                     result.rejectedStatus?.let { rejected.compareAndSet(null, it) }
                     for (choice in result.links) {
+                        // The selected partner can publish the same resolution as both MP4 and HLS.
+                        if (resolutions != null && choice.name.isEmpty() && choice.quality > 0 &&
+                            choice.quality != Qualities.Unknown.value && !resolutions.add(choice.quality)) continue
                         callback(choice)
                         emitted.set(true)
                     }

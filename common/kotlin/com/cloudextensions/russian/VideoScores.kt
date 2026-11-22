@@ -231,6 +231,12 @@ object VideoScores {
             "fetishpapa.com", "pornoxo.com" -> pair("#item-info .js-likes-count", "#item-info .js-dislikes-count")
             "winporn.com" -> pair("#like-video-data", "#not-like-video-data")
             "fapcat.com" -> pair(".btn-rate-drop .rate-like", ".btn-rate-drop .rate-dislike")
+            "xcafe.com" -> page.selectFirst(".video_meta .current_rating[itemprop=aggregateRating]")?.let { rating ->
+                val count = rating.selectFirst("meta[itemprop=ratingCount]")?.attr("content")
+                if ((voteCount(count, compact = false) ?: 0.0) > 0)
+                    percentage(rating.selectFirst("[itemprop=ratingValue]")?.text())
+                else null
+            }
             else -> null
         }
         return score ?: templateRating(page) ?: structuredRating(Metadata.ownVideo(page)?.optJSONObject("aggregateRating"))

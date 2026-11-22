@@ -176,6 +176,33 @@ fun main(args:Array<String>) {
     val youPornRelated = AggregatorPages.related(youPorn, aggSpec).single()
     verify(youPornRelated.title == "Another full title" && youPornRelated.poster == "https://www.youporn.com/cover.jpg",
         "TubeBDSM uses YouPorn's related videos and their original thumbnails")
+    val xCafe = Jsoup.parse("""
+        <h1>Actual video</h1>
+        <div class=video_meta><meta itemprop=duration content=T10M36S>
+          <div class=current_rating itemprop=aggregateRating><span itemprop=ratingValue>90%</span>
+            <meta itemprop=ratingCount content=96></div>
+          <div class=video_categorization><meta itemprop=genre content=Studio></div>
+        </div>
+        <video><source src="/get_file/12/original.mp4/" title=1080p>
+          <source src="/get_file/12/lower.mp4/" title=240p>
+          <source src="/get_file/12/higher.mp4/" title=8K>
+        </video>
+    """.trimIndent(), "https://xcafe.com/123/")
+    val xCafeDetail = AggregatorPages.detail(xCafe, aggSpec)
+    verify(xCafeDetail.duration == "10:36" && xCafeDetail.tags == listOf("Studio"),
+        "TubeBDSM reads XCafe's exact player length and semantic genres")
+    verify(VideoScores.detail("TubeBDSM", xCafe.baseUri(), xCafe)?.toString(10) == "9",
+        "TubeBDSM reads XCafe's current-video rating when votes exist")
+    verify(Playback.sources(xCafe).map { it.label } == listOf("1080p", "240p", "4320p"),
+        "TubeBDSM reads source title labels so the quality limit can exclude higher streams")
+    val xHamster = Jsoup.parse("""<h1>Actual video</h1><script>window.initials = {
+        "videoEntity":{"idHashSlug":"abc12","duration":529,"description":"The creator's description."}
+    };</script>""", "https://xhamster.com/videos/actual-video-abc12")
+    verify(AggregatorPages.detail(xHamster, aggSpec).let { it.duration == "08:49" && it.description == "The creator's description." },
+        "TubeBDSM reads XHamster's metadata from the video identified in the URL")
+    xHamster.setBaseUri("https://xhamster.com/videos/different-video-def34")
+    verify(AggregatorPages.detail(xHamster, aggSpec).let { it.duration.isBlank() && it.description.isBlank() },
+        "TubeBDSM ignores XHamster player metadata carrying a different video identity")
     nextPage.setBaseUri("https://example.org/video/999")
     verify(AggregatorPages.video(nextPage)==null,"unrelated Next feed video is rejected")
     val times=mapOf("123" to "02:03","PT2M3S" to "02:03","PT1H2M3.5S" to "1:02:03.5","01:02:03" to "1:02:03","12:34" to "12:34","0" to "","1:99" to "","unknown" to "","" to "")

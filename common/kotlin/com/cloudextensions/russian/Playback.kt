@@ -31,6 +31,7 @@ object Playback {
     }
     private val media=Regex("(?i)(?:/get_file/|\\.(?:m3u8|mp4|webm|m4v|mov|mpd)(?:[/?#&]|$))")
     private val advertisement=Regex("(?i)(?:^|[/_.-])(?:ads?|vast|preroll|postroll|advert)(?:[/_.?-]|$)")
+    private val resolutionTitle = Regex("""(?i)\d{3,4}p|[48]k""")
     private val variables=Regex("""\b(video_(?:alt_)?url\d*(?:_text)?|contentUrl)\s*[=:]\s*(['"])(.*?)\2""")
     private fun playable(url: String)=url.startsWith("http")&&media.containsMatchIn(url)&&!advertisement.containsMatchIn(url)
     private fun unescape(raw: String): String = try { org.json.JSONTokener("\""+raw.replace("\\'","'")+"\"").nextValue() as? String ?: raw }catch(_:Exception){raw.replace("\\/","/").replace("&amp;","&")}
@@ -39,7 +40,12 @@ object Playback {
         for(e in page.select("video source[src],video[src],meta[property=og:video],meta[property=og:video:url],meta[property=og:video:secure_url]")) {
             if(e.closest("a[href],.tuba,.video-card,.tiled_item,.related,.related-videos,#related-videos,#list_videos_related_videos")!=null)continue
             val url=absolute(page.baseUri(),e.attr("src").ifBlank { e.attr("content") }) ?: continue
-            if(playable(url))result+=Source(url,e.attr("label").ifBlank { e.attr("res") }.takeIf(String::isNotBlank))
+            if(playable(url)) {
+                val label = e.attr("label").ifBlank { e.attr("res") }.ifBlank {
+                    e.attr("title").trim().takeIf { e.tagName() == "source" && resolutionTitle.matches(it) }.orEmpty()
+                }
+                result += Source(url, if (label.equals("8k", true)) "4320p" else label.takeIf(String::isNotBlank))
+            }
         }
         // Modern Next.js players declare only this video's sources in pageProps.firstVideo.
         AggregatorVideo.video(page)?.let { video ->
