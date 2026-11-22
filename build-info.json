@@ -1,8 +1,8 @@
 {
-  "version": 185,
-  "sourceCommit": "ad996ef5baa1b9f43309bb50d2cd4fec2e43fc83",
+  "version": 186,
+  "sourceCommit": "075ceae0a4a845ad4e88c0f2677830f9c05dd00e",
   "packageLayout": "versioned",
-  "plugins": 32,
+  "plugins": 33,
   "rebuilt": [
     "Ebalka",
     "Huyamba",
@@ -12,6 +12,7 @@
     "Semyana",
     "Strip2",
     "Vpoisk",
+    "PornoMoloko",
     "JavGuru",
     "MissAV",
     "BDSMStreak",
@@ -37,7 +38,7 @@
     "Xnxx",
     "XRares"
   ],
-  "dexClasses": 9521,
-  "entryRegistrationsValidated": 32,
-  "kotlinProviders": 32
+  "dexClasses": 9816,
+  "entryRegistrationsValidated": 33,
+  "kotlinProviders": 33
 }
