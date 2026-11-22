@@ -1,0 +1,11 @@
+{
+  "id": "PornoMoloko",
+  "name": "Порно Молоко",
+  "language": "ru",
+  "category": "Russian",
+  "entryClass": "com.cloudextensions.entries.PornoMolokoPlugin",
+  "providerClass": "com.cloudextensions.sites.PornoMolokoProvider",
+  "description": "Порно Молоко · русскоязычный каталог с категориями, поиском, метаданными и прямым воспроизведением.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/PornoMoloko.png",
+  "runtime": "kotlin"
+}

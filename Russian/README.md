@@ -1,6 +1,6 @@
 # Russian — Kotlin providers
 
-Все восемь провайдеров имеют исходники `.kt` в `Russian/<Site>/src/main/kotlin/`.
+Все девять провайдеров имеют исходники `.kt` в `Russian/<Site>/src/main/kotlin/`.
 Внутренние ID сохранены. По просьбе владельца имена источников имеют префикс `1.` для сортировки.
 Старые smali-версии доступны в истории до коммита перехода.
 
@@ -8,6 +8,7 @@
 - [Huyamba](Huyamba/)
 - [Noodle Magazine 🇷🇺](NoodleMagazine/)
 - [Perdol.net](Perdol/)
+- [Порно Молоко](PornoMoloko/)
 - [ProstoPorno](ProstoPorno/)
 - [Semyana](Semyana/)
 - [Strip2](Strip2/)
