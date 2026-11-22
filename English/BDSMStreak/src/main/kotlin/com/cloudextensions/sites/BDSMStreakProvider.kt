@@ -6,7 +6,7 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import org.jsoup.nodes.Document
 class BDSMStreakProvider: RussianProvider(SiteSpec(
  id="BDSMStreak",title="BDSM Streak",origin="https://bdsmstreak.com",
- cards="a[href*=/video/]:has(img)",link="a[href]",titleSelector="h2,h3",
+ cards="a[href*=/video/]:has(img)",link="a[href]",titleSelector="h2,h3,h4",
  tagSelector="main a.v2-tag[href*=/search], main .p-4 a[href*=/search]",
  related="main aside section:has(> h3:matchesOwn((?i)^related videos$)), #related-videos, .related-videos",
  sections=listOf(Section("Videos","/"))
