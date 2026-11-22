@@ -1,12 +1,18 @@
 package com.cloudextensions.sites
 
 import com.cloudextensions.russian.Metadata
+import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.PageRequest
+import com.cloudextensions.russian.Playback
 import com.cloudextensions.russian.RussianProvider
 import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
 import com.cloudextensions.russian.VideoDetail
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.newExtractorLink
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Document
 
 class DomashkaProvider : RussianProvider(
@@ -49,6 +55,31 @@ class DomashkaProvider : RussianProvider(
         }
         val seconds = (parts['ч'] ?: 0) * 3600 + (parts['м'] ?: 0) * 60 + (parts['с'] ?: 0)
         return detail.copy(duration = Metadata.timing(seconds.toString()).ifBlank { detail.duration })
+    }
+
+    override suspend fun loadLinks(
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit,
+    ): Boolean {
+        val document = page(PageRequest(data))
+        val source = document.selectFirst("main .split-player__left .player video[src]")
+            ?.absUrl("src")?.toHttpUrlOrNull()
+            ?.takeIf { it.host == "vc.pckcdn.net" && it.encodedPath.startsWith("/video/") }
+        if (source != null) {
+            // Short CDN directory IDs can be "AD". The actual player element identifies this as media.
+            val url = source.toString()
+            val link = newExtractorLink(name, name, url, Playback.streamType(url)) {
+                referer = document.baseUri()
+                headers = Network.headers(referer)
+            }
+            if (Playback.checkDirectLink(link) != false) {
+                callback(link)
+                return true
+            }
+        }
+        return Playback.linksFromPage(name, mainUrl, data, document, emptyList(), subtitleCallback, callback)
     }
 
     private companion object {
