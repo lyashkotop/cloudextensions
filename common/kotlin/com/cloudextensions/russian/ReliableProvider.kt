@@ -33,6 +33,7 @@ private const val FAST_LISTING_RATING_BUDGET_MS = 1_500L
 private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
 private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex")
 private const val LISTING_COMPLETION_RESERVE_MS = 500L
+private const val HOME_LOOKAHEAD_MS = 900L
 
 /** UI request bounds and one real preview shared by the search and detail response. */
 class ReliableProvider(
@@ -297,9 +298,13 @@ class ReliableProvider(
         }
     }
 
+    private val randomHome = RandomHome(::searchKey)
+
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная", LISTING_TIMEOUT_MS) {
         val deadline = System.nanoTime() + LISTING_TIMEOUT_MS * 1_000_000L
-        val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
+        val result = randomHome.page(page, request, ratingProfile == "NoodleMagazine", HOME_LOOKAHEAD_MS) { number ->
+            source.getMainPage(number, request)
+        } ?: return@required newHomePageResponse(emptyList(), false)
         val rows = coroutineScope {
             result.items.map { row ->
                 async {

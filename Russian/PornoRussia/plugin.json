@@ -1,0 +1,11 @@
+{
+  "id": "PornoRussia",
+  "name": "Порно Россия ТВ",
+  "language": "ru",
+  "category": "Russian",
+  "entryClass": "com.cloudextensions.entries.PornoRussiaPlugin",
+  "providerClass": "com.cloudextensions.sites.PornoRussiaProvider",
+  "description": "Порно Россия ТВ · русский каталог, поиск по названиям и прямое воспроизведение.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/PornoRussia.png",
+  "runtime": "kotlin"
+}
