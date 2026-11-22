@@ -1,0 +1,11 @@
+{
+  "id": "ECamRips",
+  "name": "eCamRips",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.ECamRipsPlugin",
+  "providerClass": "com.cloudextensions.sites.ECamRipsProvider",
+  "description": "eCamRips — browse by model, category or platform, with native playback.",
+  "iconUrl": "https://www.xrisi.com/styles_cam/favicon_eca.ico",
+  "runtime": "kotlin"
+}
