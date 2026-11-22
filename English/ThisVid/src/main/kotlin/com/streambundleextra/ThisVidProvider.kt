@@ -6,6 +6,7 @@ import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.newSearchResponseList
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Document
 
@@ -22,7 +23,11 @@ class ThisVidProvider: RussianProvider(SiteSpec(
  sections=listOf(Section("Latest","/"),Section("Popular","/popular/"))
 )) {
     override var lang = "en"
-    override val minInitialSearchResults = 3
+    override val requiresListingReview = true
+    override val includeTaxonomyResults = false
+
+    override suspend fun searchRequest(term: String): PageRequest =
+        PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search/").addQueryParameter("q", term).build().toString())
 
     private val blockedTag = Regex("""(?iu)(?<![\p{L}\p{N}])(?:str8|srt8|straight)[\s_-]*guys?(?![\p{L}\p{N}])""")
 

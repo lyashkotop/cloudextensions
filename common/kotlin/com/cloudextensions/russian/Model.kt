@@ -8,7 +8,7 @@ interface SearchPolicy {
     val translateQueries:Boolean get()=true
     val includeTaxonomyResults: Boolean get() = true
     val expandSearchAliases: Boolean get() = true
-    val minInitialSearchResults: Int get() = 1
+    val requiresListingReview: Boolean get() = false
     val preferredTitleLanguage: String get() = ""
     suspend fun fullTitle(url:String):String? = null
 }

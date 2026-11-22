@@ -202,6 +202,13 @@ fun main(args:Array<String>) {
     verify(Pagination.search(queryForm,spec.copy(searchMode="path:/video/"),"https://ukdevilz.com","two words").url=="https://ukdevilz.com/video/two%20words","UKDevilz real JavaScript search route")
     val arrow=Jsoup.parse("<li class=pagination-next><a href='/search/2/?q=guy'><i></i></a></li>","https://thisvid.com/search/?q=guy")
     verify(Pagination.next(arrow,PageRequest(arrow.baseUri()))?.url=="https://thisvid.com/search/2/?q=guy","ThisVid next control has no text")
+    arrow.selectFirst(".pagination-next a")!!.attr("href", "/search/2/")
+    verify(Pagination.next(arrow, PageRequest(arrow.baseUri()))?.url == "https://thisvid.com/search/2/?q=guy", "ThisVid retains the query when the next link omits it")
+    val removed = Jsoup.parse("<div class=removedVideoText>This video has been removed.</div>")
+    verify(DetailEnrichment.isUnavailable(removed), "Explicit player removal is recognized")
+    val incidental = Jsoup.parse("<p>This video has been removed.</p>").apply { attr("data-response-code", "503") }
+    verify(!DetailEnrichment.isUnavailable(incidental), "Temporary failure or unrelated text does not confirm removal")
+
     val genericCursor=Jsoup.parse("<div class=pagination><a data-block-id=videos data-parameters='from:2'>2</a><a data-block-id=videos data-parameters='from:3'>3</a></div>","https://example.org/videos/?from=2")
     verify(Pagination.next(genericCursor,PageRequest(genericCursor.baseUri()))?.url?.contains("from=3")==true,"KVS from cursor advances without looping")
     val tube=Jsoup.parse("<script>query=\"guy\";sort=\"best\";</script>"+(1..120).joinToString(""){"<div class=vid_li></div>"},"https://tubesafari.com/search/guy")

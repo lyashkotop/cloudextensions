@@ -41,6 +41,7 @@ class ReliableProvider(
     override val vpnStatus get()=source.vpnStatus
     private val titleLanguage get() = (source as? SearchPolicy)?.preferredTitleLanguage.orEmpty()
     private val titlePermits = Semaphore(4)
+    private val requiresListingReview get() = (source as? SearchPolicy)?.requiresListingReview == true
 
     private fun normalizeCard(
         card: SearchResponse,
@@ -153,30 +154,30 @@ class ReliableProvider(
         return result
     }
 
-    private val excludedDetails = Regex("(?iu)hidden by category filter|скрыто фильтром|приватн|private video")
+    private val excludedDetails = Regex("(?iu)hidden by category filter|скрыто фильтром|приватн|private video|видео удалено или недоступно")
 
-    private suspend fun previewSearch(items: List<SearchResponse>, deadline: Long): List<SearchResponse> = coroutineScope {
+    private suspend fun reviewedCards(items: List<SearchResponse>, deadline: Long): List<SearchResponse> = coroutineScope {
+        items.map { card ->
+            async {
+                val checked = review(card, deadline)?.takeIf { it.allowed } ?: return@async null
+                val full = checked.title?.let {
+                    Metadata.title(card.url, listOf(it), language = titleLanguage, fromDetail = true)
+                } ?: card.name
+                if (card is MovieSearchResponse) card.copy(name = full) else card
+            }
+        }.awaitAll().filterNotNull()
+    }
+
+    private suspend fun previewSearch(items: List<SearchResponse>, deadline: Long): List<SearchResponse> {
+        if (requiresListingReview) return reviewedCards(items, deadline)
         val accepted = mutableListOf<SearchResponse>()
         var cursor = 0
         while (accepted.size < SEARCH_REVIEW_LIMIT && cursor < items.size && remainingMillis(deadline) > 0) {
             val end = minOf(items.size, cursor + SEARCH_REVIEW_LIMIT - accepted.size)
-            val batch = items.subList(cursor, end)
+            accepted += reviewedCards(items.subList(cursor, end), deadline)
             cursor = end
-            accepted += batch.map { card ->
-                async {
-                    val checked = review(card, deadline) ?: return@async null
-                    if (!checked.allowed) return@async null
-                    val full = checked.title?.let {
-                        Metadata.title(card.url, listOf(it), language = titleLanguage, fromDetail = true)
-                    } ?: card.name
-                    val ready = if (card is MovieSearchResponse) card.copy(name = full) else card
-                    if (source !is PosterSource) ImagePrefetch.warm(listOf(ready))
-                    ready
-                }
-            }.awaitAll().filterNotNull()
         }
-        // Append unreviewed cards only after filling the checked prefix.
-        if (accepted.size >= SEARCH_REVIEW_LIMIT) accepted + items.drop(cursor) else accepted
+        return if (accepted.size >= SEARCH_REVIEW_LIMIT) accepted + items.drop(cursor) else accepted
     }
 
     private suspend fun prepareSearch(items: List<SearchResponse>, deadline: Long): List<SearchResponse> = coroutineScope {
@@ -245,7 +246,13 @@ class ReliableProvider(
         val result=source.getMainPage(page,request) ?: return@required newHomePageResponse(emptyList(),false)
         val rows = coroutineScope {
             result.items.map { row ->
-                async { row.copy(list = prepareListing(cards(row.list), deadline, home = true)) }
+                async {
+                    val visible = cards(row.list, expandTitles = !requiresListingReview)
+                    val checked = if (requiresListingReview) {
+                        reviewedCards(visible, deadline - 6_000_000_000L)
+                    } else visible
+                    row.copy(list = prepareListing(checked, deadline, home = true))
+                }
             }.awaitAll()
         }
         ImagePrefetch.warm(rows.flatMap{it.list})
@@ -253,14 +260,6 @@ class ReliableProvider(
     }
     override suspend fun search(query:String):List<SearchResponse> = search(query,1).items
     override suspend fun quickSearch(query:String):List<SearchResponse> = search(query,1).items
-    private suspend fun searchPage(items: List<SearchResponse>, page: Int, hasNext: Boolean): SearchResponseList {
-        val minimum = (source as? SearchPolicy)?.minInitialSearchResults ?: 1
-        if (minimum > 1 && page == 1 && items.size < minimum) {
-            return newSearchResponseList(emptyList(), false)
-        }
-        ImagePrefetch.warm(items)
-        return newSearchResponseList(items, hasNext)
-    }
     private data class SavedSearchPage(val response: SearchResponseList, val nextUpstreamPage: Int)
     private class SearchHistory {
         val mutex = Mutex()
@@ -377,9 +376,10 @@ class ReliableProvider(
                 .flatMap { it.value.response.items.asSequence() }.mapTo(mutableSetOf(), ::searchKey)
             var upstream = history.pages[page - 1]?.nextUpstreamPage ?: page
             var result = combinedSearch(query, upstream, history)
-            val deadline = System.nanoTime() + SEARCH_REVIEW_BUDGET_MS * 1_000_000L
+            val budget = if (requiresListingReview) 10_000L else SEARCH_REVIEW_BUDGET_MS
+            val deadline = minOf(listingDeadline - 6_000_000_000L, System.nanoTime() + budget * 1_000_000L)
             val cards = mutableListOf<SearchResponse>()
-            var limit = if (page == 1) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
+            var limit = if (page == 1 && !requiresListingReview) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
             while (true) {
                 val unique = result.items.distinctBy(::searchKey).filter { searchKey(it) !in seen }
                 val checked = prepareSearch(unique, deadline)
@@ -390,7 +390,9 @@ class ReliableProvider(
                 if (cards.size >= SEARCH_PAGE_MINIMUM || !result.hasNext || limit == 0) break
                 result = RequestLimits.optional(remainingMillis(deadline)) { combinedSearch(query, upstream, history) } ?: break
             }
-            val response = searchPage(prepareListing(cards, listingDeadline), page, result.hasNext)
+            val prepared = prepareListing(cards, listingDeadline)
+            ImagePrefetch.warm(prepared)
+            val response = newSearchResponseList(prepared, result.hasNext)
             history.pages[page] = SavedSearchPage(response, upstream)
             response
         }
@@ -410,7 +412,13 @@ class ReliableProvider(
         result.plot=Metadata.description(result.plot,result.name)
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
         val initialRecommendations = result.recommendations.orEmpty()
-        val recommendations = async { withResolvedPosters(cards(initialRecommendations, expandTitles = false), missingOnly = true) }
+        val recommendations = async {
+            val visible = cards(initialRecommendations, expandTitles = false)
+            val checked = if (requiresListingReview) {
+                reviewedCards(visible, System.nanoTime() + SEARCH_REVIEW_BUDGET_MS * 1_000_000L)
+            } else visible
+            withResolvedPosters(checked, missingOnly = true)
+        }
         if(result is MovieLoadResponse) {
             val headers = Network.imageHeaders(result.posterUrl, url) + result.posterHeaders.orEmpty()
             val provider = source as? PosterSource

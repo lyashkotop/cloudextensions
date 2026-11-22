@@ -149,7 +149,10 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
     final override suspend fun searchMetadata(url: String): VideoDetail = searchMetadata(url, includeOriginal = true)
 
     private suspend fun searchMetadata(url: String, includeOriginal: Boolean): VideoDetail {
-        val document=page(PageRequest(url))
+        val document=page(PageRequest(url, allowNotFound = requiresListingReview))
+        if (document.attr("data-response-code") in setOf("404", "410")) {
+            throw ErrorLoadingException("Видео удалено или недоступно")
+        }
         if(spec.id=="ThisVid" && document.selectFirst(".box ul.description")==null)throw ErrorLoadingException("Не удалось проверить категории ThisVid")
         val base = readMetadata(document)
         val meta = if (includeOriginal) reviewMetadata(document, base) else base

@@ -3,6 +3,7 @@ package com.cloudextensions.russian
 import java.net.URI
 import java.net.URLEncoder
 import java.net.URLDecoder
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
@@ -52,7 +53,13 @@ object Pagination {
 
         for(e in page.select("a[rel=next],link[rel=next],a.next[href],li.next a[href],a.pagination-next[href],.pagination-next a[href],.pagination .next[href],.pagination__item.next[href],[data-next-page],[hx-get][hx-trigger*=revealed],[hx-get][hx-trigger*=intersect]")) {
             val attr=when { e.hasAttr("data-next-page")->"data-next-page";e.hasAttr("hx-get")->"hx-get";else->"href" }
-            address(page,e,attr)?.let { return PageRequest(it) }
+            address(page,e,attr)?.let { next ->
+                val query = parameters["q"]
+                val url = if (uri.host.orEmpty().removePrefix("www.") == "thisvid.com" &&
+                    uri.path.startsWith("/search/") && !query.isNullOrBlank()
+                ) next.toHttpUrl().newBuilder().setQueryParameter("q", query).build().toString() else next
+                return PageRequest(url)
+            }
         }
         for(e in page.select("a[href]")) {
             if(listOf(e.text(),e.attr("title"),e.attr("aria-label")).any { nextText.matches(Metadata.clean(it)) })address(page,e,"href")?.let { return PageRequest(it) }

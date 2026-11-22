@@ -110,7 +110,7 @@ object Network {
                         else app.post(failure.url,headers=extra,data=request.data,interceptor=challengeHandler)
                     }
                     try {
-                        if(response.code !in 200..299 && !(request.allowNotFound && response.code==404))throw HttpFailure(response.code,response.url)
+                        if(response.code !in 200..299 && !(request.allowNotFound && response.code in setOf(404, 410)))throw HttpFailure(response.code,response.url)
                         Jsoup.parse(response.text, response.url).apply {
                             attr("data-response-code", response.code.toString())
                         }
@@ -130,7 +130,7 @@ object Network {
         val client = app.baseClient.newBuilder().callTimeout(15, TimeUnit.SECONDS)
             .connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
         return read(request, client) { response ->
-            if (!response.isSuccessful && !(allowNotFound && response.code == 404)) {
+            if (!response.isSuccessful && !(allowNotFound && response.code in setOf(404, 410))) {
                 throw HttpFailure(response.code, response.request.url.toString(), response.header("Retry-After"))
             }
             val text = response.body?.string() ?: throw ErrorLoadingException("Пустой ответ: ${request.url.host}")

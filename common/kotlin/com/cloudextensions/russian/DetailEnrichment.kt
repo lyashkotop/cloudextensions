@@ -1,6 +1,8 @@
 package com.cloudextensions.russian
 
+import com.lagradost.cloudstream3.ErrorLoadingException
 import java.net.URI
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Document
 
 /** An aggregator's declared embed identifies the actual source; metadata remains source-provided. */
@@ -65,6 +67,32 @@ object DetailEnrichment {
         return read(target, spec, budget, page.baseUri())?.let { merge(detail, it) } ?: detail
     }
 
+    fun isUnavailable(page: Document): Boolean {
+        if (page.attr("data-response-code") in setOf("404", "410")) return true
+        return page.select(
+            "h1, .video-unavailable, .videoUnavailable, .videoError, .removedVideoText, .removedText, #video-error, #video2 + .error",
+        ).any { unavailableNotice.containsMatchIn(Metadata.clean(it.text())) }
+    }
+
+    private val unavailableNotice = Regex(
+        """(?iu)^(?:(?:this |the )?video (?:is (?:not available|unavailable|private)|has been (?:removed|deleted)|was (?:removed|deleted)|not found|no longer exists)|video unavailable)(?:[.!]|$)""",
+    )
+
+    suspend fun verifyOriginal(page: Document, spec: SiteSpec, detail: VideoDetail, budget: Long): VideoDetail {
+        if (isUnavailable(page)) throw ErrorLoadingException("Видео удалено или недоступно")
+        val target = originalPage(page) ?: throw ErrorLoadingException("Источник видео не подтверждён")
+        val checked = RequestLimits.optional(budget) { fetchOriginal(target, page.baseUri(), checkAvailability = true) }
+            ?: throw ErrorLoadingException("Не удалось проверить оригинал")
+        if (checked.unavailable) throw ErrorLoadingException("Видео удалено или недоступно")
+        val source = checked.page?.let { readSource(it, checked.video, target, spec) }
+            ?: throw ErrorLoadingException("Оригинал видео не подтверждён")
+        if (!ContentPolicy.accepts(source.title, source.tags, source.description)) {
+            throw ErrorLoadingException("Видео скрыто фильтром категорий")
+        }
+        if (source.tags.isEmpty()) throw ErrorLoadingException("Теги оригинала не подтверждены")
+        return merge(detail, source).copy(tags = (detail.tags + source.tags).distinctBy(String::lowercase))
+    }
+
     internal suspend fun score(page: Document, spec: SiteSpec): com.lagradost.cloudstream3.Score? {
         val target = originalPage(page) ?: return null
         if (URI(target.url).host == "www.pornhub.com") return null
@@ -93,27 +121,48 @@ object DetailEnrichment {
         return "https://xhamster.com/videos/$id"
     }
 
-    private suspend fun read(target: Original, spec: SiteSpec, budget: Long, referer: String): VideoDetail? =
-        RequestLimits.optional(budget) {
-            val headers = if (target.desktop) mapOf("User-Agent" to desktopAgent) else emptyMap()
-            val video = if (URI(target.url).host == "xh.partners") {
-                // Legacy partner codes are aliases. Only the player redirect identifies their video.
-                val player = Network.page(PageRequest(target.url, headers = headers), referer)
-                xhamsterPlayerVideo(player.baseUri()) ?: return@optional null
-            } else target.url
-            val source = Network.page(PageRequest(video, headers = headers), video)
-            if (URI(video).host == "xhamster.com") {
-                val uri = URI(source.baseUri())
-                if (uri.host?.removePrefix("www.") != "xhamster.com" || !uri.path.startsWith("/videos/")) return@optional null
-                val id = video.substringAfterLast('/')
-                val actual = uri.path.trimEnd('/').removePrefix("/videos/")
-                if ('/' in actual || (actual != id && !actual.endsWith("-$id"))) return@optional null
+    private data class OriginalPage(val video: String, val page: Document? = null, val unavailable: Boolean = false)
+
+    private suspend fun fetchOriginal(target: Original, referer: String, checkAvailability: Boolean): OriginalPage {
+        val headers = if (target.desktop) mapOf("User-Agent" to desktopAgent) else emptyMap()
+        val video = if (URI(target.url).host == "xh.partners") {
+            // Legacy partner codes are aliases. Only the player redirect identifies their video.
+            val player = Network.page(PageRequest(target.url, headers = headers, allowNotFound = checkAvailability), referer)
+            if (checkAvailability && isUnavailable(player)) return OriginalPage(target.url, unavailable = true)
+            xhamsterPlayerVideo(player.baseUri()) ?: return OriginalPage(target.url)
+        } else target.url
+        val source = Network.page(PageRequest(video, headers = headers, allowNotFound = checkAvailability), video)
+        if (checkAvailability && isUnavailable(source)) return OriginalPage(video, unavailable = true)
+        return OriginalPage(video, source)
+    }
+
+    private fun readSource(source: Document, video: String, target: Original, spec: SiteSpec): VideoDetail? {
+        val expected = video.toHttpUrlOrNull() ?: return null
+        val actual = source.baseUri().toHttpUrlOrNull() ?: return null
+        val host = expected.host.removePrefix("www.")
+        if (actual.host.removePrefix("www.") != host) return null
+        return when (host) {
+            "xhamster.com" -> {
+                val id = expected.pathSegments.last()
+                val slug = actual.encodedPath.trimEnd('/').removePrefix("/videos/")
+                if (!actual.encodedPath.startsWith("/videos/") || '/' in slug || (slug != id && !slug.endsWith("-$id"))) return null
                 AggregatorPages.detail(source, spec).copy(score = VideoScores.detail("XHamster", video, source))
-            } else {
+            }
+            "xvideos.com", "pornhub.com" -> {
+                if (host == "xvideos.com" && actual.pathSegments.firstOrNull() != expected.pathSegments.firstOrNull()) return null
+                if (host == "pornhub.com" && (actual.encodedPath != expected.encodedPath ||
+                    actual.queryParameter("viewkey") != expected.queryParameter("viewkey"))) return null
                 Metadata.detail(source, spec.copy(tagSelector = target.tags, descriptionSelector = target.description)).copy(
-                    score = if (URI(video).host == "www.xvideos.com" && URI(source.baseUri()).host == "www.xvideos.com")
-                        VideoScores.detail("XVideos", video, source) else null,
+                    score = if (host == "xvideos.com") VideoScores.detail("XVideos", video, source) else null,
                 )
             }
+            else -> null
+        }
+    }
+
+    private suspend fun read(target: Original, spec: SiteSpec, budget: Long, referer: String): VideoDetail? =
+        RequestLimits.optional(budget) {
+            val checked = fetchOriginal(target, referer, checkAvailability = false)
+            checked.page?.let { readSource(it, checked.video, target, spec) }
         }
 }
