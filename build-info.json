@@ -1,12 +1,13 @@
 {
-  "version": 189,
-  "sourceCommit": "732dda6c873bfb24a4cc59e6c7bd0f1a7fad61cf",
+  "version": 190,
+  "sourceCommit": "391b6e8c4c9f50157c7515f34817140398abb697",
   "packageLayout": "versioned",
-  "plugins": 34,
+  "plugins": 35,
   "rebuilt": [
+    "BdsmPorn",
     "Domashka"
   ],
-  "dexClasses": 10111,
-  "entryRegistrationsValidated": 34,
-  "kotlinProviders": 34
+  "dexClasses": 10409,
+  "entryRegistrationsValidated": 35,
+  "kotlinProviders": 35
 }

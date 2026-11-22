@@ -1,8 +1,28 @@
 [
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/189/Domashka.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/190/BdsmPorn.cs3",
     "status": 1,
-    "version": 189,
+    "version": 190,
+    "apiVersion": 1,
+    "name": "1 · RU · BDSM-Porn.cc",
+    "internalName": "BdsmPorn",
+    "authors": [
+      "lyashkotop"
+    ],
+    "description": "BDSM-Porn.cc · русскоязычный каталог. Доступ зависит от проверки Cloudflare.",
+    "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
+    "tvTypes": [
+      "NSFW"
+    ],
+    "language": "ru",
+    "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/BdsmPorn.png",
+    "fileSize": 213910,
+    "fileHash": "sha256-3c9f69db34cf1556ffe322aa0eb15b878767862e89326a331b8ac5b71924e2a7"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/190/Domashka.cs3",
+    "status": 1,
+    "version": 190,
     "apiVersion": 1,
     "name": "1 · RU · Domashka.live",
     "internalName": "Domashka",
@@ -16,8 +36,8 @@
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Domashka.png",
-    "fileSize": 212197,
-    "fileHash": "sha256-e8350362b87ed8d956855d49d7f5e1002c5b3be2602f8c80ff1a9409106d77c4"
+    "fileSize": 214063,
+    "fileHash": "sha256-7bc692595f387637c9cafe79d6c77726950af421ed85526e9a18abefd487d34e"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/187/Ebalka.cs3",
