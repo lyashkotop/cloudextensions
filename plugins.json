@@ -440,6 +440,26 @@
     "fileHash": "sha256-a599e98c4d846898b424d68bf28ac1f5311a79d5ac405130ccca352f92a66826"
   },
   {
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/177/ShowCamRips.cs3",
+    "status": 1,
+    "version": 177,
+    "apiVersion": 1,
+    "name": "3 · EN · ShowCamRips",
+    "internalName": "ShowCamRips",
+    "authors": [
+      "lyashkotop"
+    ],
+    "description": "ShowCamRips — catalogue by model, category and platform, with native search and playback.",
+    "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
+    "tvTypes": [
+      "NSFW"
+    ],
+    "language": "en",
+    "iconUrl": "https://www.xrisi.com/styles_cam/favicon.ico",
+    "fileSize": 201272,
+    "fileHash": "sha256-e3dde12654c6830f6cbf4e844c6f9cbe2215649a0c88a193c1772e44da6db0c8"
+  },
+  {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/176/SickR.cs3",
     "status": 1,
     "version": 176,
