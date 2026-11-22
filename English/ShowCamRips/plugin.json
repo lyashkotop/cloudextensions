@@ -1,0 +1,11 @@
+{
+  "id": "ShowCamRips",
+  "name": "ShowCamRips",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.ShowCamRipsPlugin",
+  "providerClass": "com.cloudextensions.sites.ShowCamRipsProvider",
+  "description": "ShowCamRips — catalogue by model, category and platform, with native search and playback.",
+  "iconUrl": "https://www.xrisi.com/styles_cam/favicon.ico",
+  "runtime": "kotlin"
+}
