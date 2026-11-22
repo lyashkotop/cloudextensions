@@ -21,7 +21,7 @@ object VideoScores {
     private val watched = Collections.synchronizedMap(BoundedMap<Pair<String, String>, Pair<Long, Score>>(512))
 
     private val detailProfiles = setOf(
-        "BDSMStreak", "Beeg", "BoundHub", "DarknessPorn", "Ebalka", "EPorner", "HeavyR", "NoodleMagazine",
+        "BDSMStreak", "Beeg", "BoundHub", "DarknessPorn", "Ebalka", "EPorner", "HcBDSMX", "HeavyR", "NoodleMagazine",
         "Perdol", "Pervertium", "ProstoPorno", "PunishWorld", "Semyana", "SickR", "Strip2", "ThisVid",
         "TubeBDSM", "TubeSafari", "UKDevilz", "Vpoisk", "Xnxx", "XRares",
     )
@@ -143,7 +143,14 @@ object VideoScores {
         fun text(selector: String) = page.selectFirst(selector)?.text()
         fun pair(up: String, down: String) = votes(text(up), text(down))
         val score = when (source) {
-            "HcBDSMX" -> if (videoKey(url) == videoKey(page.baseUri())) hcScores(page)[videoKey(url)] else null
+            "HcBDSMX" -> {
+                val key = videoKey(url)
+                if (key != videoKey(page.baseUri()) || !key.startsWith("hcbdsm.com/video/")) null
+                else hcScores(page)[key] ?: pair(
+                    "main .card-villa button[aria-pressed]:has(svg path[d='M7 10v12'])",
+                    "main .card-villa button[aria-pressed]:has(svg path[d='M17 14V2'])",
+                )
+            }
             "NoodleMagazine", "UKDevilz" -> votes(
                 page.selectFirst(".meta .like [data-count]")?.attr("data-count"),
                 page.selectFirst(".meta .dislike [data-count]")?.attr("data-count"),

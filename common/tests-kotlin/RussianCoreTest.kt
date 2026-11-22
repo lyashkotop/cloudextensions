@@ -55,6 +55,12 @@ fun main(args:Array<String>) {
     verify(VideoScores.detail("HcBDSMX", hcUrl, hcPage)?.toString(10) == "7.5" &&
         VideoScores.detail("HcBDSMX", "https://hcbdsm.com/video/124/other/", hcPage) == null,
         "hcBDSM reads the current video's votes without borrowing votes from related videos")
+    val hcControls = Jsoup.parse("""<main><div class=card-villa>
+        <button aria-pressed=false><svg><path d="M7 10v12" /></svg>49</button>
+        <button aria-pressed=false><svg><path d="M17 14V2" /></svg>16</button>
+        </div></main>""", hcUrl)
+    verify(VideoScores.detail("HcBDSMX", hcUrl, hcControls)?.toString(10) == "7.5",
+        "hcBDSM recovers the rating from the vote buttons when the page has no data chunks")
     val ratedVpoisk = Jsoup.parse("<div class='video_vote'><div id='dislike'>2</div><span id='rate-value' class='like'>60%</span><div id='like'>3</div></div>")
     verify(VideoScores.detail("Vpoisk", "https://m.vpoisk.xyz", ratedVpoisk)?.toString(10) == "6", "Vpoisk prefers the published percentage")
     val prostoRating = Jsoup.parse("<div class='rate-tab' itemprop='aggregateRating'><meta itemprop='ratingValue' content='4.5'><meta itemprop='bestRating' content='5'><span itemprop='ratingCount'>2</span></div>")
