@@ -165,7 +165,10 @@ object VideoScores {
             "Xnxx" -> percentage(text("#video-votes .rating-box.value, .video-votes .rating-box.value"))
                 ?: pair(".vote-action-good", ".vote-action-bad")
             "SickR" -> pair(".control_likes .like-value", ".control_likes .dislike-value")
-            "Strip2" -> pair("[id^=vote_up_cnt_]", "[id^=vote_down_cnt_]")
+            "Strip2" -> votes(
+                page.selectFirst("[id^=vote_up_cnt_]")?.text()?.ifBlank { "0" },
+                page.selectFirst("[id^=vote_down_cnt_]")?.text()?.ifBlank { "0" },
+            )
             "BDSMStreak" -> pair("#v2-vote [data-count=likes]", "#v2-vote [data-count=dislikes]")
             "XRares" -> pair("#video_likes", "#video_dislikes")?.let {
                 val style = page.selectFirst("#video_rate")?.attr("style").orEmpty()

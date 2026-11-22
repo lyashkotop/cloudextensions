@@ -36,6 +36,13 @@ fun main(args:Array<String>) {
     verify(partnerRating(partnerPage, publishedScore) == "6" && partnerRating(partnerPage.replace("123", "456"), publishedScore) == null,
         "TubeBDSM uses structured scores for their own video identity")
     verify(VideoScores.api(JSONObject().put("likes", 0).put("dislikes", 0)) == null, "unvoted videos have no rating")
+    val stripVotesUrl = "https://vps402.strip2.co/video/123/"
+    val stripVotes = "<span id=vote_up_cnt_123>37</span><span id=vote_down_cnt_123></span>"
+    verify(VideoScores.detail("Strip2", stripVotesUrl, Jsoup.parse(stripVotes))?.toString(10) == "10",
+        "Strip2 leaves the zero counter blank on a rated video")
+    verify(VideoScores.detail("Strip2", stripVotesUrl, Jsoup.parse(stripVotes.substringBefore("<span id=vote_down"))) == null &&
+        VideoScores.detail("Strip2", stripVotesUrl, Jsoup.parse(stripVotes.replace("37", ""))) == null,
+        "Strip2 needs both counters and at least one vote")
     verify(VideoScores.api(JSONObject().put("likes", 0).put("dislikes", 6))?.toString(10) == "1", "a rated video never falls below 1")
     verify(VideoScores.api(JSONObject().put("likes", 3).put("dislikes", 1))?.toString(10) == "7.5", "both vote counts determine the score")
     fun hcChunk(payload: String) = "<script>self.__next_f.push(${JSONArray().put(1).put(payload)});</script>"
