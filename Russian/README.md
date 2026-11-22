@@ -1,9 +1,10 @@
 # Russian — Kotlin providers
 
-Все девять провайдеров имеют исходники `.kt` в `Russian/<Site>/src/main/kotlin/`.
+Все десять провайдеров имеют исходники `.kt` в `Russian/<Site>/src/main/kotlin/`.
 Внутренние ID сохранены. По просьбе владельца имена источников имеют префикс `1.` для сортировки.
 Старые smali-версии доступны в истории до коммита перехода.
 
+- [Domashka.live](Domashka/)
 - [Ebalka](Ebalka/)
 - [Huyamba](Huyamba/)
 - [Noodle Magazine 🇷🇺](NoodleMagazine/)

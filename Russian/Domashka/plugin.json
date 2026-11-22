@@ -1,0 +1,11 @@
+{
+  "id": "Domashka",
+  "name": "Domashka.live",
+  "language": "ru",
+  "category": "Russian",
+  "entryClass": "com.cloudextensions.entries.DomashkaPlugin",
+  "providerClass": "com.cloudextensions.sites.DomashkaProvider",
+  "description": "Domashka.live · русскоязычный каталог с подборками, поиском и прямым воспроизведением.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Domashka.png",
+  "runtime": "kotlin"
+}

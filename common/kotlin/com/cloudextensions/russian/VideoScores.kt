@@ -126,6 +126,7 @@ object VideoScores {
             "DarknessPorn", "PunishWorld" -> ".rating, .rating-nolike"
             "Perdol" -> ".rating__counter"
             "PornoMoloko" -> ".th-rating"
+            "Domashka" -> ".thumb__info-item:has(.icon-thumbs-up) span"
             "Pervertium", "BoundHub", "Ebalka" -> ".rating"
             "EPorner" -> ".mbrate"
             "XRares" -> ".video-rating b"
@@ -161,6 +162,7 @@ object VideoScores {
             "DarknessPorn", "PunishWorld" -> percentage(text("a[data-post_like=like] .likes_count"))
             "Perdol" -> percentage(text(".rating__counter"))
             "PornoMoloko" -> percentage(text(".video-info .video-rating"))
+            "Domashka" -> percentage(text(".player-actions .vote-box__value"))
             "Semyana" -> percentage(text("#vote-box .vote-rate"))
             "Vpoisk" -> percentage(text(".video_vote #rate-value, .video_vote #rate-value2"))
                 ?: pair(".video_vote #like, .video_vote .like:not([id^=rate-value])", ".video_vote .dislike")
