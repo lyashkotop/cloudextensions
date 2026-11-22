@@ -26,6 +26,7 @@ private const val SEARCH_REVIEW_LIMIT = 10
 private const val SEARCH_PAGE_MINIMUM = 4
 private const val MAX_UPSTREAM_PAGES_PER_EXPANSION = 4
 private const val SEARCH_REVIEW_BUDGET_MS = 5_000L
+private const val THISVID_RECOMMENDATION_BUDGET_MS = 1_200L
 private const val LISTING_TIMEOUT_MS = 22_000L
 private const val RATING_REQUEST_TIMEOUT_MS = 6_500L
 private const val FAST_LISTING_RATING_BUDGET_MS = 1_500L
@@ -474,7 +475,8 @@ class ReliableProvider(
         val recommendations = async {
             val visible = cards(initialRecommendations, expandTitles = false)
             val checked = if (requiresListingReview) {
-                reviewedCards(visible, System.nanoTime() + SEARCH_REVIEW_BUDGET_MS * 1_000_000L)
+                val budget = if (ratingProfile == "ThisVid") THISVID_RECOMMENDATION_BUDGET_MS else SEARCH_REVIEW_BUDGET_MS
+                reviewedCards(visible, System.nanoTime() + budget * 1_000_000L)
             } else visible
             if (ratingProfile == "UKDevilz") {
                 prepareListing(checked, System.nanoTime() + 2_000_000_000L, missingPostersOnly = true)

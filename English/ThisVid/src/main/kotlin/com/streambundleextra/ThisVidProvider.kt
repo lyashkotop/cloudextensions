@@ -43,7 +43,12 @@ class ThisVidProvider: RussianProvider(SiteSpec(
 
     override suspend fun page(request: PageRequest): Document {
         if (blockedTagUrl(request.url)) throw ErrorLoadingException("Video hidden by category filter")
-        val document = super.page(request)
+        val videoPage = request.url.toHttpUrlOrNull()?.pathSegments?.firstOrNull() == "videos"
+        // Share the video page already fetched for the search filter with details and playback.
+        val document = super.page(if (videoPage) request.copy(allowNotFound = true) else request)
+        if (videoPage && document.attr("data-response-code") in setOf("404", "410")) {
+            throw ErrorLoadingException("Видео удалено или недоступно")
+        }
         if (blockedTagUrl(document.baseUri()) || document.select(spec.tagSelector).any { tag ->
                 blockedTag.matches(Metadata.clean(tag.text())) || blockedTagUrl(tag.absUrl("href"))
             }
