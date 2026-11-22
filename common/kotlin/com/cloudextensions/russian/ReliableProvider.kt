@@ -11,9 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.sync.Mutex
@@ -32,7 +30,6 @@ private const val LISTING_TIMEOUT_MS = 22_000L
 private const val RATING_REQUEST_TIMEOUT_MS = 6_500L
 private const val FAST_LISTING_RATING_BUDGET_MS = 1_500L
 private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
-private val fastListingRatings = setOf("Strip2", "TubeBDSM", "TubeSafari")
 private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex")
 private const val LISTING_COMPLETION_RESERVE_MS = 500L
 
@@ -212,14 +209,19 @@ class ReliableProvider(
     }
     private val ratingPermits = Semaphore(4)
     private val listingScoreSource = (source as? ListingScoreSource) ?: (source as? AdaptedProvider)?.listingScoreSource
+    private val queuedRatings = ConcurrentHashMap.newKeySet<String>()
+    private val unrated = java.util.Collections.synchronizedMap(BoundedMap<String, Long>(512))
     private val pendingRatings by lazy {
-        Channel<String>(24, BufferOverflow.DROP_OLDEST).also { queue ->
-            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                val profile = ratingProfile ?: return@launch
-                for (url in queue) {
-                    delay(180)
-                    try { RequestLimits.optional(2800) { readCardScore(profile, url) } }
-                    catch (_: LinkageError) {}
+        Channel<String>(Channel.UNLIMITED).also { queue ->
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            repeat(3) {
+                scope.launch {
+                    val profile = ratingProfile ?: return@launch
+                    for (url in queue) {
+                        try { readCardScore(profile, url) }
+                        catch (_: LinkageError) {}
+                        finally { queuedRatings.remove(url) }
+                    }
                 }
             }
         }
@@ -232,15 +234,22 @@ class ReliableProvider(
         return card.copy(score = score)
     }
 
+    private fun recentlyUnrated(url: String): Boolean =
+        unrated[url]?.let { System.nanoTime() - it < 60_000_000_000L } == true
+
     private suspend fun readCardScore(profile: String, url: String): Score? =
         VideoScores.cachedDetail(profile, url) ?: ratingPermits.withPermit {
+            if (recentlyUnrated(url)) return@withPermit null
             VideoScores.cachedDetail(profile, url) ?: RequestLimits.optional(RATING_REQUEST_TIMEOUT_MS) {
                 when (source) {
                     is RussianProvider -> source.readListingScore(url)
                     is NoodlePosterSource -> VideoScores.detail(profile, url, source.posterPage(url))
                     else -> if (listingScoreSource != null) listingScoreSource.readListingScore(url)
                     else VideoScores.detail(profile, url, Network.page(PageRequest(url), mainUrl))
-                }?.also { VideoScores.rememberDetail(profile, url, it) }
+                }.also { score ->
+                    if (score != null) VideoScores.rememberDetail(profile, url, score)
+                    else unrated[url] = System.nanoTime()
+                }
             }
         }
 
@@ -252,21 +261,24 @@ class ReliableProvider(
             if (card !is MovieSearchResponse || card.score != null) return@filter false
             val cached = VideoScores.cachedDetail(profile, card.url)
             scores[index] = cached
-            cached == null
+            cached == null && !recentlyUnrated(card.url)
         }
-        val fast = profile in fastListingRatings
-        val remaining = ((deadline - System.nanoTime()) / 1_000_000L - LISTING_COMPLETION_RESERVE_MS)
-            .let { if (fast) minOf(it, FAST_LISTING_RATING_BUDGET_MS) else it }
+        val remaining = minOf(
+            (deadline - System.nanoTime()) / 1_000_000L - LISTING_COMPLETION_RESERVE_MS,
+            FAST_LISTING_RATING_BUDGET_MS,
+        )
         if (remaining > 0 && missing.isNotEmpty()) withTimeoutOrNull(remaining) {
             coroutineScope {
-                val visible = if (fast) missing.take(7) else missing
-                visible.forEach { index ->
+                missing.forEach { index ->
                     launch { scores[index] = readCardScore(profile, items[index].url) }
                 }
             }
         }
-        if (fast) missing.asSequence().filter { scores[it] == null }.take(24).forEach {
-            pendingRatings.trySend(items[it].url)
+        for (index in missing) {
+            val url = items[index].url
+            if (scores[index] == null && !recentlyUnrated(url) && queuedRatings.add(url)) {
+                if (pendingRatings.trySend(url).isFailure) queuedRatings.remove(url)
+            }
         }
         return scores
     }
