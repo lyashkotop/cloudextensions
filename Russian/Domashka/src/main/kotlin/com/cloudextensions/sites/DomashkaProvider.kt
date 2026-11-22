@@ -4,13 +4,18 @@ import com.cloudextensions.russian.Metadata
 import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.Playback
+import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.RussianProvider
 import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
+import com.cloudextensions.russian.Translation
 import com.cloudextensions.russian.VideoDetail
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.newExtractorLink
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Document
@@ -43,8 +48,35 @@ class DomashkaProvider : RussianProvider(
     override suspend fun searchRequest(term: String): PageRequest =
         PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search/").addQueryParameter("q", term).build().toString())
 
-    override suspend fun page(request: PageRequest): Document = super.page(request).clone().apply {
-        select(".thumb .thumb-tags a.thumb-tags__link[href]").attr("rel", "tag")
+    private suspend fun fetch(request: PageRequest): Document =
+        super.page(request.copy(headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE)))
+
+    override suspend fun page(request: PageRequest): Document {
+        val document = fetch(request).clone()
+        document.select(".thumb .thumb-tags a.thumb-tags__link[href]").attr("rel", "tag")
+        val cards = document.select(".thumb[data-vw]:has(a.thumb__preview[href^=/ex/])")
+            .mapNotNull { card ->
+                val image = card.selectFirst(".thumb__preview img[alt]") ?: return@mapNotNull null
+                val title = Metadata.clean(image.attr("alt"))
+                if (title.any { it in 'A'..'Z' || it in 'a'..'z' } && !cyrillic.containsMatchIn(title)) image to title
+                else null
+            }
+        val titles = cards.map { it.second }.distinct()
+        val translated = RequestLimits.optional(4500) {
+            coroutineScope {
+                titles.chunked(8).map { batch ->
+                    async {
+                        val result = Translation.text(batch.joinToString("\n"), "ru")?.lines()?.map(String::trim)
+                        if (result == null || result.size != batch.size) emptyList()
+                        else batch.zip(result).filter { (_, title) -> cyrillic.containsMatchIn(title) }
+                    }
+                }.awaitAll().flatten().toMap()
+            }
+        }.orEmpty()
+        for ((image, title) in cards) {
+            translated[title]?.let { image.attr("alt", it) }
+        }
+        return document
     }
 
     override fun readMetadata(document: Document): VideoDetail {
@@ -63,7 +95,7 @@ class DomashkaProvider : RussianProvider(
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
-        val document = page(PageRequest(data))
+        val document = fetch(PageRequest(data))
         val source = document.selectFirst("main .split-player__left .player video[src]")
             ?.absUrl("src")?.toHttpUrlOrNull()
             ?.takeIf { it.host == "vc.pckcdn.net" && it.encodedPath.startsWith("/video/") }
@@ -83,6 +115,7 @@ class DomashkaProvider : RussianProvider(
     }
 
     private companion object {
+        val cyrillic = Regex("""\p{IsCyrillic}""")
         val timePart = Regex("""(?iu)(\d+)\s*(час\p{L}*|минут\p{L}*|секунд\p{L}*)""")
     }
 }

@@ -1,9 +1,10 @@
 # Russian — Kotlin providers
 
-Все десять провайдеров имеют исходники `.kt` в `Russian/<Site>/src/main/kotlin/`.
+Все одиннадцать провайдеров имеют исходники `.kt` в `Russian/<Site>/src/main/kotlin/`.
 Внутренние ID сохранены. По просьбе владельца имена источников имеют префикс `1.` для сортировки.
 Старые smali-версии доступны в истории до коммита перехода.
 
+- [BDSM-Porn.cc](BdsmPorn/)
 - [Domashka.live](Domashka/)
 - [Ebalka](Ebalka/)
 - [Huyamba](Huyamba/)

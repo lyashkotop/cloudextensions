@@ -1,0 +1,11 @@
+{
+  "id": "BdsmPorn",
+  "name": "BDSM-Porn.cc",
+  "language": "ru",
+  "category": "Russian",
+  "entryClass": "com.cloudextensions.entries.BdsmPornPlugin",
+  "providerClass": "com.cloudextensions.sites.BdsmPornProvider",
+  "description": "BDSM-Porn.cc · русскоязычный каталог. Доступ зависит от проверки Cloudflare.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/BdsmPorn.png",
+  "runtime": "kotlin"
+}
