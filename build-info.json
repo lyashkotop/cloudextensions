@@ -1,8 +1,8 @@
 {
-  "version": 184,
-  "sourceCommit": "13045fa92cf81b42472faa9a399f766e55629d8e",
+  "version": 185,
+  "sourceCommit": "ad996ef5baa1b9f43309bb50d2cd4fec2e43fc83",
   "packageLayout": "versioned",
-  "plugins": 31,
+  "plugins": 32,
   "rebuilt": [
     "Ebalka",
     "Huyamba",
@@ -19,6 +19,7 @@
     "Beeg",
     "BoundHub",
     "DarknessPorn",
+    "ECamRips",
     "EPorner",
     "HcBDSMX",
     "HeavyR",
@@ -36,7 +37,7 @@
     "Xnxx",
     "XRares"
   ],
-  "dexClasses": 9215,
-  "entryRegistrationsValidated": 31,
-  "kotlinProviders": 31
+  "dexClasses": 9521,
+  "entryRegistrationsValidated": 32,
+  "kotlinProviders": 32
 }
