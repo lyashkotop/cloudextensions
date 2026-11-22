@@ -1,12 +1,12 @@
 {
-  "version": 188,
-  "sourceCommit": "c212f7d309bf08efdfb076dce5533aa23f40ec14",
+  "version": 189,
+  "sourceCommit": "732dda6c873bfb24a4cc59e6c7bd0f1a7fad61cf",
   "packageLayout": "versioned",
   "plugins": 34,
   "rebuilt": [
-    "PornoMoloko"
+    "Domashka"
   ],
-  "dexClasses": 10109,
+  "dexClasses": 10111,
   "entryRegistrationsValidated": 34,
   "kotlinProviders": 34
 }
