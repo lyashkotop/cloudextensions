@@ -14,6 +14,7 @@ import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.newSearchResponseList
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
