@@ -7,7 +7,13 @@ import okhttp3.Interceptor
 import java.io.File
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.sync.Mutex
@@ -206,6 +212,25 @@ class ReliableProvider(
     }
     private val ratingPermits = Semaphore(4)
     private val listingScoreSource = (source as? ListingScoreSource) ?: (source as? AdaptedProvider)?.listingScoreSource
+    private val pendingRatings by lazy {
+        Channel<String>(24, BufferOverflow.DROP_OLDEST).also { queue ->
+            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                val profile = ratingProfile ?: return@launch
+                for (url in queue) {
+                    delay(180)
+                    try { RequestLimits.optional(2800) { readCardScore(profile, url) } }
+                    catch (_: LinkageError) {}
+                }
+            }
+        }
+    }
+
+    private fun cachedScore(card: SearchResponse): SearchResponse {
+        if (card !is MovieSearchResponse || card.score != null) return card
+        val profile = ratingProfile ?: return card
+        val score = VideoScores.cachedDetail(profile, card.url) ?: return card
+        return card.copy(score = score)
+    }
 
     private suspend fun readCardScore(profile: String, url: String): Score? =
         VideoScores.cachedDetail(profile, url) ?: ratingPermits.withPermit {
@@ -229,14 +254,19 @@ class ReliableProvider(
             scores[index] = cached
             cached == null
         }
+        val fast = profile in fastListingRatings
         val remaining = ((deadline - System.nanoTime()) / 1_000_000L - LISTING_COMPLETION_RESERVE_MS)
-            .let { if (profile in fastListingRatings) minOf(it, FAST_LISTING_RATING_BUDGET_MS) else it }
+            .let { if (fast) minOf(it, FAST_LISTING_RATING_BUDGET_MS) else it }
         if (remaining > 0 && missing.isNotEmpty()) withTimeoutOrNull(remaining) {
             coroutineScope {
-                missing.forEach { index ->
+                val visible = if (fast) missing.take(7) else missing
+                visible.forEach { index ->
                     launch { scores[index] = readCardScore(profile, items[index].url) }
                 }
             }
+        }
+        if (fast) missing.asSequence().filter { scores[it] == null }.take(24).forEach {
+            pendingRatings.trySend(items[it].url)
         }
         return scores
     }
@@ -386,7 +416,8 @@ class ReliableProvider(
         history.mutex.withLock {
             history.pages[page]?.let {
                 val saved = it.response
-                return@withLock newSearchResponseList(saved.items.filter { card -> isAvailable(card.url) }, saved.hasNext)
+                val fresh = saved.items.filter { card -> isAvailable(card.url) }.map(::cachedScore)
+                return@withLock newSearchResponseList(fresh, saved.hasNext)
             }
             val seen = history.pages.asSequence().filter { it.key < page }
                 .flatMap { it.value.response.items.asSequence() }.mapTo(mutableSetOf(), ::searchKey)

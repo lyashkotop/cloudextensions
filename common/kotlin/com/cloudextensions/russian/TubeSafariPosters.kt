@@ -23,6 +23,7 @@ object TubeSafariPosters {
         if (poster != null) {
             val image = poster.toHttpUrlOrNull() ?: return poster
             if (!image.host.endsWith(".xvideos-cdn.com") || !image.encodedPath.startsWith("/videos/thumbs")) return poster
+            if (PosterRequests.check(poster, headers, 650) == true) return poster
         }
 
         // Older listing URLs can fail while the same video's embed still serves a current thumbnail.
