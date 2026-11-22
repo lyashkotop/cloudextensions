@@ -2,6 +2,9 @@
 
 package com.kraptor
 
+import com.cloudextensions.russian.MediaDuration
+import com.cloudextensions.russian.applyVideoDuration
+
 import com.cloudextensions.russian.VideoScores
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -77,6 +80,8 @@ class XRares : MainAPI() {
         val description = document.selectFirst("div.m-t-10 p")?.text()?.trim()
         val year = document.selectFirst("div.extra span.C a")?.text()?.trim()?.toIntOrNull()
         val tags = document.select("div.m-t-10 a").map { it.text() }
+        val media = document.selectFirst("video#vjsplayer source[type=video/mp4][src]")?.absUrl("src")
+        val seconds = MediaDuration.fromMp4(media, document.baseUri())
 
         val vidId = document.selectFirst("a[href*=related_videos][id]")?.attr("id")?.substringAfterLast("_") ?: ""
 
@@ -87,6 +92,7 @@ class XRares : MainAPI() {
         }.getOrElse { emptyList() }
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
+            applyVideoDuration(seconds)
             score = VideoScores.detail("XRares",url,document)
             this.posterUrl = poster
             this.plot = description

@@ -33,6 +33,13 @@ class SickJunkProvider: RussianProvider(SiteSpec(
         return detail
     }
 
+    override suspend fun enrichMetadata(document: Document, detail: VideoDetail): VideoDetail {
+        if (detail.duration.isNotBlank()) return detail
+        val player = document.selectFirst("article.type-post .entry-content video[src], article.type-post .entry-content video source[type=video/mp4][src]")
+        val seconds = MediaDuration.fromMp4(player?.absUrl("src"), document.baseUri())
+        return detail.copy(duration = Metadata.timing(seconds))
+    }
+
     override suspend fun loadLinks(
         data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,
     ): Boolean {

@@ -24,6 +24,10 @@ private const val MAX_UPSTREAM_PAGES_PER_EXPANSION = 4
 private const val SEARCH_REVIEW_BUDGET_MS = 5_000L
 private const val LISTING_TIMEOUT_MS = 22_000L
 private const val RATING_REQUEST_TIMEOUT_MS = 6_500L
+private const val FAST_LISTING_RATING_BUDGET_MS = 1_500L
+private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
+private val fastListingRatings = setOf("Strip2", "TubeBDSM", "TubeSafari")
+private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex")
 private const val LISTING_COMPLETION_RESERVE_MS = 500L
 
 /** UI request bounds and one real preview shared by the search and detail response. */
@@ -44,6 +48,12 @@ class ReliableProvider(
     private val titleLanguage get() = (source as? SearchPolicy)?.preferredTitleLanguage.orEmpty()
     private val titlePermits = Semaphore(4)
     private val requiresListingReview get() = (source as? SearchPolicy)?.requiresListingReview == true
+    private val removedVideos = java.util.Collections.synchronizedMap(BoundedMap<String, Long>(128))
+
+    private fun isAvailable(url: String): Boolean {
+        val removedAt = removedVideos[videoKey(url)] ?: return true
+        return System.nanoTime() - removedAt >= 300_000_000_000L
+    }
 
     private fun normalizeCard(
         card: SearchResponse,
@@ -67,7 +77,7 @@ class ReliableProvider(
 
     private suspend fun cards(items: List<SearchResponse>, expandTitles: Boolean = true): List<SearchResponse> = coroutineScope {
         val deadline = System.nanoTime() + 3_000_000_000L
-        val allowed = items.filter { ContentPolicy.accepts(it.name, Metadata.cardTags(it.url)) }
+        val allowed = items.filter { isAvailable(it.url) && ContentPolicy.accepts(it.name, Metadata.cardTags(it.url)) }
         val posters = allowed.map { card -> normalizeCard(card, title = card.name) }
         if (source !is PosterSource) ImagePrefetch.warm(posters)
         val titles = allowed.map { card ->
@@ -183,7 +193,7 @@ class ReliableProvider(
     }
 
     private suspend fun prepareSearch(items: List<SearchResponse>, deadline: Long): List<SearchResponse> = coroutineScope {
-        val normalized = items.filter { ContentPolicy.accepts(it.name, Metadata.cardTags(it.url)) }.map { normalizeCard(it) }
+        val normalized = items.filter { isAvailable(it.url) && ContentPolicy.accepts(it.name, Metadata.cardTags(it.url)) }.map { normalizeCard(it) }
         val reviewed = previewSearch(normalized, deadline)
         reviewed.map { card ->
             async {
@@ -219,7 +229,8 @@ class ReliableProvider(
             scores[index] = cached
             cached == null
         }
-        val remaining = (deadline - System.nanoTime()) / 1_000_000L - LISTING_COMPLETION_RESERVE_MS
+        val remaining = ((deadline - System.nanoTime()) / 1_000_000L - LISTING_COMPLETION_RESERVE_MS)
+            .let { if (profile in fastListingRatings) minOf(it, FAST_LISTING_RATING_BUDGET_MS) else it }
         if (remaining > 0 && missing.isNotEmpty()) withTimeoutOrNull(remaining) {
             coroutineScope {
                 missing.forEach { index ->
@@ -373,7 +384,10 @@ class ReliableProvider(
             else searchHistory.getOrPut(query) { SearchHistory() }
         }
         history.mutex.withLock {
-            history.pages[page]?.let { return@withLock it.response }
+            history.pages[page]?.let {
+                val saved = it.response
+                return@withLock newSearchResponseList(saved.items.filter { card -> isAvailable(card.url) }, saved.hasNext)
+            }
             val seen = history.pages.asSequence().filter { it.key < page }
                 .flatMap { it.value.response.items.asSequence() }.mapTo(mutableSetOf(), ::searchKey)
             var upstream = history.pages[page - 1]?.nextUpstreamPage ?: page
@@ -448,24 +462,32 @@ class ReliableProvider(
     override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = RequestLimits.required("Плеер",45_000) {
         val emitted = java.util.concurrent.atomic.AtomicBoolean()
         val rejected = java.util.concurrent.atomic.AtomicReference<Int>()
-        val resolutions = if (ratingProfile == "TubeBDSM") ConcurrentHashMap.newKeySet<Int>() else null
-        coroutineScope {
-            source.loadLinks(data, isCasting, subtitleCallback) { link ->
-                launch(start = CoroutineStart.UNDISPATCHED) {
-                    val interceptor = if (link.isM3u8) source.getVideoInterceptor(link) else null
-                    val result = QualityLinks.select(link, interceptor)
-                    result.rejectedStatus?.let { rejected.compareAndSet(null, it) }
-                    for (choice in result.links) {
-                        // The selected partner can publish the same resolution as both MP4 and HLS.
-                        if (resolutions != null && choice.name.isEmpty() && choice.quality > 0 &&
-                            choice.quality != Qualities.Unknown.value && !resolutions.add(choice.quality)) continue
-                        callback(choice)
-                        emitted.set(true)
+        val resolutions = if (ratingProfile in uniqueResolutions) ConcurrentHashMap.newKeySet<Int>() else null
+        try {
+            coroutineScope {
+                source.loadLinks(data, isCasting, subtitleCallback) { link ->
+                    launch(start = CoroutineStart.UNDISPATCHED) {
+                        val interceptor = if (link.isM3u8) source.getVideoInterceptor(link) else null
+                        val result = QualityLinks.select(link, interceptor)
+                        result.rejectedStatus?.let { rejected.compareAndSet(null, it) }
+                        for (choice in result.links) {
+                            // The same resolution can be available as both MP4 and HLS.
+                            if (resolutions != null && choice.name.isEmpty() && choice.quality > 0 &&
+                                choice.quality != Qualities.Unknown.value && !resolutions.add(choice.quality)) continue
+                            callback(choice)
+                            emitted.set(true)
+                        }
                     }
                 }
             }
+            if (!emitted.get()) rejected.get()?.let { throw Playback.mediaError(it) }
+        } catch (e: ErrorLoadingException) {
+            if (!emitted.get() && ratingProfile in tracksRemovedVideos && Playback.missingMedia(e)) {
+                removedVideos[videoKey(data)] = System.nanoTime()
+            }
+            throw e
         }
-        if (!emitted.get()) rejected.get()?.let { throw Playback.mediaError(it) }
+        if (emitted.get()) removedVideos.remove(videoKey(data))
         emitted.get()
     }
     override fun getVideoInterceptor(extractorLink:ExtractorLink):Interceptor?=source.getVideoInterceptor(extractorLink)

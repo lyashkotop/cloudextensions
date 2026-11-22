@@ -34,7 +34,7 @@ interface NoodlePosterSource : PosterSource {
 
 /** Both language variants use the same catalogue and detail image fields. */
 internal object NoodlePosters {
-    data class Candidates(val images: List<String>, val track: String?)
+    data class Candidates(val images: List<String>, val track: String?, val video: String? = null)
     private val alternatives = Collections.synchronizedMap(BoundedMap<String, Pair<Long, Candidates>>(256))
     // The image proxy includes the upstream image host and path in the preview URL.
     private val wrappedPreview = Regex("""^/preview/[^/]+/[^/]+/[0-9]+/(sun[0-9]+(?:-[0-9]+)?\.(?:vkuserphoto\.ru|userapi\.com)|i\.mycdn\.me|iv\.okcdn\.ru)(/[^/].*)$""")
@@ -111,7 +111,17 @@ internal object NoodlePosters {
                 }?.toString()
             }
         }
-        return Candidates(images.mapNotNull { Metadata.imageUrl(base, it) }.distinct(), track).also {
+        val video = playlists.asSequence().flatMap { playlist ->
+            val sources = playlist.optJSONArray("sources") ?: return@flatMap emptySequence()
+            (0 until sources.length()).asSequence().mapNotNull(sources::optJSONObject)
+        }.mapNotNull { entry ->
+            val media = absolute(base, entry.optString("file"))?.toHttpUrlOrNull() ?: return@mapNotNull null
+            if (!media.isHttps || !media.encodedPath.endsWith(".mp4", true)) return@mapNotNull null
+            val height = entry.optString("label").trim().removeSuffix("p").toIntOrNull() ?: return@mapNotNull null
+            if (height !in 1..QualityLinks.MAX_HEIGHT) return@mapNotNull null
+            height to media.toString()
+        }.minByOrNull { it.first }?.second
+        return Candidates(images.mapNotNull { Metadata.imageUrl(base, it) }.distinct(), track, video).also {
             alternatives[videoKey(url)] = System.nanoTime() to it
         }
     }
@@ -162,13 +172,16 @@ internal object NoodlePosters {
         val declared = saved ?: RequestLimits.optional(1800) { remember(url, source.posterPage(url)) }
         verified(declared?.images.orEmpty())?.let { return it }
         if (declared?.track != null && ImagePrefetch.cacheDirectory() != null) {
-            val fallback = RequestLimits.optional(4000) {
+            val fallback = RequestLimits.optional(1300) {
                 val text = Network.page(PageRequest(declared.track), url).wholeText()
                 val frames = StoryboardPosters.frames(text, declared.track)
                 // Try sheets from different points in the video. One sheet can be gone while later ones still work.
                 storyboardFrame(url, frames, headers)
             }
             if (fallback != null) return fallback
+        }
+        if (declared?.video != null) {
+            RequestLimits.optional(1700) { StoryboardPosters.fromVideo(url, declared.video, url) }?.let { return it }
         }
         return slowOriginal ?: poster
     }

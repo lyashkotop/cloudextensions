@@ -5,7 +5,7 @@ import com.lagradost.cloudstream3.LoadResponse
 private fun seconds(clock: String): Long? {
     if (clock.isBlank()) return null
     return clock.split(':').fold(0L) { total, component ->
-        total * 60 + (component.toLongOrNull() ?: return null)
+        total * 60 + (component.substringBefore('.').toLongOrNull() ?: return null)
     }.takeIf { it > 0 }
 }
 

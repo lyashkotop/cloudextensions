@@ -54,6 +54,7 @@ object Metadata {
     private val shortTag = Regex("[A-Za-z0-9\\u3040-\\u30ff\\u3400-\\u9fff]{2}")
     private val promo = Regex("(?iu)(?:смотрите (?:у нас|онлайн|бесплатно)|смотреть (?:онлайн|бесплатно)|бесплатные порно видео|watch (?:online|for free)|free porn videos|best porn site)")
     private val whitespace = Regex("\\s+")
+    private val minuteSecondClock = Regex("""(?i)([0-9]+)\s*m\s*:?\s*([0-5]?[0-9])\s*s""")
     private val truncated = Regex("(?:…|\\.\\.\\.)$")
     private val placeholderPath = Regex("(?i)/(?:flags?|logos?|avatars?|icons?)/|/(?:logo|favicon|spacer|blank|transparent|placeholder|loading)(?:[_.][^/]*)?$")
     private val badgeClass = Regex("(?i)(?:flag|logo|avatar|icon|badge)")
@@ -296,7 +297,13 @@ object Metadata {
     fun plot(detail: VideoDetail) = detail.description
 
     fun timing(raw: String?): String {
-        val text=clean(raw).let { if (it.startsWith("T", true)) "P$it" else it }
+        val clock = clean(raw)
+        val units = minuteSecondClock.matchEntire(clock)
+        val text = when {
+            units != null -> "PT${units.groupValues[1]}M${units.groupValues[2]}S"
+            clock.startsWith("T", true) -> "P$clock"
+            else -> clock
+        }
         if(text.isBlank())return ""
         return try {
             val seconds=when {

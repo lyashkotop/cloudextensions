@@ -209,6 +209,8 @@ fun main(args:Array<String>) {
     for((raw,expected)in times)verify(Metadata.timing(raw)==expected,"source duration $raw")
     verify(Metadata.timing("32s")=="00:32" && Metadata.timing("32 sec")=="00:32","explicit seconds are parsed as seconds")
     verify(Metadata.timing("32 min")=="32:00","explicit minutes retain their unit")
+    verify(Metadata.timing("29m:17s") == "29:17" && Metadata.timing("0m 40s") == "00:40",
+        "BoundHub's listing and detail clocks retain their seconds")
     for(word in listOf("guy","lesbian","lesbians","лесби","лесбиянки","gay lesbians","gay лесби"))verify(ContentPolicy.accepts(word),"allowed word $word")
     for (label in listOf("lesbians", "girls", "лесби", "лесбиянками", "девушки", "девушек", "дівчата")) {
         verify(ContentPolicy.accepts("Blocked furry title", listOf(label)), "allowed tag overrides filter: $label")

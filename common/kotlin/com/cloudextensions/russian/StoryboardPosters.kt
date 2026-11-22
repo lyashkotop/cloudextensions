@@ -3,18 +3,27 @@ package com.cloudextensions.russian
 import android.graphics.Bitmap
 import android.graphics.BitmapRegionDecoder
 import android.graphics.Rect
+import android.media.MediaMetadataRetriever
 import com.lagradost.cloudstream3.app
 import java.io.File
 import java.security.MessageDigest
+import java.util.concurrent.Executors
+import java.util.concurrent.Semaphore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.Request
+import kotlin.coroutines.resume
 
 internal object StoryboardPosters {
     private const val MAX_SHEET_BYTES = 524_288L
     private const val MAX_CACHED_POSTERS = 192
     private val coordinates = Regex("""^xywh=(\d{1,4}),(\d{1,4}),(\d{1,3}),(\d{1,3})$""")
     private val cleanup = Any()
+    private val mediaSlots = Semaphore(2)
+    private val mediaWorkers by lazy {
+        Executors.newFixedThreadPool(2) { task -> Thread(task, "CloudExtensions-Poster").apply { isDaemon = true } }
+    }
 
     data class Frame(val sheet: String, val x: Int, val y: Int, val width: Int, val height: Int)
 
@@ -44,6 +53,54 @@ internal object StoryboardPosters {
         return File(File(cache, "cloudextensions-storyboards"), "$key.jpg")
     }
 
+    private fun saveBitmap(destination: File, bitmap: Bitmap): String? {
+        val folder = destination.parentFile ?: return null
+        if (!folder.isDirectory && !folder.mkdirs() && !folder.isDirectory) return null
+        val temp = File.createTempFile("poster-", ".tmp", folder)
+        try {
+            if (!temp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 86, it) }) return null
+            if (!temp.renameTo(destination)) return null
+            synchronized(cleanup) {
+                val posters = folder.listFiles { file -> file.extension == "jpg" && file != destination }.orEmpty()
+                posters.sortedByDescending { it.lastModified() }.drop(MAX_CACHED_POSTERS - 1).forEach { it.delete() }
+            }
+            return destination.posterUrl()
+        } finally {
+            temp.delete()
+        }
+    }
+
+    suspend fun fromVideo(video: String, media: String, referer: String): String? {
+        val file = destination(video) ?: return null
+        cached(video)?.let { return it }
+        if (!mediaSlots.tryAcquire()) return null
+        return suspendCancellableCoroutine { pending ->
+            mediaWorkers.execute {
+                val result = try {
+                    if (!pending.isActive) null else captureFrame(file, media, referer)
+                } catch (_: Exception) {
+                    null
+                } catch (_: LinkageError) {
+                    null
+                } finally {
+                    mediaSlots.release()
+                }
+                if (pending.isActive) pending.resume(result)
+            }
+        }
+    }
+
+    private fun captureFrame(file: File, media: String, referer: String): String? {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(media, mapOf("User-Agent" to NoodlePlayback.USER_AGENT, "Referer" to referer))
+            val bitmap = retriever.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC) ?: return null
+            return try { saveBitmap(file, bitmap) } finally { bitmap.recycle() }
+        } finally {
+            retriever.release()
+        }
+    }
+
     suspend fun save(video: String, frame: Frame, headers: Map<String, String>): String? {
         val destination = destination(video) ?: return null
         val request = Request.Builder().url(frame.sheet)
@@ -66,24 +123,7 @@ internal object StoryboardPosters {
             } finally {
                 decoder.recycle()
             }
-            try {
-                val folder = destination.parentFile ?: return@withContext null
-                if (!folder.isDirectory && !folder.mkdirs() && !folder.isDirectory) return@withContext null
-                val temp = File.createTempFile("poster-", ".tmp", folder)
-                try {
-                    if (!temp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 86, it) }) return@withContext null
-                    if (!temp.renameTo(destination)) return@withContext null
-                    synchronized(cleanup) {
-                        val posters = folder.listFiles { file -> file.extension == "jpg" && file != destination }.orEmpty()
-                        posters.sortedByDescending { it.lastModified() }.drop(MAX_CACHED_POSTERS - 1).forEach { it.delete() }
-                    }
-                    destination.posterUrl()
-                } finally {
-                    temp.delete()
-                }
-            } finally {
-                bitmap.recycle()
-            }
+            try { saveBitmap(destination, bitmap) } finally { bitmap.recycle() }
         }
     }
 }

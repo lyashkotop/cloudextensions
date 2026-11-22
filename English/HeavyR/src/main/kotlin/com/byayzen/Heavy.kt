@@ -4,6 +4,8 @@ package com.byayzen
 
 import com.cloudextensions.russian.VideoScores
 import com.cloudextensions.russian.Metadata
+import com.cloudextensions.russian.MediaDuration
+import com.cloudextensions.russian.applyVideoDuration
 import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.RequestLimits
@@ -132,12 +134,15 @@ class Heavy : MainAPI() {
         val poster = fixUrlNull(document.selectFirst("meta[property=\"og:image\"]")?.attr("content"))
         val description = document.selectFirst("div.video-data p")?.text()?.trim()
         val tags = document.select("div.tags a[title]").map { it.text() }
+        val media = document.selectFirst("video#video-file source[type=video/mp4][src]")?.absUrl("src")
+        val seconds = MediaDuration.fromMp4(media, document.baseUri())
 
         val recommendations = document.select("div.recent-uploads a.item").mapNotNull {
             it.toRecommendationResult()
         }.distinctBy { it.url }.filter { it.url != url }
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
+            applyVideoDuration(seconds)
             score = VideoScores.detail("HeavyR",url,document)
             this.posterUrl = poster
             this.plot = description

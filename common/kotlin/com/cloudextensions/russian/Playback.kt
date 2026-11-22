@@ -229,9 +229,7 @@ object Playback {
         if(page.baseUri()!=pageUrl)try{loadExtractor(page.baseUri(),origin,subtitles,::accept)}
         catch(e:CancellationException){throw e}catch(_:Exception){}catch(_:LinkageError){}
         if(emitted.isNotEmpty())return true
-        if (!unresolvedFrame) missingStaticFile?.let { status ->
-            throw ErrorLoadingException("Сервер плеера $name вернул HTTP $status для файла видео")
-        }
+        if (!unresolvedFrame) missingStaticFile?.let { throw mediaError(it) }
         // Players whose URLs are computed in JavaScript are resolved by the host WebView.
         // The page's own player runs normally; no fabricated links or qualities are returned.
         val exposed=Collections.synchronizedList(mutableListOf<Source>())
@@ -277,4 +275,7 @@ object Playback {
         }
         return ErrorLoadingException("$detail (HTTP $status)")
     }
+
+    internal fun missingMedia(error: ErrorLoadingException): Boolean =
+        error.message in setOf(mediaError(404).message, mediaError(410).message)
 }
