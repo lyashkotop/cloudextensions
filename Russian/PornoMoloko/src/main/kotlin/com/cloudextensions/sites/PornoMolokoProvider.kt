@@ -86,7 +86,11 @@ class PornoMolokoProvider : RussianProvider(
         // Reuse the site's catalogue cursor and return only listings that match the current query.
         while (next != null && pages < 10 && matches < 12) {
             val current = next
-            val document = super.page(request.copy(url = current.toString(), allowNotFound = false))
+            val document = super.page(request.copy(url = current.toString(), allowNotFound = true))
+            if (document.attr("data-response-code") in setOf("404", "410")) {
+                next = null
+                break
+            }
             for (card in document.select(spec.cards)) {
                 val title = card.selectFirst(spec.titleSelector)?.text().orEmpty()
                 val haystack = normalize(title)
