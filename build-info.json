@@ -1,9 +1,10 @@
 {
-  "version": 186,
-  "sourceCommit": "075ceae0a4a845ad4e88c0f2677830f9c05dd00e",
+  "version": 187,
+  "sourceCommit": "07bd51f5aa07fb25d6d271f786b5e58677fbf9c9",
   "packageLayout": "versioned",
-  "plugins": 33,
+  "plugins": 34,
   "rebuilt": [
+    "Domashka",
     "Ebalka",
     "Huyamba",
     "NoodleMagazine",
@@ -38,7 +39,7 @@
     "Xnxx",
     "XRares"
   ],
-  "dexClasses": 9816,
-  "entryRegistrationsValidated": 33,
-  "kotlinProviders": 33
+  "dexClasses": 10109,
+  "entryRegistrationsValidated": 34,
+  "kotlinProviders": 34
 }
