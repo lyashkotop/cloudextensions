@@ -433,7 +433,7 @@ class ReliableProvider(
         }
         val replies = sections.filter { page <= (history.taxonomyEnds[it.path] ?: Int.MAX_VALUE) }.map { section ->
             async {
-                section to RequestLimits.optional(1800) {
+                section to RequestLimits.optional(if (aliases.isNotEmpty()) 4500 else 1800) {
                     if (native != null) native.taxonomySearch(section, page)
                     else {
                         (source as? NoodlePosterSource)?.searchCategoryPage(section.path, page)

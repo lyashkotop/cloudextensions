@@ -4,7 +4,7 @@ import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.LoadResponse
 
 class HuyambaProvider: RussianProvider(SiteSpec(
-    id="Huyamba", title="Huyamba", origin="https://ru.huyamba.name",
+    id="Huyamba", title="Huyamba", origin="https://retro.huyamba.mobi",
     cards="a.card", link="a[href]", titleSelector=".title", searchMode="get",
     tagSelector=".video-controls .video-list a[href*=/categor], .video-controls .video-list a[href*=/tag]", descriptionSelector="", related="#list_videos_related_videos,#list_videos_recommended_videos",
     sections=listOf(
@@ -41,7 +41,7 @@ class HuyambaProvider: RussianProvider(SiteSpec(
         Section("Фистинг, инсершн, страпон","/categories/fisting-porn-videos/"),
         Section("Худые, порно с худыми","/categories/skinny-porn/"),
         Section("Соло, стриптиз, мастурбация","/categories/solo-striptease/"),
-        Section("Домашнее порно видео","/categories/homemade-porn-videos/"),
+        Section("Домашнее порно видео","/categories/homemade-porn-videos/videos/"),
         Section("Виртуальное порно VR 360","/categories/vr-porn-videos/"),
     )
 )) {

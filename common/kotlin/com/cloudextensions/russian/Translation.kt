@@ -20,6 +20,9 @@ object Translation {
 
     fun searchAliases(query: String): Set<String> {
         val word = Metadata.clean(query).lowercase(Locale.ROOT)
+        if (word in setOf("amateurs", "любительское", "домашнее видео", "любительское видео", "home made")) {
+            return searchGroups.last()
+        }
         return searchGroups.firstOrNull { word in it }.orEmpty()
     }
     private val cache=Collections.synchronizedMap(BoundedMap<String,String>(256))
