@@ -30,6 +30,18 @@ import org.jsoup.nodes.Document
 
 object Network {
     private val cloudflare by lazy { CloudflareKiller() }
+    private const val BDSMPORN_HOST = "ru.bdsm-porn.cc"
+    private data class BrowserSession(val clearance: String, val userAgent: String)
+    @Volatile private var bdsmPornSession: BrowserSession? = null
+
+    private fun rememberBrowserSession(request: Request) {
+        if (!request.url.isHttps || request.url.host != BDSMPORN_HOST) return
+        val clearance = request.header("Cookie")?.split(';')?.map(String::trim)
+            ?.firstOrNull { it.startsWith("cf_clearance=") && it.length > "cf_clearance=".length } ?: return
+        val agent = request.header("User-Agent") ?: return
+        bdsmPornSession = BrowserSession(clearance, agent)
+    }
+
     private class HttpFailure(val code: Int, val url: String, val retryAfter: String? = null) :
         IOException("HTTP $code: ${url.toHttpUrlOrNull()?.host}")
     private val challengeHandler=Interceptor { chain ->
@@ -125,6 +137,7 @@ object Network {
                     }
                     try {
                         if(response.code !in 200..299 && !(request.allowNotFound && response.code in setOf(404, 410)))throw HttpFailure(response.code,response.url)
+                        if (response.code in 200..299) rememberBrowserSession(response.okhttpResponse.request)
                         Jsoup.parse(response.text, response.url).apply {
                             attr("data-response-code", response.code.toString())
                         }
@@ -142,7 +155,24 @@ object Network {
 
     private suspend fun execute(request: Request, allowNotFound: Boolean): Document {
         val client = app.baseClient.newBuilder().callTimeout(15, TimeUnit.SECONDS)
-            .connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
+            .connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).apply {
+                if (request.url.host == BDSMPORN_HOST && bdsmPornSession != null) {
+                    addNetworkInterceptor { chain ->
+                        val outgoing = chain.request()
+                        val session = bdsmPornSession
+                        if (session == null || !outgoing.url.isHttps || outgoing.url.host != BDSMPORN_HOST) {
+                            chain.proceed(outgoing)
+                        } else {
+                            val cookies = outgoing.header("Cookie").orEmpty().split(';').map(String::trim)
+                                .filter { it.isNotEmpty() && !it.startsWith("cf_clearance=") }
+                            val localized = outgoing.newBuilder()
+                                .header("Cookie", (cookies + session.clearance).joinToString("; "))
+                                .header("User-Agent", session.userAgent).build()
+                            chain.proceed(localized)
+                        }
+                    }
+                }
+            }.build()
         return read(request, client) { response ->
             if (!response.isSuccessful && !(allowNotFound && response.code in setOf(404, 410))) {
                 throw HttpFailure(response.code, response.request.url.toString(), response.header("Retry-After"))
