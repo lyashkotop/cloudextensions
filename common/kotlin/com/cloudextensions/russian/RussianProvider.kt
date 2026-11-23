@@ -93,7 +93,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         val links = TaxonomySearch.links(root, terms)
         if (!allMatches && links.any { TaxonomySearch.kind(it.path) == "tag" }) return links
         val directory = TaxonomySearch.tagDirectory(root) ?: return links
-        val published = RequestLimits.optional(650) { TaxonomySearch.links(page(PageRequest(directory)), terms) }
+        val published = RequestLimits.optional(if (allMatches) 1800 else 650) { TaxonomySearch.links(page(PageRequest(directory)), terms) }
         return links + published.orEmpty()
     }
 

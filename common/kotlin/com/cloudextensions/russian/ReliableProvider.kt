@@ -425,7 +425,7 @@ class ReliableProvider(
                 TaxonomySearch.matches(it.name, terms) &&
                     (TaxonomySearch.kind(it.data) != null || source is NoodlePosterSource && !it.data.startsWith('/'))
             }.map { Section(it.name, it.data) }
-            val linked = native?.let { RequestLimits.optional(1100) { it.taxonomyLinks(terms, allMatches = aliases.isNotEmpty()) } }.orEmpty()
+            val linked = native?.let { RequestLimits.optional(if (aliases.isNotEmpty()) 3000 else 1100) { it.taxonomyLinks(terms, allMatches = aliases.isNotEmpty()) } }.orEmpty()
             (declared + linked).distinctBy {
                 if (aliases.isEmpty()) TaxonomySearch.kind(it.path) ?: "category"
                 else absolute(mainUrl, it.path)?.trimEnd('/') ?: it.path
@@ -454,11 +454,20 @@ class ReliableProvider(
         val aliases = if (lang in listOf("ru", "en") && (source as? SearchPolicy)?.expandSearchAliases != false) {
             Translation.searchAliases(query)
         } else emptySet()
-        val matches = async { upstreamSearch(query, page, history, aliases) }
+        val matches = async {
+            try {
+                Result.success(upstreamSearch(query, page, history, aliases))
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
         val taxonomy = async { taxonomyResults(query, page, history, aliases) }
-        val original = matches.await()
+        val search = matches.await()
         val feeds = taxonomy.await()
-        newSearchResponseList(original.items + feeds.flatMap { it.items }, original.hasNext || feeds.any { it.hasNext })
+        val original = if (feeds.any { it.items.isNotEmpty() }) search.getOrNull() else search.getOrThrow()
+        newSearchResponseList(original?.items.orEmpty() + feeds.flatMap { it.items }, original?.hasNext == true || feeds.any { it.hasNext })
     }
 
     override suspend fun search(query: String, page: Int): SearchResponseList = RequestLimits.required("Поиск", LISTING_TIMEOUT_MS) {

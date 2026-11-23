@@ -5,7 +5,7 @@ import org.jsoup.nodes.Document
 
 internal object TaxonomySearch {
     private val word = Regex("""[\p{L}\p{N}]+(?:[-'][\p{L}\p{N}]+)*""")
-    private val count = Regex("""\s+(?:\(\d[\d ,.]*\)|\d[\d ,.]*)(?:\s+(?:videos?|видео))?$""", RegexOption.IGNORE_CASE)
+    private val count = Regex("""\s+(?:\(\d[\d ,.]*\)|\d[\d ,.]*[kKmM]?)(?:\s+(?:videos?|видео))?$""", RegexOption.IGNORE_CASE)
     private val taxonomyPath = Regex("""/(t|tags?|categor(?:y|ies)|cat|free_porn|genres?)/[^/]+""", RegexOption.IGNORE_CASE)
     private val homemadeLabels = setOf(
         "amateurs", "real homemade", "homemade videos", "amateur videos",
