@@ -42,6 +42,7 @@ object ContentPolicy {
         "black man",
         "bbc",
         "pregnant",
+        "granny",
         "furry",
         "femboy",
         "femboys",
