@@ -1,13 +1,21 @@
 package com.example.ebalka
 
 import com.cloudextensions.russian.*
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.utils.ExtractorLink
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import org.jsoup.nodes.Element
 import org.jsoup.nodes.Document
 
 class EbalkaProvider: RussianProvider(SiteSpec(
     id="Ebalka", title="Ebalka", origin="https://1ebalka.ru.actor",
     cards=".card_video", link="a[href]", titleSelector=".card__title", searchMode="get",
     tagSelector=".video__tags-container a", descriptionSelector="", related="#list_videos_related_videos",
+    detailTitleSelector="h1.video__title", titleLanguage="ru",
     sections=listOf(
         Section("Новинки","/latest-videos/"),
         Section("Блюет","/tags/blyuet/"),
@@ -42,14 +50,14 @@ class EbalkaProvider: RussianProvider(SiteSpec(
         Section("Жена и муж","/tags/jena-i-muj/"),
     )
 )) {
-    private val russianHost = "1ebalka.ru.actor"
     private val englishHost = "www.fuckingbear.com"
-    private val cyrillic = Regex("[А-Яа-яЁё]")
+    private val russianHost = Regex("""(?:[0-9]*ebalka|ebalka[0-9]+)\.ru\.actor""")
+    private val russianText = Regex("[А-Яа-яЁё]")
 
     override suspend fun searchRequest(term: String): PageRequest {
         val base = mainUrl.toHttpUrlOrNull() ?: return super.searchRequest(term)
         val url = base.newBuilder().encodedPath("/search/").query(null).addQueryParameter("q", term)
-        if (base.host == russianHost && !cyrillic.containsMatchIn(term) && term.any { it in 'A'..'Z' || it in 'a'..'z' }) {
+        if (russianHost.matches(base.host) && !russianText.containsMatchIn(term) && term.any { it in 'A'..'Z' || it in 'a'..'z' }) {
             url.host(englishHost)
         }
         return PageRequest(url.build().toString())
@@ -57,15 +65,65 @@ class EbalkaProvider: RussianProvider(SiteSpec(
 
     override suspend fun page(request: PageRequest): Document {
         val url = request.url.toHttpUrlOrNull() ?: return super.page(request)
-        if (url.host !in setOf(russianHost, englishHost) || request.data != null ||
-            !listOf("/search/", "/latest-videos/").any { url.encodedPath.startsWith(it) }
-        ) return super.page(request)
+        val russianVideo = russianVideoUrl(url)
+        val target = russianVideo ?: url
+        val localized = request.copy(
+            url = target.toString(),
+            headers = if (russianHost.matches(target.host)) request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE)
+                else request.headers,
+        )
+        val document = if (url.host == englishHost && url.encodedPath.startsWith("/search/")) {
+            val english = RequestLimits.optional(4500) { super.page(localized) }
+            if (english != null && english.attr("data-response-code") != "404") english else {
+                val fallback = url.newBuilder().host(mainUrl.toHttpUrlOrNull()?.host ?: return super.page(localized)).build()
+                super.page(localized.copy(url = fallback.toString(), headers = localized.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE)))
+            }
+        } else super.page(localized)
+        return if (document.baseUri().toHttpUrlOrNull()?.host == englishHost && url.encodedPath.startsWith("/search/")) {
+            russianListing(document)
+        } else document
+    }
 
-        // Both published language sites use the same catalogue routes.
-        val first = RequestLimits.optional(4500) { super.page(request) }
-        if (first != null && first.attr("data-response-code") != "404") return first
-        val fallbackHost = if (url.host == russianHost) englishHost else russianHost
-        val fallback = request.copy(url = url.newBuilder().host(fallbackHost).build().toString())
-        return RequestLimits.required("Ebalka", 6500) { super.page(fallback) }
+    private fun russianVideoUrl(url: HttpUrl): HttpUrl? {
+        val segments = url.pathSegments
+        if (url.host != englishHost || segments.firstOrNull() != "video" || segments.getOrNull(1)?.toIntOrNull() == null) return null
+        val base = mainUrl.toHttpUrlOrNull()?.takeIf { russianHost.matches(it.host) } ?: return null
+        return url.newBuilder().host(base.host).setPathSegment(0, "videos").query(null).build()
+    }
+
+    private data class RussianCard(val url: String, val title: String)
+
+    private suspend fun russianCard(card: Element): RussianCard? {
+        val link = card.selectFirst(spec.link)?.absUrl("href")?.toHttpUrlOrNull() ?: return null
+        val url = russianVideoUrl(link) ?: return null
+        val document = super.page(PageRequest(url.toString(), allowNotFound = true, headers = mapOf("Accept-Language" to Network.RUSSIAN_LANGUAGE)))
+        if (document.selectFirst("html[lang=ru]") == null) return null
+        val canonical = document.selectFirst("link[rel=canonical]")?.absUrl("href")?.toHttpUrlOrNull() ?: url
+        if (!russianHost.matches(canonical.host) || canonical.pathSegments.take(2) != url.pathSegments.take(2)) return null
+        val title = Metadata.detail(document, spec).title
+        return title.takeIf(russianText::containsMatchIn)?.let { RussianCard(canonical.toString(), it) }
+    }
+
+    private suspend fun russianListing(document: Document): Document = coroutineScope {
+        val localized = document.clone()
+        val cards = localized.select(spec.cards)
+        val resolved = cards.map { card -> async { RequestLimits.optional(8500) { russianCard(card) } } }.awaitAll()
+        for ((card, russian) in cards.zip(resolved)) {
+            if (russian == null) {
+                card.remove()
+                continue
+            }
+            card.selectFirst(spec.link)?.attr("href", russian.url)?.attr("title", russian.title)
+            card.selectFirst(spec.titleSelector)?.text(russian.title)
+            card.selectFirst("img")?.attr("alt", russian.title)?.attr("title", russian.title)
+        }
+        localized
+    }
+
+    override suspend fun loadLinks(
+        data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,
+    ): Boolean {
+        val document = page(PageRequest(data))
+        return Playback.linksFromPage(name, mainUrl, data, document, emptyList(), subtitleCallback, callback)
     }
 }
