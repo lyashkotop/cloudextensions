@@ -65,14 +65,18 @@ object Network {
     private val cache = Collections.synchronizedMap(BoundedMap<PageKey, Pair<Long, Document>>(24))
     // Rating lookups for off-screen cards must not evict recently reviewed detail pages.
     private val backgroundCache = Collections.synchronizedMap(BoundedMap<PageKey, Pair<Long, Document>>(8))
+    private val detailCache = Collections.synchronizedMap(BoundedMap<PageKey, Pair<Long, Document>>(24))
     private class PageGate(val mutex: Mutex = Mutex(), var users: Int = 1)
-    private val locks = ConcurrentHashMap<PageKey, PageGate>()
+    private val locks = ConcurrentHashMap<Pair<PageKey, Boolean>, PageGate>()
     private val permits = Semaphore(6)
     private val detailPermits = Semaphore(2)
     // OkHttp otherwise queues a tap behind the same host's listing and rating calls.
     private val detailDispatcher = okhttp3.Dispatcher().apply { maxRequests = 2; maxRequestsPerHost = 2 }
     internal object OpeningDetail : AbstractCoroutineContextElement(OpeningDetail.Key) {
         object Key : CoroutineContext.Key<OpeningDetail>
+    }
+    internal object CacheDetail : AbstractCoroutineContextElement(CacheDetail.Key) {
+        object Key : CoroutineContext.Key<CacheDetail>
     }
     private val backgroundPermits = Semaphore(2)
     internal object Background : AbstractCoroutineContextElement(Background.Key) {
@@ -108,18 +112,31 @@ object Network {
         // Successful pages are identical for callers with different 404 handling.
         val effectiveReferer = request.headers.entries.lastOrNull { it.key.equals("Referer", true) }?.value ?: referer
         val key = PageKey(request.copy(allowNotFound = false), effectiveReferer)
-        val targetCache = if (coroutineContext[Background.Key] == null) cache else backgroundCache
-        fun usable(entry: Pair<Long, Document>?) = entry
-            ?.takeIf { System.nanoTime() - it.first < TimeUnit.SECONDS.toNanos(30) }?.second
+        val retain = coroutineContext[CacheDetail.Key] != null
+        val opening = coroutineContext[OpeningDetail.Key] != null
+        val refresh = request.url.toHttpUrlOrNull()?.host.orEmpty().endsWith(".strip2.co") && request.data == null
+        val targetCache = when {
+            retain -> detailCache
+            coroutineContext[Background.Key] != null -> backgroundCache
+            else -> cache
+        }
+        fun usable(entry: Pair<Long, Document>?, seconds: Long = 30) = entry
+            ?.takeIf { System.nanoTime() - it.first < TimeUnit.SECONDS.toNanos(seconds) }?.second
             ?.takeIf { request.allowNotFound || it.attr("data-response-code") !in setOf("404", "410") }
-        fun cached() = if (revalidate) null else usable(cache[key]) ?: usable(backgroundCache[key])
+        fun cached() = if (revalidate) null else {
+            val dedicated = if (retain) usable(detailCache[key], if (refresh) 30 else 75) else null
+            val recent = listOfNotNull(cache[key], backgroundCache[key]).firstOrNull { usable(it) != null }
+            if (dedicated == null && retain && recent != null) detailCache[key] = recent
+            dedicated ?: recent?.second ?: usable(detailCache[key])
+        }
         cached()?.let { return it }
-        val requestPermits = if (coroutineContext[OpeningDetail.Key] != null) detailPermits else permits
-        val gate = locks.compute(key) { _, pending -> pending?.also { it.users++ } ?: PageGate() }!!
+        val requestPermits = if (opening) detailPermits else permits
+        // A tap uses its reserved dispatcher even if speculative work is already queued for this URL.
+        val lockKey = key to (retain && opening)
+        val gate = locks.compute(lockKey) { _, pending -> pending?.also { it.users++ } ?: PageGate() }!!
         return try { gate.mutex.withLock {
             cached() ?: requestPermits.withPermit {
                 // Strip2 can serve cached documents with expired signed thumbnails/media URLs.
-                val refresh=java.net.URI(request.url).host.orEmpty().endsWith(".strip2.co") && request.data==null
                 val fetchUrl=if(refresh)request.url+(if(request.url.contains('?')) "&" else "?")+"_refresh="+(System.currentTimeMillis()/60_000) else request.url
                 val builder=Request.Builder().url(fetchUrl)
                 for((k,v) in headers(referer)+request.headers)builder.header(k,v)
@@ -160,7 +177,7 @@ object Network {
                 document
             }
         }} finally {
-            locks.computeIfPresent(key) { _, pending -> if (--pending.users == 0) null else pending }
+            locks.computeIfPresent(lockKey) { _, pending -> if (--pending.users == 0) null else pending }
         }
     }
 

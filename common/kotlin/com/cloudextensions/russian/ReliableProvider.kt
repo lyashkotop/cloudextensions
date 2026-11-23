@@ -338,6 +338,35 @@ class ReliableProvider(
         }
     }
 
+    private val warmingDetails = ConcurrentHashMap.newKeySet<String>()
+    private val pendingDetails by lazy {
+        Channel<String>(12).also { queue ->
+            val policy = source as SearchPolicy
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + Network.Background + Network.CacheDetail)
+            repeat(2) {
+                scope.launch {
+                    for (url in queue) {
+                        try {
+                            RequestLimits.optional(2200) { policy.fullTitle(url) }
+                        } catch (_: LinkageError) {
+                        } finally {
+                            warmingDetails.remove(url)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun warmDetails(cards: List<SearchResponse>) {
+        if (lang != "ru" || source !is SearchPolicy) return
+        for (card in cards.take(12)) {
+            if (warmingDetails.add(card.url) && pendingDetails.trySend(card.url).isFailure) {
+                warmingDetails.remove(card.url)
+            }
+        }
+    }
+
     private val randomHome = RandomHome(::searchKey)
 
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная", LISTING_TIMEOUT_MS) {
@@ -356,7 +385,9 @@ class ReliableProvider(
                 }
             }.awaitAll()
         }
-        ImagePrefetch.warm(rows.flatMap{it.list})
+        val listed = rows.flatMap { it.list }
+        ImagePrefetch.warm(listed)
+        warmDetails(listed)
         newHomePageResponse(rows,result.hasNext)
     }
     override suspend fun search(query:String):List<SearchResponse> = search(query,1).items
@@ -507,6 +538,7 @@ class ReliableProvider(
             history.pages[page]?.let {
                 val saved = it.response
                 val fresh = saved.items.filter { card -> isAvailable(card.url) }.map(::cachedScore)
+                warmDetails(fresh)
                 return@withLock newSearchResponseList(fresh, saved.hasNext)
             }
             val seen = history.pages.asSequence().filter { it.key < page }
@@ -530,6 +562,7 @@ class ReliableProvider(
             }
             val prepared = prepareListing(cards, listingDeadline)
             ImagePrefetch.warm(prepared)
+            warmDetails(prepared)
             val response = newSearchResponseList(prepared, result.hasNext)
             history.pages[page] = SavedSearchPage(response, upstream)
             response
@@ -538,7 +571,8 @@ class ReliableProvider(
     override suspend fun load(url: String): LoadResponse = RequestLimits.required("Карточка") { loadCard(url) }
 
     private suspend fun loadCard(url: String): LoadResponse = coroutineScope {
-        val result = savedReview(url)?.detail ?: withContext(Network.OpeningDetail) { source.load(url) }
+        val context = if (lang == "ru") Network.OpeningDetail + Network.CacheDetail else Network.OpeningDetail
+        val result = savedReview(url)?.detail ?: withContext(context) { source.load(url) }
             ?: throw ErrorLoadingException("Источник не вернул карточку")
         val listedTags = Metadata.cardTags(url)
         val tagsSource = (source as? DetailTagSource) ?: (source as? AdaptedProvider)?.detailTagSource
