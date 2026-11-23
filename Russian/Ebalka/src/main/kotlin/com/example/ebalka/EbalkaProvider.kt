@@ -1,7 +1,6 @@
 package com.example.ebalka
 
 import com.cloudextensions.russian.*
-import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -13,8 +12,10 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Document
 
+private const val DEFAULT_RUSSIAN_HOST = "29ebalka.ru.actor"
+
 class EbalkaProvider: RussianProvider(SiteSpec(
-    id="Ebalka", title="Ebalka", origin="https://1ebalka.ru.actor",
+    id="Ebalka", title="Ebalka", origin="https://$DEFAULT_RUSSIAN_HOST",
     cards=".card_video", link="a[href]", titleSelector=".card__title", searchMode="get",
     tagSelector=".video__tags-container a", descriptionSelector="", related="#list_videos_related_videos",
     detailTitleSelector="h1.video__title", titleLanguage="ru",
@@ -54,6 +55,8 @@ class EbalkaProvider: RussianProvider(SiteSpec(
 )) {
     private val englishHost = "www.fuckingbear.com"
     private val russianHost = Regex("""(?:[0-9]*ebalka|ebalka[0-9]+)\.ru\.actor""")
+    private val mirrors = listOf(DEFAULT_RUSSIAN_HOST, "1ebalka.ru.actor", "ebalka1.ru.actor")
+    @Volatile private var catalogueHost: String? = null
     private val russianText = Regex("[А-Яа-яЁё]")
 
     override suspend fun searchRequest(term: String): PageRequest {
@@ -67,24 +70,51 @@ class EbalkaProvider: RussianProvider(SiteSpec(
 
     override suspend fun page(request: PageRequest): Document {
         val url = request.url.toHttpUrlOrNull() ?: return super.page(request)
-        val russianVideo = russianVideoUrl(url)
-        val target = russianVideo ?: url
-        val localized = request.copy(
-            url = target.toString(),
-            headers = if (russianHost.matches(target.host)) request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE)
-                else request.headers,
-        )
-        val document = if (url.host == englishHost && url.encodedPath.startsWith("/search/")) {
-            val english = RequestLimits.optional(4500) { super.page(localized) }
-            if (english != null && english.attr("data-response-code") != "404") english else {
-                val fallback = url.newBuilder().host(mainUrl.toHttpUrlOrNull()?.host ?: return super.page(localized)).build()
-                super.page(localized.copy(url = fallback.toString(), headers = localized.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE)))
-            }
-        } else super.page(localized)
-        return if (document.baseUri().toHttpUrlOrNull()?.host == englishHost && url.encodedPath.startsWith("/search/")) {
-            russianListing(document)
-        } else document
+        val target = russianVideoUrl(url) ?: url
+        if (russianHost.matches(target.host)) return russianPage(request, target)
+        if (url.host != englishHost || !url.encodedPath.startsWith("/search/")) return super.page(request)
+
+        val english = RequestLimits.optional(3500) { super.page(request) }
+        if (english != null && english.attr("data-response-code") != "404") return russianListing(english)
+        val host = mainUrl.toHttpUrlOrNull()?.host?.takeIf(russianHost::matches) ?: DEFAULT_RUSSIAN_HOST
+        return russianPage(request, url.newBuilder().host(host).build())
     }
+
+    private suspend fun russianPage(request: PageRequest, url: HttpUrl): Document {
+        val path = url.encodedPath.trimEnd('/')
+        val video = videoId(url)
+        val hosts = (listOfNotNull(catalogueHost, url.host) + mirrors).distinct()
+        var missing: Document? = null
+        for (host in hosts) {
+            val address = url.newBuilder().host(host).build()
+            val localized = request.copy(
+                url = address.toString(),
+                headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE),
+            )
+            val document = RequestLimits.optional(2800) { Network.page(localized, "https://$host/") } ?: continue
+            val actual = document.baseUri().toHttpUrlOrNull() ?: continue
+            if (!russianHost.matches(actual.host)) continue
+            if (video != null) {
+                if (videoId(actual) != video || document.selectFirst("h1.video__title") == null) continue
+            } else {
+                if (actual.encodedPath.trimEnd('/') != path ||
+                    actual.queryParameter("q") != url.queryParameter("q")) continue
+                if (document.attr("data-response-code") in setOf("404", "410") && request.allowNotFound) {
+                    missing = document
+                    continue
+                }
+                if (document.selectFirst("html[lang=ru]") == null) continue
+                catalogueHost = actual.host
+            }
+            return document
+        }
+        return missing ?: throw ErrorLoadingException("Ebalka: русские зеркала сейчас не ответили на запрос.")
+    }
+
+    private fun videoId(url: HttpUrl): String? =
+        url.pathSegments.getOrNull(1)?.takeIf {
+            url.pathSegments.firstOrNull() == "videos" && it.isNotEmpty() && it.all(Char::isDigit)
+        }
 
     private fun russianVideoUrl(url: HttpUrl): HttpUrl? {
         val segments = url.pathSegments
@@ -98,7 +128,7 @@ class EbalkaProvider: RussianProvider(SiteSpec(
     private suspend fun russianCard(card: Element): RussianCard? {
         val link = card.selectFirst(spec.link)?.absUrl("href")?.toHttpUrlOrNull() ?: return null
         val url = russianVideoUrl(link) ?: return null
-        val document = super.page(PageRequest(url.toString(), allowNotFound = true, headers = mapOf("Accept-Language" to Network.RUSSIAN_LANGUAGE)))
+        val document = russianPage(PageRequest(url.toString(), allowNotFound = true), url)
         if (document.selectFirst("html[lang=ru]") == null) return null
         val canonical = document.selectFirst("link[rel=canonical]")?.absUrl("href")?.toHttpUrlOrNull() ?: url
         if (!russianHost.matches(canonical.host) || canonical.pathSegments.take(2) != url.pathSegments.take(2)) return null
@@ -122,31 +152,10 @@ class EbalkaProvider: RussianProvider(SiteSpec(
         localized
     }
 
-    private suspend fun openVideo(data: String): Document {
-        val url = data.toHttpUrlOrNull() ?: return page(PageRequest(data))
-        val id = url.pathSegments.getOrNull(1)
-        if (!russianHost.matches(url.host) || url.pathSegments.firstOrNull() != "videos" ||
-            id.isNullOrEmpty() || !id.all(Char::isDigit)) return page(PageRequest(data))
-
-        val hosts = listOf(url.host, "1ebalka.ru.actor", "ebalka1.ru.actor").distinct()
-        for (host in hosts) {
-            val address = url.newBuilder().host(host).build()
-            val document = RequestLimits.optional(3500) { page(PageRequest(address.toString(), allowNotFound = true)) }
-                ?: continue
-            val actual = document.baseUri().toHttpUrlOrNull() ?: continue
-            if (document.attr("data-response-code") == "200" && russianHost.matches(actual.host) &&
-                actual.pathSegments.take(2) == url.pathSegments.take(2) &&
-                document.selectFirst("h1.video__title") != null) return document
-        }
-        throw ErrorLoadingException("Ebalka: страница этого видео сейчас недоступна на русских адресах сайта.")
-    }
-
-    override suspend fun load(url: String): LoadResponse = loadDocument(url, openVideo(url))
-
     override suspend fun loadLinks(
         data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,
     ): Boolean {
-        val document = openVideo(data)
+        val document = page(PageRequest(data))
         return Playback.linksFromPage(name, mainUrl, document.baseUri(), document, emptyList(), subtitleCallback, callback)
     }
 }
