@@ -34,6 +34,7 @@ private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
 private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex")
 private const val LISTING_COMPLETION_RESERVE_MS = 500L
 private const val HOME_LOOKAHEAD_MS = 900L
+private const val NOODLE_HOME_POSTER_BUDGET_MS = 850L
 
 /** UI request bounds and one real preview shared by the search and detail response. */
 class ReliableProvider(
@@ -100,20 +101,53 @@ class ReliableProvider(
     private val resolvedPosters = java.util.Collections.synchronizedMap(BoundedMap<PosterKey, Pair<Long, String>>(256))
 
     private suspend fun resolvePoster(
-        provider: PosterSource, url: String, poster: String?, headers: Map<String, String>, home: Boolean = false,
+        provider: PosterSource, url: String, poster: String?, headers: Map<String, String>,
+        home: Boolean = false, timeoutMs: Long = provider.posterTimeoutMs,
     ): String? {
         val key = PosterKey(videoKey(url), poster, headers.toMap())
         resolvedPosters[key]?.takeIf {
             System.nanoTime() - it.first < 90_000_000_000L &&
                 (!it.second.startsWith("file:") || runCatching { File(URI(it.second)).isFile }.getOrDefault(false))
         }?.let { return it.second }
-        val resolved = RequestLimits.optional(provider.posterTimeoutMs) {
+        val resolved = RequestLimits.optional(timeoutMs) {
             posterPermits.withPermit {
                 if (home) provider.resolveHomePoster(url, poster, headers) else provider.resolvePoster(url, poster, headers)
             }
         }
         if (resolved != null && resolved != poster) resolvedPosters[key] = System.nanoTime() to resolved
         return resolved
+    }
+
+    private val queuedHomePosters = ConcurrentHashMap.newKeySet<String>()
+    private val pendingHomePosters by lazy {
+        Channel<MovieSearchResponse>(48).also { queue ->
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            repeat(2) {
+                scope.launch {
+                    val provider = source as? NoodlePosterSource ?: return@launch
+                    for (card in queue) {
+                        try {
+                            val headers = card.posterHeaders.orEmpty()
+                            val poster = resolvePoster(provider, card.url, card.posterUrl, headers)
+                            if (poster != null && poster != card.posterUrl) {
+                                Metadata.rememberPoster(card.url, poster)
+                                ImagePrefetch.warm(poster, resolvedPosterHeaders(poster, card.url, headers))
+                            }
+                        } catch (_: LinkageError) {
+                        } finally {
+                            queuedHomePosters.remove(videoKey(card.url))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun queueHomePoster(card: MovieSearchResponse) {
+        val key = videoKey(card.url)
+        if (queuedHomePosters.add(key) && pendingHomePosters.trySend(card).isFailure) {
+            queuedHomePosters.remove(key)
+        }
     }
 
     private fun resolvedPosterHeaders(poster: String, url: String, headers: Map<String, String>): Map<String, String> =
@@ -123,6 +157,7 @@ class ReliableProvider(
         items: List<SearchResponse>, missingOnly: Boolean = false, home: Boolean = false,
     ): List<SearchResponse> = coroutineScope {
         val provider = source as? PosterSource ?: return@coroutineScope items
+        val fastHome = home && (provider as? NoodlePosterSource)?.fastHomeCovers == true
         items.mapIndexed { index, item -> async {
             if (item !is MovieSearchResponse || (missingOnly && !item.posterUrl.isNullOrBlank())) return@async item
             val headers = item.posterHeaders.orEmpty()
@@ -130,7 +165,9 @@ class ReliableProvider(
             val poster = if (provider.reuseConfirmedPosters && original != null && PosterRequests.confirmed(original, headers)) {
                 original
             } else {
-                resolvePoster(provider, item.url, original, headers, home)
+                val budget = if (fastHome) NOODLE_HOME_POSTER_BUDGET_MS else provider.posterTimeoutMs
+                resolvePoster(provider, item.url, original, headers, home, budget)
+                    .also { if (it == null && fastHome) queueHomePoster(item) }
             }
             val ready = if (poster == null || poster == item.posterUrl) item else {
                 Metadata.rememberPoster(item.url, poster)
