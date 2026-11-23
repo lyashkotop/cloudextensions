@@ -22,7 +22,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeoutOrNull
 
-private const val SEARCH_REVIEW_LIMIT = 10
+private const val SEARCH_REVIEW_LIMIT = 7
 private const val SEARCH_PAGE_MINIMUM = 4
 private const val MAX_UPSTREAM_PAGES_PER_EXPANSION = 4
 private const val SEARCH_REVIEW_BUDGET_MS = 5_000L
@@ -33,7 +33,7 @@ private const val FAST_LISTING_RATING_BUDGET_MS = 1_500L
 private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
 private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex")
 private const val LISTING_COMPLETION_RESERVE_MS = 500L
-private const val HOME_LOOKAHEAD_MS = 900L
+private const val HOME_LOOKAHEAD_MS = 600L
 private const val NOODLE_HOME_POSTER_BUDGET_MS = 850L
 
 /** UI request bounds and one real preview shared by the search and detail response. */
@@ -332,7 +332,7 @@ class ReliableProvider(
         posters.mapIndexed { index, poster ->
             val score = scores[index]
             if (poster is MovieSearchResponse && score != null && poster.score == null) poster.copy(score = score)
-            else poster
+            else cachedScore(poster)
         }
     }
 

@@ -53,7 +53,7 @@ object Network {
     private val cache = Collections.synchronizedMap(BoundedMap<PageKey, Pair<Long, Document>>(24))
     private class PageGate(val mutex: Mutex = Mutex(), var users: Int = 1)
     private val locks = ConcurrentHashMap<PageKey, PageGate>()
-    private val permits = Semaphore(4)
+    private val permits = Semaphore(6)
     private val backgroundPermits = Semaphore(2)
     internal object Background : AbstractCoroutineContextElement(Background.Key) {
         object Key : CoroutineContext.Key<Background>
