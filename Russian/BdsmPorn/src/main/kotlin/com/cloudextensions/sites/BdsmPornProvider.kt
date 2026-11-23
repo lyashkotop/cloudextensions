@@ -1,6 +1,5 @@
 package com.cloudextensions.sites
 
-import com.cloudextensions.russian.ContentPolicy
 import com.cloudextensions.russian.Metadata
 import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.PageRequest
@@ -12,7 +11,6 @@ import com.cloudextensions.russian.VideoDetail
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.newExtractorLink
-import java.util.Locale
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -22,8 +20,8 @@ class BdsmPornProvider : RussianProvider(
     SiteSpec(
         id = "BdsmPorn",
         title = "1. BDSM-Porn.cc",
-        origin = "https://bdsm-porn.cc",
-        cards = ".video.trailer:has(> a[href^=/video/])",
+        origin = "https://ru.bdsm-porn.cc",
+        cards = ".video:has(> a[href^=/video/])",
         link = "a[href^=/video/]",
         titleSelector = "h3 .title",
         detailTitleSelector = ".video-header h1",
@@ -43,51 +41,36 @@ class BdsmPornProvider : RussianProvider(
     override val includeTaxonomyResults = false
 
     override suspend fun searchRequest(term: String): PageRequest =
-        PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/videos").addQueryParameter(searchTerm, term).build().toString())
+        PageRequest(mainUrl.toHttpUrl().newBuilder()
+            .encodedPath("/search").query(null).addQueryParameter("q", term).build().toString())
 
     override suspend fun page(request: PageRequest): Document {
-        val address = request.url.toHttpUrl()
         val localized = request.copy(headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE))
-        val term = address.queryParameter(searchTerm)
-        if (term != null) return filterCatalogue(localized, address, term)
         val document = super.page(localized)
         return document.clone().apply {
             selectFirst(".video-header h1")?.children()?.remove()
-            nextPage(this)?.let { (anchor, _) -> anchor.attr("rel", "next") }
+            nextPage(this)?.let { (anchor, next) ->
+                anchor.attr("rel", "next").attr("href", next.toString())
+            }
         }
     }
 
     private fun nextPage(document: Document): Pair<org.jsoup.nodes.Element, HttpUrl>? {
         val address = document.baseUri().toHttpUrl()
         val current = address.queryParameter("page")?.toIntOrNull() ?: 1
+        val query = address.queryParameter("q")
         return document.select("a.pagenav[href]").firstNotNullOfOrNull { anchor ->
-            val next = anchor.absUrl("href").toHttpUrlOrNull()
-            if (next?.host == address.host && next.encodedPath == address.encodedPath &&
-                next.queryParameter("page")?.toIntOrNull() == current + 1
-            ) anchor to next else null
+            val next = anchor.absUrl("href").toHttpUrlOrNull() ?: return@firstNotNullOfOrNull null
+            if (next.host != address.host || next.encodedPath.trimEnd('/') != address.encodedPath.trimEnd('/') ||
+                next.queryParameter("page")?.toIntOrNull() != current + 1
+            ) return@firstNotNullOfOrNull null
+            val outgoingQuery = next.queryParameter("q")
+            if (outgoingQuery != null && outgoingQuery != query) return@firstNotNullOfOrNull null
+            val resolved = if (query != null && outgoingQuery == null) {
+                next.newBuilder().addQueryParameter("q", query).build()
+            } else next
+            anchor to resolved
         }
-    }
-
-    private suspend fun filterCatalogue(request: PageRequest, address: HttpUrl, term: String): Document {
-        val words = words.findAll(normalize(term)).map { it.value }.toList()
-        val result = Document.createShell(request.url)
-        var next: HttpUrl? = address.newBuilder().removeAllQueryParameters(searchTerm).build()
-        repeat(6) {
-            val current = next ?: return result
-            val document = super.page(request.copy(url = current.toString(), allowNotFound = true))
-            if (document.attr("data-response-code") in setOf("404", "410")) return result
-            for (card in document.select(spec.cards)) {
-                val title = card.selectFirst(spec.titleSelector)?.text().orEmpty()
-                if (words.isNotEmpty() && words.all(normalize(title)::contains) && ContentPolicy.accepts(title)) {
-                    result.body().appendChild(card.clone())
-                }
-            }
-            next = nextPage(document)?.second
-        }
-        next?.newBuilder()?.addQueryParameter(searchTerm, term)?.build()?.let {
-            result.body().appendElement("a").attr("rel", "next").attr("href", it.toString())
-        }
-        return result
     }
 
     override fun readMetadata(document: Document): VideoDetail {
@@ -104,9 +87,10 @@ class BdsmPornProvider : RussianProvider(
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
         val document = page(PageRequest(data))
+        val pageHost = document.baseUri().toHttpUrl().host
         val sources = document.select("video#player[src], video#player source[src]")
             .mapNotNull { it.absUrl("src").toHttpUrlOrNull() }
-            .filter { it.host == mainUrl.toHttpUrl().host && it.encodedPath.startsWith("/link_cs/") }
+            .filter { it.host in setOf(pageHost, "bdsm-porn.cc", "ru.bdsm-porn.cc") && it.encodedPath.startsWith("/link_cs/") }
             .distinct()
         var emitted = false
         for (source in sources) {
@@ -123,10 +107,4 @@ class BdsmPornProvider : RussianProvider(
         return emitted || Playback.linksFromPage(name, mainUrl, data, document, emptyList(), subtitleCallback, callback)
     }
 
-    private fun normalize(value: String): String = value.lowercase(Locale.ROOT).replace('ё', 'е')
-
-    private companion object {
-        const val searchTerm = "_ce_search"
-        val words = Regex("""[\p{L}\p{N}]+""")
-    }
 }
