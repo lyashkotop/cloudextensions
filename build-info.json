@@ -1,12 +1,12 @@
 {
-  "version": 206,
-  "sourceCommit": "d5feeb7c28732c9bef0c71c5efd20b4a3baa125f",
+  "version": 207,
+  "sourceCommit": "53effc43b219687cca034ccde2d3e3f089eed1c0",
   "packageLayout": "versioned",
   "plugins": 36,
   "rebuilt": [
     "Ebalka"
   ],
-  "dexClasses": 11463,
+  "dexClasses": 11466,
   "entryRegistrationsValidated": 36,
   "kotlinProviders": 36
 }
