@@ -40,9 +40,9 @@
     "fileHash": "sha256-6c3092cf800796f55db9b1e6170338b970b9f5d9ba7e0ef045ead8f3ae16df09"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/191/Ebalka.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/192/Ebalka.cs3",
     "status": 1,
-    "version": 191,
+    "version": 192,
     "apiVersion": 1,
     "name": "1 · RU · Ebalka",
     "internalName": "Ebalka",
@@ -56,8 +56,8 @@
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Ebalka.png",
-    "fileSize": 216644,
-    "fileHash": "sha256-cbb807d43d09cd4d33786f73a70b7e64f18c51d412d19bb191f319bfa1a8d69f"
+    "fileSize": 219248,
+    "fileHash": "sha256-de283f2b74e53c25040c2af84d39ec291dc4e834199b789917490f13792c1953"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/191/Huyamba.cs3",
