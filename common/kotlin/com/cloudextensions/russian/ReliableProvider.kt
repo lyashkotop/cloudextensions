@@ -121,7 +121,7 @@ class ReliableProvider(
     private val queuedHomePosters = ConcurrentHashMap.newKeySet<String>()
     private val pendingHomePosters by lazy {
         Channel<MovieSearchResponse>(48).also { queue ->
-            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + Network.Background)
             repeat(2) {
                 scope.launch {
                     val provider = source as? NoodlePosterSource ?: return@launch
@@ -252,7 +252,7 @@ class ReliableProvider(
     private val unrated = java.util.Collections.synchronizedMap(BoundedMap<String, Long>(512))
     private val pendingRatings by lazy {
         Channel<String>(Channel.UNLIMITED).also { queue ->
-            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + Network.Background)
             repeat(3) {
                 scope.launch {
                     val profile = ratingProfile ?: return@launch
@@ -325,6 +325,7 @@ class ReliableProvider(
     private suspend fun prepareListing(
         items: List<SearchResponse>, deadline: Long, home: Boolean = false, missingPostersOnly: Boolean = false,
     ): List<SearchResponse> = coroutineScope {
+        if (source !is PosterSource) ImagePrefetch.warm(items)
         val ratings = async { listingScores(items, deadline) }
         val posters = withResolvedPosters(items, missingOnly = missingPostersOnly, home = home)
         val scores = ratings.await()
@@ -420,33 +421,46 @@ class ReliableProvider(
             return@coroutineScope emptyList()
         }
         val native = source as? RussianProvider
-        val sections = history.taxonomy ?: run {
+        fun pending(sections: List<Section>) =
+            sections.filter { page <= (history.taxonomyEnds[it.path] ?: Int.MAX_VALUE) }.map { section ->
+                async {
+                    section to RequestLimits.optional(if (aliases.isNotEmpty()) 4500 else 1800) {
+                        if (native != null) native.taxonomySearch(section, page)
+                        else {
+                            (source as? NoodlePosterSource)?.searchCategoryPage(section.path, page)
+                                ?: source.getMainPage(page, MainPageRequest(section.name, section.path, false))?.let { home ->
+                                    newSearchResponseList(home.items.flatMap { it.list }, home.hasNext)
+                                }
+                        }
+                    }
+                }
+            }
+
+        fun sectionKey(section: Section): String =
+            if (aliases.isEmpty()) TaxonomySearch.kind(section.path) ?: "category"
+            else absolute(mainUrl, section.path)?.trimEnd('/') ?: section.path
+
+        val saved = history.taxonomy
+        val tasks = if (saved != null) pending(saved) else {
             val declared = (native?.spec?.searchSections.orEmpty() + source.mainPage.map { Section(it.name, it.data) })
                 .filter {
                     TaxonomySearch.matches(it.name, terms, expandGenre = aliases.isNotEmpty()) &&
                         (TaxonomySearch.kind(it.path) != null || source is NoodlePosterSource && !it.path.startsWith('/') ||
                             aliases.isNotEmpty() && native != null && it.path.trim('/').isNotEmpty() &&
                             Translation.searchAliases(it.path.trim('/')).any(terms::contains))
+                }.distinctBy(::sectionKey)
+            val declaredTasks = pending(declared)
+            val linked = native?.let {
+                RequestLimits.optional(if (aliases.isNotEmpty()) 3000 else 1100) {
+                    it.taxonomyLinks(terms, allMatches = aliases.isNotEmpty())
                 }
-            val linked = native?.let { RequestLimits.optional(if (aliases.isNotEmpty()) 3000 else 1100) { it.taxonomyLinks(terms, allMatches = aliases.isNotEmpty()) } }.orEmpty()
-            (declared + linked).distinctBy {
-                if (aliases.isEmpty()) TaxonomySearch.kind(it.path) ?: "category"
-                else absolute(mainUrl, it.path)?.trimEnd('/') ?: it.path
-            }.also { history.taxonomy = it }
+            }.orEmpty()
+            val used = declared.mapTo(mutableSetOf(), ::sectionKey)
+            val discovered = linked.filter { used.add(sectionKey(it)) }
+            history.taxonomy = declared + discovered
+            declaredTasks + pending(discovered)
         }
-        val replies = sections.filter { page <= (history.taxonomyEnds[it.path] ?: Int.MAX_VALUE) }.map { section ->
-            async {
-                section to RequestLimits.optional(if (aliases.isNotEmpty()) 4500 else 1800) {
-                    if (native != null) native.taxonomySearch(section, page)
-                    else {
-                        (source as? NoodlePosterSource)?.searchCategoryPage(section.path, page)
-                            ?: source.getMainPage(page, MainPageRequest(section.name, section.path, false))?.let { home ->
-                                newSearchResponseList(home.items.flatMap { it.list }, home.hasNext)
-                            }
-                    }
-                }
-            }
-        }.awaitAll()
+        val replies = tasks.awaitAll()
         for ((section, response) in replies) {
             if (response != null && !response.hasNext) history.taxonomyEnds[section.path] = page
         }

@@ -7,6 +7,9 @@ import java.io.IOException
 import java.util.Collections
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -46,10 +49,15 @@ object Network {
         val wait=try{java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz",java.util.Locale.US).parse(value)!!.time-System.currentTimeMillis()}catch(_:Exception){return null}
         return wait.coerceAtLeast(0).takeIf{it<=3000}
     }
-    private val cache = Collections.synchronizedMap(BoundedMap<PageRequest,Pair<Long,Document>>(24))
+    private data class PageKey(val request: PageRequest, val referer: String)
+    private val cache = Collections.synchronizedMap(BoundedMap<PageKey, Pair<Long, Document>>(24))
     private class PageGate(val mutex: Mutex = Mutex(), var users: Int = 1)
-    private val locks = ConcurrentHashMap<PageRequest, PageGate>()
+    private val locks = ConcurrentHashMap<PageKey, PageGate>()
     private val permits = Semaphore(4)
+    private val backgroundPermits = Semaphore(2)
+    internal object Background : AbstractCoroutineContextElement(Background.Key) {
+        object Key : CoroutineContext.Key<Background>
+    }
     const val USER_AGENT = "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
     const val RUSSIAN_LANGUAGE = "ru-RU,ru;q=0.9,en;q=0.8"
     fun headers(referer: String) = mapOf("User-Agent" to USER_AGENT,"Referer" to referer)
@@ -69,16 +77,22 @@ object Network {
             imageHeaders(poster, headers["Referer"] ?: url)
 
     suspend fun page(request: PageRequest, referer: String): Document = RequestLimits.required("Страница",18_000) {
-        pageUnbounded(request,referer)
+        if (coroutineContext[Background.Key] != null) {
+            backgroundPermits.withPermit { pageUnbounded(request, referer) }
+        } else pageUnbounded(request, referer)
     }
     private suspend fun pageUnbounded(request: PageRequest, referer: String): Document {
         val revalidate = request.headers.any { (key, value) ->
             key.equals("Cache-Control", true) && value.split(',').any { it.trim().equals("no-cache", true) }
         }
+        // Successful pages are identical for callers with different 404 handling.
+        val effectiveReferer = request.headers.entries.lastOrNull { it.key.equals("Referer", true) }?.value ?: referer
+        val key = PageKey(request.copy(allowNotFound = false), effectiveReferer)
         fun cached() = if (revalidate) null else
-            cache[request]?.takeIf { System.nanoTime()-it.first < TimeUnit.SECONDS.toNanos(30) }?.second
+            cache[key]?.takeIf { System.nanoTime()-it.first < TimeUnit.SECONDS.toNanos(30) }?.second
+                ?.takeIf { request.allowNotFound || it.attr("data-response-code") !in setOf("404", "410") }
         cached()?.let { return it }
-        val gate = locks.compute(request) { _, pending -> pending?.also { it.users++ } ?: PageGate() }!!
+        val gate = locks.compute(key) { _, pending -> pending?.also { it.users++ } ?: PageGate() }!!
         return try { gate.mutex.withLock {
             cached() ?: permits.withPermit {
                 // Strip2 can serve cached documents with expired signed thumbnails/media URLs.
@@ -118,11 +132,11 @@ object Network {
                 }
                 if(refresh)document.setBaseUri(request.url)
                 Metadata.alias(request.url,document.baseUri())
-                if (!revalidate) cache[request]=System.nanoTime() to document
+                if (!revalidate) cache[key] = System.nanoTime() to document
                 document
             }
         }} finally {
-            locks.computeIfPresent(request) { _, pending -> if (--pending.users == 0) null else pending }
+            locks.computeIfPresent(key) { _, pending -> if (--pending.users == 0) null else pending }
         }
     }
 
