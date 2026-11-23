@@ -2,11 +2,15 @@ package com.example.ebalka
 
 import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.ErrorLoadingException
+import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Element
@@ -80,22 +84,32 @@ class EbalkaProvider: RussianProvider(SiteSpec(
         return russianPage(request, url.newBuilder().host(host).build())
     }
 
+    private suspend fun requestMirror(request: PageRequest, url: HttpUrl, host: String): Document? {
+        val address = url.newBuilder().host(host).build()
+        val localized = request.copy(
+            url = address.toString(),
+            headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE),
+        )
+        return RequestLimits.optional(2800) { Network.page(localized, "https://$host/") }
+    }
+
+    private fun isRequestedVideo(document: Document, id: String): Boolean {
+        val actual = document.baseUri().toHttpUrlOrNull() ?: return false
+        return russianHost.matches(actual.host) && videoId(actual) == id &&
+            document.selectFirst("h1.video__title") != null
+    }
+
     private suspend fun russianPage(request: PageRequest, url: HttpUrl): Document {
         val path = url.encodedPath.trimEnd('/')
         val video = videoId(url)
         val hosts = (listOfNotNull(catalogueHost, url.host) + mirrors).distinct()
         var missing: Document? = null
         for (host in hosts) {
-            val address = url.newBuilder().host(host).build()
-            val localized = request.copy(
-                url = address.toString(),
-                headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE),
-            )
-            val document = RequestLimits.optional(2800) { Network.page(localized, "https://$host/") } ?: continue
+            val document = requestMirror(request, url, host) ?: continue
             val actual = document.baseUri().toHttpUrlOrNull() ?: continue
             if (!russianHost.matches(actual.host)) continue
             if (video != null) {
-                if (videoId(actual) != video || document.selectFirst("h1.video__title") == null) continue
+                if (!isRequestedVideo(document, video)) continue
             } else {
                 if (actual.encodedPath.trimEnd('/') != path ||
                     actual.queryParameter("q") != url.queryParameter("q")) continue
@@ -150,6 +164,35 @@ class EbalkaProvider: RussianProvider(SiteSpec(
             card.selectFirst("img")?.attr("alt", russian.title)?.attr("title", russian.title)
         }
         localized
+    }
+
+    override suspend fun load(url: String): LoadResponse {
+        val address = url.toHttpUrlOrNull() ?: return super.load(url)
+        val target = russianVideoUrl(address) ?: address
+        val id = videoId(target)?.takeIf { russianHost.matches(target.host) } ?: return super.load(url)
+        return loadDocument(url, openCard(target, id))
+    }
+
+    private suspend fun openCard(url: HttpUrl, id: String): Document = coroutineScope {
+        val knownHost = url.host.takeUnless { it in mirrors }
+        val hosts = (listOfNotNull(catalogueHost, knownHost) + mirrors + url.host).distinct()
+        val replies = Channel<Document?>(hosts.size)
+        val request = PageRequest(url.toString())
+        val attempts = hosts.mapIndexed { index, host ->
+            launch {
+                // Give the preferred address a head start and stop the other requests once one succeeds.
+                if (index > 0) delay(index * 125L)
+                replies.send(requestMirror(request, url, host)?.takeIf { isRequestedVideo(it, id) })
+            }
+        }
+        try {
+            repeat(hosts.size) {
+                replies.receive()?.let { return@coroutineScope it }
+            }
+            throw ErrorLoadingException("Ebalka: русские зеркала сейчас не открывают этот ролик.")
+        } finally {
+            attempts.forEach { it.cancel() }
+        }
     }
 
     override suspend fun loadLinks(
