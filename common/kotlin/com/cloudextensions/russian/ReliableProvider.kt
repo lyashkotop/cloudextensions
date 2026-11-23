@@ -557,16 +557,28 @@ class ReliableProvider(
                 val budget = if (ratingProfile == "ThisVid") THISVID_RECOMMENDATION_BUDGET_MS else SEARCH_REVIEW_BUDGET_MS
                 reviewedCards(visible, System.nanoTime() + budget * 1_000_000L)
             } else visible
-            if (ratingProfile == "UKDevilz") {
+            if (ratingProfile == "NoodleMagazine" && source is NoodlePosterSource) {
+                checked.filterIsInstance<MovieSearchResponse>().filter { it.posterUrl.isNullOrBlank() }.forEach(::queueHomePoster)
+                checked
+            } else if (ratingProfile == "UKDevilz") {
                 prepareListing(checked, System.nanoTime() + 2_000_000_000L, missingPostersOnly = true)
             } else withResolvedPosters(checked, missingOnly = true)
         }
         if(result is MovieLoadResponse) {
             val headers = Network.imageHeaders(result.posterUrl, url) + result.posterHeaders.orEmpty()
             val provider = source as? PosterSource
-            val poster = provider?.let {
-                resolvePoster(it, url, result.posterUrl, headers)
-            }
+            val poster = if (ratingProfile == "NoodleMagazine" && provider is NoodlePosterSource && !result.posterUrl.isNullOrBlank()) {
+                val existing = result.posterUrl
+                if (existing!!.startsWith("file:") && runCatching { File(URI(existing)).isFile }.getOrDefault(false) ||
+                    PosterRequests.confirmed(existing, headers)) existing
+                else resolvePoster(provider, url, existing, headers, timeoutMs = 300)
+                    ?: existing.also {
+                        queueHomePoster(newMovieSearchResponse(result.name, url, TvType.NSFW) {
+                            posterUrl = existing
+                            posterHeaders = headers
+                        })
+                    }
+            } else provider?.let { resolvePoster(it, url, result.posterUrl, headers) }
             result.posterHeaders = if (poster != null && poster != result.posterUrl) {
                 Metadata.rememberPoster(url, poster)
                 result.posterUrl = poster

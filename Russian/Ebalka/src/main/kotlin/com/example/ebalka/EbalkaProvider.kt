@@ -1,6 +1,8 @@
 package com.example.ebalka
 
 import com.cloudextensions.russian.*
+import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import kotlinx.coroutines.async
@@ -120,10 +122,31 @@ class EbalkaProvider: RussianProvider(SiteSpec(
         localized
     }
 
+    private suspend fun openVideo(data: String): Document {
+        val url = data.toHttpUrlOrNull() ?: return page(PageRequest(data))
+        val id = url.pathSegments.getOrNull(1)
+        if (!russianHost.matches(url.host) || url.pathSegments.firstOrNull() != "videos" ||
+            id.isNullOrEmpty() || !id.all(Char::isDigit)) return page(PageRequest(data))
+
+        val hosts = listOf(url.host, "1ebalka.ru.actor", "ebalka1.ru.actor").distinct()
+        for (host in hosts) {
+            val address = url.newBuilder().host(host).build()
+            val document = RequestLimits.optional(3500) { page(PageRequest(address.toString(), allowNotFound = true)) }
+                ?: continue
+            val actual = document.baseUri().toHttpUrlOrNull() ?: continue
+            if (document.attr("data-response-code") == "200" && russianHost.matches(actual.host) &&
+                actual.pathSegments.take(2) == url.pathSegments.take(2) &&
+                document.selectFirst("h1.video__title") != null) return document
+        }
+        throw ErrorLoadingException("Ebalka: страница этого видео сейчас недоступна на русских адресах сайта.")
+    }
+
+    override suspend fun load(url: String): LoadResponse = loadDocument(url, openVideo(url))
+
     override suspend fun loadLinks(
         data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,
     ): Boolean {
-        val document = page(PageRequest(data))
-        return Playback.linksFromPage(name, mainUrl, data, document, emptyList(), subtitleCallback, callback)
+        val document = openVideo(data)
+        return Playback.linksFromPage(name, mainUrl, document.baseUri(), document, emptyList(), subtitleCallback, callback)
     }
 }
