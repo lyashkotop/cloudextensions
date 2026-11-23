@@ -100,9 +100,9 @@
     "fileHash": "sha256-1b15f563e7041ccc94c4134aa259eebbb0a61135a3d73e5f10379155ef0cd68a"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/203/Perdol.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/204/Perdol.cs3",
     "status": 1,
-    "version": 203,
+    "version": 204,
     "apiVersion": 1,
     "name": "1 · RU · Perdol.net",
     "internalName": "Perdol",
@@ -116,8 +116,8 @@
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Perdol.png",
-    "fileSize": 223469,
-    "fileHash": "sha256-28fae5c4f9c1776923b2f0fb9498ee357ebb4923ed9d91128512fc80763bab11"
+    "fileSize": 223664,
+    "fileHash": "sha256-6b27292362be6914ec59ab26359a30f026edc1016f39434774828bef3dd97408"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/203/ProstoPorno.cs3",
