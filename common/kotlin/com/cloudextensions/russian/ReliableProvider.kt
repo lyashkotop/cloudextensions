@@ -20,6 +20,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val SEARCH_REVIEW_LIMIT = 7
@@ -236,6 +237,7 @@ class ReliableProvider(
 
     private suspend fun prepareSearch(items: List<SearchResponse>, deadline: Long): List<SearchResponse> = coroutineScope {
         val normalized = items.filter { isAvailable(it.url) && ContentPolicy.accepts(it.name, Metadata.cardTags(it.url)) }.map { normalizeCard(it) }
+        ImagePrefetch.warm(normalized)
         val reviewed = previewSearch(normalized, deadline)
         reviewed.map { card ->
             async {
@@ -382,7 +384,14 @@ class ReliableProvider(
         }
         data class Batch(val response: SearchResponseList?, val error: Exception? = null)
         suspend fun branch(term: String): Batch = try {
-            Batch(source.search(term, page))
+            val response = source.search(term, page)
+            if (term == query && response != null && !requiresListingReview) {
+                val first = response.items.asSequence()
+                    .filter { isAvailable(it.url) && ContentPolicy.accepts(it.name, Metadata.cardTags(it.url)) }
+                    .take(12).map { normalizeCard(it, title = it.name) }.toList()
+                ImagePrefetch.warm(first)
+            }
+            Batch(response)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -529,7 +538,8 @@ class ReliableProvider(
     override suspend fun load(url: String): LoadResponse = RequestLimits.required("Карточка") { loadCard(url) }
 
     private suspend fun loadCard(url: String): LoadResponse = coroutineScope {
-        val result=savedReview(url)?.detail ?: source.load(url) ?: throw ErrorLoadingException("Источник не вернул карточку")
+        val result = savedReview(url)?.detail ?: withContext(Network.OpeningDetail) { source.load(url) }
+            ?: throw ErrorLoadingException("Источник не вернул карточку")
         val listedTags = Metadata.cardTags(url)
         val tagsSource = (source as? DetailTagSource) ?: (source as? AdaptedProvider)?.detailTagSource
         val missingTags = if (tagsSource != null && result.tags.isNullOrEmpty()) {
