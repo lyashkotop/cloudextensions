@@ -7,7 +7,6 @@ import java.util.LinkedHashMap
 interface SearchPolicy {
     val translateQueries:Boolean get()=true
     val includeTaxonomyResults: Boolean get() = true
-    val expandSearchAliases: Boolean get() = true
     val requiresListingReview: Boolean get() = false
     val preferredTitleLanguage: String get() = ""
     suspend fun fullTitle(url:String):String? = null
@@ -32,6 +31,7 @@ data class SiteSpec(
     val detailTitleSelector: String = "", val durationSelector: String = "",
     val titleLanguage:String="",
     val searchContainer: String = "",
+    val searchSections: List<Section> = emptyList(),
 )
 data class VideoCard(val title: String, val url: String, val poster: String?, val duration: String = "", val tags: List<String> = emptyList(), val score: Score? = null)
 data class VideoDetail(val title: String, val poster: String?, val description: String, val tags: List<String>, val duration: String, val year: Int?, val score: Score? = null)

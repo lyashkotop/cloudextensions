@@ -7,7 +7,8 @@ class HcBdsMxProvider: RussianProvider(SiteSpec(
  tagSelector="main .min-w-0 > .mt-5 a[href^=/tags/], main .min-w-0 > .mt-3 a[href^=/categories/]",
  related="main aside:has(> h2:matchesOwn((?i)^up next$)), #related-videos, .related-videos",
  sections=listOf(Section("Latest","/latest-updates/"),Section("Popular","/trending/"),
-    Section("Homemade","/categories/homemade/"),Section("Amateur","/categories/amateur/"))
+    Section("Homemade","/categories/homemade/"),Section("Amateur","/categories/amateur/")),
+ searchSections=listOf(Section("Homemade","/tags/homemade/"),Section("Amateur","/tags/amateur/"))
 )) {
     override var lang = "en"
 

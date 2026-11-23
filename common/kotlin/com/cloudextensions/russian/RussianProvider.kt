@@ -5,6 +5,9 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import java.net.URI
 import java.util.Collections
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.jsoup.nodes.Document
@@ -90,11 +93,18 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
 
     internal suspend fun taxonomyLinks(terms: Set<String>, allMatches: Boolean = false): List<Section> {
         val root = page(PageRequest(mainUrl.trimEnd('/') + "/"))
-        val links = TaxonomySearch.links(root, terms)
+        val links = TaxonomySearch.links(root, terms, expandGenre = allMatches)
         if (!allMatches && links.any { TaxonomySearch.kind(it.path) == "tag" }) return links
-        val directory = TaxonomySearch.tagDirectory(root) ?: return links
-        val published = RequestLimits.optional(if (allMatches) 1800 else 650) { TaxonomySearch.links(page(PageRequest(directory)), terms) }
-        return links + published.orEmpty()
+        val published = coroutineScope {
+            TaxonomySearch.directories(root, includeCategories = allMatches).map { directory ->
+                async {
+                    RequestLimits.optional(if (allMatches) 1800 else 650) {
+                        TaxonomySearch.links(page(PageRequest(directory)), terms, expandGenre = allMatches)
+                    }.orEmpty()
+                }
+            }.awaitAll().flatten()
+        }
+        return links + published
     }
 
     private suspend fun searchPages(term: String, page: Int, taxonomyUrl: String? = null): SearchResponseList {

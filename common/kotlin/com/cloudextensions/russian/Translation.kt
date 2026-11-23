@@ -14,16 +14,27 @@ object Translation {
     fun configure(context:Context){shared=context.applicationContext.getSharedPreferences("cloudextensions-translations",Context.MODE_PRIVATE)}
     private val dictionary=mapOf("bdsm" to "бдсм","guy" to "парень","woman" to "женщина","girl" to "девушка","man" to "мужчина","mother" to "мать","mom" to "мама","aunt" to "тётя","lesbian" to "лесбиянка","lesbians" to "лесбиянки","spanking" to "порка","two words" to "два слова")
     private val searchGroups = listOf(
+        setOf("домашка", "домашнее", "любительское", "homemade", "amateur", "amateurs"),
+        setOf("бдсм", "bdsm"),
+        setOf("анал", "анальный секс", "anal", "anal sex"),
         setOf("порка", "spanking", "whipping", "whipped"),
-        setOf("домашка", "домашнее", "homemade", "amateur"),
+        setOf("связывание", "бондаж", "bondage"),
+        setOf("фетиш", "fetish"),
+        setOf("лесби", "лесбиянки", "lesbian", "lesbians"),
+        setOf("милф", "milf", "milfs"),
+        setOf("групповое", "групповой секс", "group sex"),
     )
+    private val genreQualifiers = Regex("""(?iu)^(?:порно|видео|porn|videos?) +| +(?:порно|видео|porn|videos?)$""")
 
     fun searchAliases(query: String): Set<String> {
-        val word = Metadata.clean(query).lowercase(Locale.ROOT)
-        if (word in setOf("amateurs", "любительское", "домашнее видео", "любительское видео", "home made")) {
-            return searchGroups.last()
+        val label = Metadata.clean(query.replace('-', ' ').replace('_', ' ')).lowercase(Locale.ROOT)
+        val term = genreQualifiers.replace(genreQualifiers.replace(label, ""), "")
+        val canonical = when (term) {
+            "home made", "real homemade", "русское домашнее", "russian homemade" -> "homemade"
+            "анальное", "анальный", "анал секс" -> "анал"
+            else -> term
         }
-        return searchGroups.firstOrNull { word in it }.orEmpty()
+        return searchGroups.firstOrNull { canonical in it }.orEmpty()
     }
     private val cache=Collections.synchronizedMap(BoundedMap<String,String>(256))
     fun target(query: String): String? {

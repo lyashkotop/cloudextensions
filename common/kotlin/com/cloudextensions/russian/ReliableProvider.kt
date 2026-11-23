@@ -231,7 +231,7 @@ class ReliableProvider(
             accepted += reviewedCards(items.subList(cursor, end), deadline)
             cursor = end
         }
-        return if (accepted.size >= SEARCH_REVIEW_LIMIT) accepted + items.drop(cursor) else accepted
+        return accepted + items.drop(cursor).filter { savedReview(it.url)?.allowed != false }
     }
 
     private suspend fun prepareSearch(items: List<SearchResponse>, deadline: Long): List<SearchResponse> = coroutineScope {
@@ -396,7 +396,7 @@ class ReliableProvider(
                 val terms = listOf(query) + aliases.filterNot { it.equals(Metadata.clean(query), ignoreCase = true) }
                 val replies = terms.filter { page <= (history.aliasEnds[it] ?: Int.MAX_VALUE) }.map { term ->
                     async {
-                        term to if (term == query) branch(term) else RequestLimits.optional(4500) { branch(term) }
+                        term to if (term == query) branch(term) else RequestLimits.optional(6500) { branch(term) }
                     }
                 }.awaitAll()
                 for ((term, batch) in replies) {
@@ -421,10 +421,13 @@ class ReliableProvider(
         }
         val native = source as? RussianProvider
         val sections = history.taxonomy ?: run {
-            val declared = source.mainPage.filter {
-                TaxonomySearch.matches(it.name, terms) &&
-                    (TaxonomySearch.kind(it.data) != null || source is NoodlePosterSource && !it.data.startsWith('/'))
-            }.map { Section(it.name, it.data) }
+            val declared = (native?.spec?.searchSections.orEmpty() + source.mainPage.map { Section(it.name, it.data) })
+                .filter {
+                    TaxonomySearch.matches(it.name, terms, expandGenre = aliases.isNotEmpty()) &&
+                        (TaxonomySearch.kind(it.path) != null || source is NoodlePosterSource && !it.path.startsWith('/') ||
+                            aliases.isNotEmpty() && native != null && it.path.trim('/').isNotEmpty() &&
+                            Translation.searchAliases(it.path.trim('/')).any(terms::contains))
+                }
             val linked = native?.let { RequestLimits.optional(if (aliases.isNotEmpty()) 3000 else 1100) { it.taxonomyLinks(terms, allMatches = aliases.isNotEmpty()) } }.orEmpty()
             (declared + linked).distinctBy {
                 if (aliases.isEmpty()) TaxonomySearch.kind(it.path) ?: "category"
@@ -451,7 +454,7 @@ class ReliableProvider(
     }
 
     private suspend fun combinedSearch(query: String, page: Int, history: SearchHistory): SearchResponseList = coroutineScope {
-        val aliases = if (lang in listOf("ru", "en") && (source as? SearchPolicy)?.expandSearchAliases != false) {
+        val aliases = if (lang in listOf("ru", "en")) {
             Translation.searchAliases(query)
         } else emptySet()
         val matches = async {
@@ -490,7 +493,8 @@ class ReliableProvider(
             val budget = if (requiresListingReview) 10_000L else SEARCH_REVIEW_BUDGET_MS
             val deadline = minOf(listingDeadline - 6_000_000_000L, System.nanoTime() + budget * 1_000_000L)
             val cards = mutableListOf<SearchResponse>()
-            var limit = if (page == 1 && !requiresListingReview) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
+            val genre = lang in listOf("ru", "en") && Translation.searchAliases(query).isNotEmpty()
+            var limit = if (page == 1 && !requiresListingReview && !genre) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
             while (true) {
                 val unique = result.items.distinctBy(::searchKey).filter { searchKey(it) !in seen }
                 val checked = prepareSearch(unique, deadline)
