@@ -4,7 +4,9 @@ import com.cloudextensions.russian.*
 
 class PerdolProvider: RussianProvider(SiteSpec(
     id="Perdol", title="Perdol.net", origin="https://b.perdol.net",
-    cards="a.card", link="a[href]", titleSelector=".card__title", searchMode="path",
+    cards = """a.card[data-ajax=video][href~=(?i)^(?:https?://(?:[a-z0-9-]+\.)*perdol\.net)?/videos/[0-9]+/]:has(.card__title):not(:has(.card__title:matches((?iu)^\s*лучшие\s+модели[!.… ]*$))):not([title~=(?iu)^\s*лучшие\s+модели[!.… ]*$])""",
+    link = "a[href]", titleSelector = ".card__title", searchMode = "path",
+    searchContainer = "main .cards > .container:has(h1:contains(Результаты поиска))",
     tagSelector=".trailer__col .btn-group a[href*=/categor], .trailer__col .btn-group a[href*=/tag]", descriptionSelector="", related="#list_videos_related_videos",
     sections=listOf(
         Section("Новинки","/"),
