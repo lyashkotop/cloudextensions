@@ -4,8 +4,8 @@ import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.LoadResponse
 
 class HuyambaProvider: RussianProvider(SiteSpec(
-    id="Huyamba", title="Huyamba", origin="https://retro.huyamba.mobi",
-    cards="a.card", link="a[href]", titleSelector=".title", searchMode="get",
+    id="Huyamba", title="Huyamba", origin="https://ru.huyamba.name",
+    cards="a.card", link="a[href]", titleSelector=".title", searchMode="path",
     tagSelector=".video-controls .video-list a[href*=/categor], .video-controls .video-list a[href*=/tag]", descriptionSelector="", related="#list_videos_related_videos,#list_videos_recommended_videos",
     sections=listOf(
         Section("Новинки","/"),
