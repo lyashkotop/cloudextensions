@@ -1,12 +1,12 @@
 {
-  "version": 214,
-  "sourceCommit": "b57f8a196fe3bf38325a0c6bb2cb61782946f311",
+  "version": 215,
+  "sourceCommit": "eb792864c97039a5ecb0ef3fe633fd8b1c83c778",
   "packageLayout": "versioned",
-  "plugins": 36,
+  "plugins": 37,
   "rebuilt": [
-    "NoodleMagazine"
+    "RoughXXXTube"
   ],
-  "dexClasses": 11758,
-  "entryRegistrationsValidated": 36,
-  "kotlinProviders": 36
+  "dexClasses": 12077,
+  "entryRegistrationsValidated": 37,
+  "kotlinProviders": 37
 }

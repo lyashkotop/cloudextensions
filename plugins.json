@@ -140,6 +140,26 @@
     "fileHash": "sha256-8ff9da930d587626193bd5dcf82cc37beeeb7fc2e8e4080b68c52a49161f1dfc"
   },
   {
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/215/RoughXXXTube.cs3",
+    "status": 1,
+    "version": 215,
+    "apiVersion": 1,
+    "name": "1 · RU · RoughXXXTube",
+    "internalName": "RoughXXXTube",
+    "authors": [
+      "lyashkotop"
+    ],
+    "description": "RoughXXXTube · русскоязычная версия сайта, поиск, новинки и популярное.",
+    "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
+    "tvTypes": [
+      "NSFW"
+    ],
+    "language": "ru",
+    "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/RoughXXXTube.png",
+    "fileSize": 227488,
+    "fileHash": "sha256-70e7807a7a250caf23ddcab2145c45e01675a82a0a0dcc5d310feeaa7495b016"
+  },
+  {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/213/Semyana.cs3",
     "status": 1,
     "version": 213,
