@@ -21,6 +21,7 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
 
 class BdsmPornProvider : RussianProvider(
     SiteSpec(
@@ -44,22 +45,18 @@ class BdsmPornProvider : RussianProvider(
         ),
     ),
 ) {
-    override val includeTaxonomyResults = false
-
     override suspend fun searchRequest(term: String): PageRequest =
         PageRequest(mainUrl.toHttpUrl().newBuilder()
             .encodedPath("/search").query(null).addQueryParameter("q", term).build().toString())
 
     private val guyTitle = Regex("""(?iu)(?<![\p{L}\p{N}])(?:пар(?:ень|ня|ню|нем|не|ни|ней|ням|нями|нях)|guys?)(?![\p{L}\p{N}])""")
     private val slaveTitle = Regex("""(?iu)(?<![\p{L}\p{N}])(?:рабын(?:я|и|ю|ей|ь|ям|ями|ях)|slaves?)(?![\p{L}\p{N}])""")
+    private val titleWord = Regex("""[\p{L}\p{N}]+""")
 
     override suspend fun search(query: String, page: Int): SearchResponseList {
-        val section = when (Metadata.clean(query).lowercase(Locale.ROOT)) {
-            "парень", "guy" -> "/videos" to guyTitle
-            "рабыня", "рабыни", "slave", "slaves" -> "/bdsm" to slaveTitle
-            else -> return super.search(query, page)
-        }
-        if (page < 1) return newSearchResponseList(emptyList(), false)
+        val term = Metadata.clean(query).lowercase(Locale.ROOT)
+        val words = titleWords(term)
+        if (page < 1 || words.isEmpty()) return newSearchResponseList(emptyList(), false)
         val original = try {
             Result.success(super.search(query, page))
         } catch (error: CancellationException) {
@@ -71,11 +68,17 @@ class BdsmPornProvider : RussianProvider(
         if (response != null && (response.items.isNotEmpty() || response.hasNext)) return response
 
         val catalogue = RequestLimits.optional(4000) {
-            val request = MainPageRequest(section.first, section.first, sequentialMainPage)
+            val request = MainPageRequest("Видео", "/videos", sequentialMainPage)
             val first = getMainPage(page * 2 - 1, request)
             val next = if (first.hasNext) getMainPage(page * 2, request) else null
             val matches = (first.items + next?.items.orEmpty()).flatMap { it.list }
-                .filter { section.second.containsMatchIn(it.name) }
+                .filter { card ->
+                    when (term) {
+                        "парень", "guy" -> guyTitle.containsMatchIn(card.name)
+                        "рабыня", "рабыни", "slave", "slaves" -> slaveTitle.containsMatchIn(card.name)
+                        else -> titleWords(card.name).containsAll(words)
+                    }
+                }
                 .distinctBy { it.url }
             newSearchResponseList(matches, next?.hasNext == true)
         }
@@ -83,9 +86,17 @@ class BdsmPornProvider : RussianProvider(
         return original.getOrThrow()
     }
 
+    private fun titleWords(value: String): Set<String> =
+        titleWord.findAll(value.lowercase(Locale.ROOT)).map { it.value }.toSet()
+
     override suspend fun page(request: PageRequest): Document {
         val localized = request.copy(headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE))
         val document = super.page(localized)
+        val requested = request.url.toHttpUrl()
+        if (requested.encodedPath.trimEnd('/') == "/search" && !isSearchResult(requested, document)) {
+            // A suggested tag can be a redirect. Its feed is handled separately from title matches.
+            return Document(request.url).attr("data-response-code", "404")
+        }
         return document.clone().apply {
             selectFirst(".video-header h1")?.children()?.remove()
             nextPage(this)?.let { (anchor, next) ->
@@ -94,7 +105,14 @@ class BdsmPornProvider : RussianProvider(
         }
     }
 
-    private fun nextPage(document: Document): Pair<org.jsoup.nodes.Element, HttpUrl>? {
+    private fun isSearchResult(requested: HttpUrl, document: Document): Boolean {
+        val actual = document.baseUri().toHttpUrlOrNull() ?: return false
+        return actual.host in setOf(requested.host, "bdsm-porn.cc", "ru.bdsm-porn.cc") &&
+            actual.encodedPath.trimEnd('/') == "/search" &&
+            actual.queryParameter("q").equals(requested.queryParameter("q"), ignoreCase = true)
+    }
+
+    private fun nextPage(document: Document): Pair<Element, HttpUrl>? {
         val address = document.baseUri().toHttpUrl()
         val current = address.queryParameter("page")?.toIntOrNull() ?: 1
         val query = address.queryParameter("q")

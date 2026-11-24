@@ -34,7 +34,7 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         "milf" to "MILF",
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)
-    private val homeOrigins = listOf("https://noodlemagazine.com", "https://hot.tyler-brown.com")
+    private val homeOrigins get() = listOf("https://noodlemagazine.com", mainUrl)
     private val homePages = NoodleCatalogue()
     private val homeOrders = ConcurrentHashMap<String, List<Int>>()
     private val searchPages = NoodleCatalogue()
@@ -50,36 +50,31 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     private fun response(card:VideoCard):SearchResponse=newMovieSearchResponse(card.title,card.url,TvType.NSFW){posterUrl=card.poster;posterHeaders=Network.headers(referer(card.url))}
     private suspend fun results(query:String,page:Int):List<SearchResponse>{val request=route(query,page);return Metadata.searchCards(document(request),spec,request).map(::response)}
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse {
-        if(page<1)return newHomePageResponse(request.name,emptyList(),false)
-        val cards = homePages.page(request.data, page) {
-            // Even the shorter Trending catalogue has these first nine pages.
-            val order = homeOrders.compute(request.data) { _, previous ->
+        val section = mainPage.firstOrNull { it.data == request.data }
+        if (page < 1 || section == null) return newHomePageResponse(emptyList(), false)
+        val cards = homePages.page(section.data, page) {
+            val order = homeOrders.compute(section.data) { _, previous ->
                 if (page != 1 && previous != null) previous
                 else (1..9).shuffled().let {
                     if (it.first() == previous?.firstOrNull()) it.drop(1) + it.first() else it
                 }
             }!!
             val sourcePage = order.getOrNull(page - 1) ?: page
-            if (page != 1 || sourcePage == 1) return@page homeCards(request.data, sourcePage)
-            val videos = RequestLimits.optional(5000) { homeCards(request.data, sourcePage) }.orEmpty()
+            if (page != 1 || sourcePage == 1) return@page homeCards(section.data, sourcePage)
+            val videos = RequestLimits.optional(5000) { homeCards(section.data, sourcePage) }.orEmpty()
             if (videos.isNotEmpty()) videos else {
                 // Recover when a random page has moved or is slow to respond.
-                homeOrders[request.data] = listOf(1)
-                homeCards(request.data, 1)
+                homeOrders[section.data] = listOf(1)
+                homeCards(section.data, 1)
             }
         }
-        return newHomePageResponse(request.name,cards,cards.isNotEmpty())
+        return newHomePageResponse(section.name,cards,cards.isNotEmpty())
     }
 
     private suspend fun homeCards(category: String, page: Int): List<SearchResponse> {
         var responded = false
         for (origin in homeOrigins) {
-            val section = when {
-                category != "/popular/month" -> category
-                origin == homeOrigins.first() -> "/home"
-                else -> "/recent"
-            }
-            val cards = RequestLimits.optional(3200) { categoryCards(section, page, origin, requireSameRoute = true) }
+            val cards = RequestLimits.optional(3200) { categoryCards(category, page, origin, requireSameRoute = true) }
                 ?: continue
             responded = true
             if (cards.isNotEmpty()) return cards
