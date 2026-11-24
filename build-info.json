@@ -1,8 +1,8 @@
 {
-  "version": 224,
-  "sourceCommit": "83b2e6cd7980fcbe01d8ec219b3006606a722c1d",
+  "version": 228,
+  "sourceCommit": "b0af3d71ff1f7bad0ae0d3222e7e960a25452637",
   "packageLayout": "versioned",
-  "plugins": 38,
+  "plugins": 39,
   "rebuilt": [
     "BdsmPorn",
     "Domashka",
@@ -15,6 +15,7 @@
     "Semyana",
     "Strip2",
     "Vpoisk",
+    "XHamster",
     "PornoMoloko",
     "PornoRussia",
     "JavGuru",
@@ -43,7 +44,7 @@
     "Xnxx",
     "XRares"
   ],
-  "dexClasses": 12436,
-  "entryRegistrationsValidated": 38,
-  "kotlinProviders": 38
+  "dexClasses": 12756,
+  "entryRegistrationsValidated": 39,
+  "kotlinProviders": 39
 }
