@@ -385,9 +385,12 @@ fun main(args:Array<String>) {
     for (word in ContentPolicy.blockedWords + listOf("3D-animated", "black  man", "female-domination", "BALL-BUSTING", "ball_basting", "ASMR", "АСМР")) {
         verify(!ContentPolicy.accepts("A $word title"),"blocked title $word")
         verify(!ContentPolicy.accepts("A video", listOf(word)),"blocked tag $word")
-        verify(ContentPolicy.accepts("A $word title", listOf("lesbians")),"lesbian tag overrides blocked title $word")
+        val strictTitle = word.lowercase() in setOf("ballbusting", "ball busting", "ball-busting")
+        verify(ContentPolicy.accepts("A $word title", listOf("lesbians")) != strictTitle, "title filter precedence for $word")
         verify(ContentPolicy.accepts("Лесбиянки", listOf(word)),"lesbian title overrides blocked tag $word")
     }
+    verify(!ContentPolicy.accepts("A video", listOf("eat poop")) && ContentPolicy.accepts("Eat poop in a title"),
+        "eat poop applies to tags only")
     verify(ContentPolicy.accepts("A video", listOf("black", "man")),"compound phrase stays within one field")
     verify(!ContentPolicy.accepts("A video", description = "Contains HENTAI."),"hentai in the description blocks the card")
     verify(ContentPolicy.accepts("A video", description = "hentaist and anime"),"the new rule matches only the whole word in descriptions")

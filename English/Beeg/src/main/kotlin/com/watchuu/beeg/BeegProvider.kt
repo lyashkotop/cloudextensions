@@ -8,6 +8,7 @@ import com.cloudextensions.russian.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -43,7 +44,7 @@ import org.jsoup.nodes.Element
  *   The metadata API (api-search.xv-cdn.net/id/<id>/) is now used ONLY for metadata, never as a
  *   playable source, and a preview is clearly labelled as such if nothing better is found.
  */
-class BeegProvider : MainAPI(), DetailTagSource, ListingScoreSource {
+class BeegProvider : MainAPI(), ListingScoreSource {
     override var mainUrl = "https://beeg.porn"
     override var name = "Beeg.porn"
     override var lang = "en"
@@ -189,50 +190,51 @@ class BeegProvider : MainAPI(), DetailTagSource, ListingScoreSource {
         return player.pathSegments.takeIf { it.firstOrNull() == "embedframe" }?.getOrNull(1)
     }
 
+    private suspend fun detailPage(url: String): String =
+        Network.page(PageRequest(url, headers = mapOf("User-Agent" to ua)), mainUrl).outerHtml()
+
     override suspend fun readListingScore(url: String): Score? {
-        val id = ratingVideoId(url) ?: ratingVideoId(url, fetchPage(url)) ?: return null
+        val id = ratingVideoId(url) ?: ratingVideoId(url, detailPage(url)) ?: return null
         return DetailEnrichment.xvideosScore(id, budget = 2300)
     }
 
-    override suspend fun missingTags(url: String): List<String> {
-        val embed = Regex("[?&]e=([A-Za-z0-9]+)").find(url)?.groupValues?.get(1) ?: return emptyList()
-        return DetailEnrichment.xvideosTags(embed, detailSpec, budget = 5500)
-    }
-
     override suspend fun load(url: String): LoadResponse = coroutineScope {
-        val id=Regex("/(?:xid/|play/\\d+-)(\\d+)").find(url)?.groupValues?.get(1)
-        val encode=Regex("[?&]e=([A-Za-z0-9]+)").find(url)?.groupValues?.get(1).orEmpty()
+        val id = Regex("/(?:xid/|play/\\d+-)(\\d+)").find(url)?.groupValues?.get(1)
+        val encode = ratingVideoId(url).orEmpty()
         val spec = detailSpec
-        val originalTags = encode.takeIf(String::isNotBlank)?.let { embed ->
-            async { DetailEnrichment.xvideosTags(embed, spec, budget = 3000) }
+        val html = async { RequestLimits.optional(4200) { detailPage(url) }.orEmpty() }
+        val score = encode.takeIf(String::isNotBlank)?.let { embed ->
+            async { DetailEnrichment.xvideosScore(embed, budget = 2300) }
         }
-        val html=async { RequestLimits.optional(7000){fetchPage(url)}.orEmpty() }
-        val api=async { if(id==null)null else RequestLimits.optional(3500){JSONObject(app.get("$searchApiBase/id/$id/?format=ajax&e=$encode",headers=Network.headers(mainUrl)).text)} }
-        val markup = html.await()
-        val score = async {
-            ratingVideoId(url, markup)?.let { DetailEnrichment.xvideosScore(it, budget = 2300) }
+        val meta = id?.let {
+            RequestLimits.optional(3500) {
+                val response = app.get("$searchApiBase/id/$it/?format=ajax&e=$encode", headers = Network.headers(mainUrl))
+                try { JSONObject(response.text) } finally { response.okhttpResponse.close() }
+            }
         }
-        val doc=Jsoup.parse(markup,url)
-        val meta=api.await()
+        val apiTags = meta?.optString("cats")?.takeUnless { it == "[]" }?.split(',')
+            ?.mapNotNull { Metadata.tag(it.trim().trim('*')) }.orEmpty()
+        val complete = encode.isNotBlank() && Metadata.sourceValue(meta?.optString("title")) &&
+            Metadata.sourceValue(meta?.optString("thumb")) && (meta?.optInt("dur") ?: 0) > 0 && apiTags.isNotEmpty()
+        val markup = if (complete) {
+            withTimeoutOrNull(1000) { html.await() } ?: "".also { html.cancel() }
+        } else html.await()
+        val doc = Jsoup.parse(markup, url)
         val detail = Metadata.detail(doc, spec)
         val title=Metadata.title(url,listOf(meta?.optString("title").orEmpty(),doc.selectFirst("h1")?.text().orEmpty(),doc.selectFirst("meta[property=og:title]")?.attr("content").orEmpty()),fromDetail=true)
         if(title.isBlank())throw ErrorLoadingException("Video metadata is missing")
-        val declaredTags = meta?.optString("cats")?.takeUnless { it == "[]" }?.split(',')
-            ?.mapNotNull { Metadata.tag(it.trim().trim('*')) }.orEmpty().ifEmpty { detail.tags }
-        val tags = if (declaredTags.isNotEmpty()) {
-            originalTags?.cancel()
-            declaredTags
-        } else {
-            val resolved = originalTags?.await()
-                ?: DetailEnrichment.xvideosTags(findEncode(markup).orEmpty(), spec, budget = 2000)
-            resolved.ifEmpty {
-                originalVideo(markup)?.let { source ->
-                    RequestLimits.optional(3000) {
+        val tags = apiTags.ifEmpty { detail.tags }.ifEmpty {
+            RequestLimits.optional(3000) {
+                val embed = encode.ifBlank { findEncode(markup).orEmpty() }
+                val resolved = if (embed.isBlank()) emptyList()
+                    else DetailEnrichment.xvideosTags(embed, spec, budget = 2200)
+                resolved.ifEmpty {
+                    originalVideo(markup)?.let { source ->
                         val original = Network.page(PageRequest(source), url)
                         Metadata.detail(original, spec.copy(tagSelector = "")).tags
-                    }
-                }.orEmpty()
-            }
+                    }.orEmpty()
+                }
+            }.orEmpty()
         }
         val related=meta?.optJSONArray("related")
         val recommendations=if(related==null)emptyList() else (0 until related.length()).mapNotNull { i ->
@@ -241,7 +243,9 @@ class BeegProvider : MainAPI(), DetailTagSource, ListingScoreSource {
             if(rid.isBlank()||label.isBlank())return@mapNotNull null
             newMovieSearchResponse(label,"$mainUrl/xid/$rid/?e=$e",TvType.NSFW){posterUrl=Metadata.imageUrl(mainUrl,item.optString("thumb"))}
         }
-        val sourceScore = score.await()
+        val sourceScore = if (score != null) score.await() else {
+            ratingVideoId(url, markup)?.let { DetailEnrichment.xvideosScore(it, budget = 2300) }
+        }
         newMovieLoadResponse(title,url,TvType.NSFW,url) {
             this.score = sourceScore
             posterUrl=Metadata.choosePoster(url,meta?.optString("thumb"),detail.poster)
