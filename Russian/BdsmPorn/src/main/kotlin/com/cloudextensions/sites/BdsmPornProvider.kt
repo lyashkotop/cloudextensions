@@ -95,7 +95,7 @@ class BdsmPornProvider : RussianProvider(
         val requested = request.url.toHttpUrl()
         if (requested.encodedPath.trimEnd('/') == "/search" && !isSearchResult(requested, document)) {
             // A suggested tag can be a redirect. Its feed is handled separately from title matches.
-            return Document(request.url).attr("data-response-code", "404")
+            return Document(request.url).apply { attr("data-response-code", "404") }
         }
         return document.clone().apply {
             selectFirst(".video-header h1")?.children()?.remove()
