@@ -1,12 +1,12 @@
 {
-  "version": 216,
-  "sourceCommit": "997c008f1fd0d45dc35d89d397f6287232684e69",
+  "version": 217,
+  "sourceCommit": "29e17d274b20edbbce8f150b5ed3bb29885d0c1d",
   "packageLayout": "versioned",
-  "plugins": 37,
+  "plugins": 38,
   "rebuilt": [
-    "RoughXXXTube"
+    "FreeMisogynyComics"
   ],
-  "dexClasses": 12077,
-  "entryRegistrationsValidated": 37,
-  "kotlinProviders": 37
+  "dexClasses": 12398,
+  "entryRegistrationsValidated": 38,
+  "kotlinProviders": 38
 }

@@ -440,6 +440,26 @@
     "fileHash": "sha256-b861c0072090ab8e4873397c94d15a73a65c3c4f8fcc50c7449f51d497087572"
   },
   {
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/217/FreeMisogynyComics.cs3",
+    "status": 1,
+    "version": 217,
+    "apiVersion": 1,
+    "name": "3 · EN · Free Misogyny XXX Comics",
+    "internalName": "FreeMisogynyComics",
+    "authors": [
+      "lyashkotop"
+    ],
+    "description": "Free Misogyny XXX Comics · video archive, search and native playback.",
+    "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
+    "tvTypes": [
+      "NSFW"
+    ],
+    "language": "en",
+    "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/FreeMisogynyComics.png",
+    "fileSize": 228552,
+    "fileHash": "sha256-7173802f863285cad57f95d9398910ddcf25b15bd5f6da34504efc42c48e23b0"
+  },
+  {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/213/HcBDSMX.cs3",
     "status": 1,
     "version": 213,
