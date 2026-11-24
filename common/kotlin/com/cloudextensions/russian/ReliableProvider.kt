@@ -23,6 +23,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
+private const val DETAIL_MAX_AGE_NANOS = 75_000_000_000L
 private const val SEARCH_REVIEW_LIMIT = 7
 private const val SEARCH_PAGE_MINIMUM = 4
 private const val MAX_UPSTREAM_PAGES_PER_EXPANSION = 4
@@ -181,14 +182,15 @@ class ReliableProvider(
     private data class Review(val allowed:Boolean,val detail:LoadResponse?,val title:String?=detail?.name)
     private val reviews=java.util.Collections.synchronizedMap(BoundedMap<String,Pair<Long,Review>>(128))
     private val reviewPermits=Semaphore(4)
-    private fun savedReview(url:String)=reviews[videoKey(url)]?.takeIf{System.nanoTime()-it.first<300_000_000_000L}?.second
+    private fun savedReview(url: String, maxAgeNanos: Long = 300_000_000_000L): Review? =
+        reviews[videoKey(url)]?.takeIf { System.nanoTime() - it.first < maxAgeNanos }?.second
     private fun remainingMillis(deadline: Long) = (deadline - System.nanoTime()) / 1_000_000
 
-    private suspend fun review(card: SearchResponse, deadline: Long): Review? {
-        savedReview(card.url)?.let { return it }
+    private suspend fun review(card: SearchResponse, deadline: Long, maxAgeNanos: Long = 300_000_000_000L): Review? {
+        savedReview(card.url, maxAgeNanos)?.let { return it }
         val result = RequestLimits.optional(remainingMillis(deadline)) {
             reviewPermits.withPermit {
-                savedReview(card.url)?.let { return@withPermit it }
+                savedReview(card.url, maxAgeNanos)?.let { return@withPermit it }
                 val budget = minOf(3500L, remainingMillis(deadline))
                 RequestLimits.optional(budget) {
                     try {
@@ -238,7 +240,7 @@ class ReliableProvider(
     private suspend fun prepareSearch(items: List<SearchResponse>, deadline: Long): List<SearchResponse> = coroutineScope {
         val normalized = items.filter { isAvailable(it.url) && ContentPolicy.accepts(it.name, Metadata.cardTags(it.url)) }.map { normalizeCard(it) }
         ImagePrefetch.warm(normalized)
-        val reviewed = previewSearch(normalized, deadline)
+        val reviewed = withContext(Network.CacheDetail) { previewSearch(normalized, deadline) }
         reviewed.map { card ->
             async {
                 if (card !is MovieSearchResponse || !Metadata.isTruncatedTitle(card.name)) return@async card
@@ -340,17 +342,22 @@ class ReliableProvider(
 
     private val warmingDetails = ConcurrentHashMap.newKeySet<String>()
     private val pendingDetails by lazy {
-        Channel<String>(12).also { queue ->
-            val policy = source as SearchPolicy
+        Channel<SearchResponse>(12).also { queue ->
+            val policy = source as? SearchPolicy
             val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + Network.Background + Network.CacheDetail)
             repeat(2) {
                 scope.launch {
-                    for (url in queue) {
+                    for (card in queue) {
                         try {
-                            RequestLimits.optional(2200) { policy.fullTitle(url) }
+                            if (policy != null) {
+                                RequestLimits.optional(2200) { policy.fullTitle(card.url) }
+                            } else {
+                                // Adapted providers and BDSMX can use their own playback metadata endpoints.
+                                review(card, System.nanoTime() + 2_200_000_000L, DETAIL_MAX_AGE_NANOS)
+                            }
                         } catch (_: LinkageError) {
                         } finally {
-                            warmingDetails.remove(url)
+                            warmingDetails.remove(card.url)
                         }
                     }
                 }
@@ -359,9 +366,8 @@ class ReliableProvider(
     }
 
     private fun warmDetails(cards: List<SearchResponse>) {
-        if (lang != "ru" || source !is SearchPolicy) return
         for (card in cards.take(12)) {
-            if (warmingDetails.add(card.url) && pendingDetails.trySend(card.url).isFailure) {
+            if (warmingDetails.add(card.url) && pendingDetails.trySend(card).isFailure) {
                 warmingDetails.remove(card.url)
             }
         }
@@ -387,7 +393,7 @@ class ReliableProvider(
         }
         val listed = rows.flatMap { it.list }
         ImagePrefetch.warm(listed)
-        warmDetails(listed)
+        if (lang == "ru" && source is SearchPolicy) warmDetails(listed)
         newHomePageResponse(rows,result.hasNext)
     }
     override suspend fun search(query:String):List<SearchResponse> = search(query,1).items
@@ -560,9 +566,9 @@ class ReliableProvider(
                 if (cards.size >= SEARCH_PAGE_MINIMUM || !result.hasNext || limit == 0) break
                 result = RequestLimits.optional(remainingMillis(deadline)) { combinedSearch(query, upstream, history) } ?: break
             }
+            warmDetails(cards)
             val prepared = prepareListing(cards, listingDeadline)
             ImagePrefetch.warm(prepared)
-            warmDetails(prepared)
             val response = newSearchResponseList(prepared, result.hasNext)
             history.pages[page] = SavedSearchPage(response, upstream)
             response
@@ -571,8 +577,9 @@ class ReliableProvider(
     override suspend fun load(url: String): LoadResponse = RequestLimits.required("Карточка") { loadCard(url) }
 
     private suspend fun loadCard(url: String): LoadResponse = coroutineScope {
-        val context = if (lang == "ru") Network.OpeningDetail + Network.CacheDetail else Network.OpeningDetail
-        val result = savedReview(url)?.detail ?: withContext(context) { source.load(url) }
+        val saved = savedReview(url, DETAIL_MAX_AGE_NANOS)?.detail as? MovieLoadResponse
+        val result = saved?.copy(trailers = saved.trailers.toMutableList(), syncData = saved.syncData.toMutableMap()) ?:
+            withContext(Network.OpeningDetail + Network.CacheDetail) { source.load(url) }
             ?: throw ErrorLoadingException("Источник не вернул карточку")
         val listedTags = Metadata.cardTags(url)
         val tagsSource = (source as? DetailTagSource) ?: (source as? AdaptedProvider)?.detailTagSource
