@@ -1,0 +1,11 @@
+{
+  "id": "RoughXXXTube",
+  "name": "RoughXXXTube",
+  "language": "ru",
+  "category": "Russian",
+  "entryClass": "com.cloudextensions.entries.RoughXXXTubePlugin",
+  "providerClass": "com.cloudextensions.sites.RoughXXXTubeProvider",
+  "description": "RoughXXXTube · русскоязычная версия сайта, поиск, новинки и популярное.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/RoughXXXTube.png",
+  "runtime": "kotlin"
+}
