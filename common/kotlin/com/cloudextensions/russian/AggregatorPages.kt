@@ -36,7 +36,7 @@ object AggregatorPages {
             else -> ".VideoDetailArea .VideoQuickLinks a[href*=/category/], .VideoDetailArea .VideoQuickLinks a[href*=/tag/]"
         }
         val visible = page.select(selector).mapNotNull { Metadata.tag(it.text()) }
-        if (host != "xhamster.com") return visible + page
+        if (!EmbeddedPlayers.isXHamsterHost(host)) return visible + page
             .select("meta[property=video:tag], meta[name=video:tag], meta[property=og:video:tag]")
             .flatMap { labels(it.attr("content")) }
 
@@ -58,7 +58,7 @@ object AggregatorPages {
             else spec.detailTitleSelector
         val base=Metadata.detail(page,spec.copy(descriptionSelector=".VideoDescription, .video-desc, .vp-description", detailTitleSelector=titleSelector))
         val item=video(page)
-        val state = if (address.host.orEmpty().removePrefix("www.") == "xhamster.com") EmbeddedPlayers.initials(page) else null
+        val state = if (EmbeddedPlayers.isXHamsterHost(address.host.orEmpty().removePrefix("www."))) EmbeddedPlayers.initials(page) else null
         val tags = (item?.let(::tags).orEmpty() + pageTags(page, state) + base.tags.flatMap(::labels)).distinctBy { it.lowercase() }
         if(item==null) {
             val xHamsterVideo = state?.optJSONObject("videoEntity")?.takeIf { entity ->

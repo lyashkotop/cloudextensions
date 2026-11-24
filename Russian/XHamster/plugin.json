@@ -1,0 +1,11 @@
+{
+  "id": "XHamster",
+  "name": "xHamster",
+  "language": "ru",
+  "category": "Russian",
+  "entryClass": "com.cloudextensions.entries.XHamsterPlugin",
+  "providerClass": "com.cloudextensions.sites.XHamsterProvider",
+  "description": "xHamster · русский каталог, поиск и воспроизведение.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/XHamster.png",
+  "runtime": "kotlin"
+}

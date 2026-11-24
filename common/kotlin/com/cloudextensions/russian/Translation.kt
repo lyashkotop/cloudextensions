@@ -8,6 +8,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import okhttp3.Request
 import org.json.JSONArray
+import org.json.JSONObject
 import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.delay
@@ -107,10 +108,12 @@ object Translation {
         }
         try {
             val encoded=URLEncoder.encode(query,"UTF-8")
+            val languagePair = if (target == "en") "ru%7Cen" else "en%7Cru"
             val endpoints=listOf(
                 "https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=$source&tl=$target&q=$encoded",
                 "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$source&tl=$target&dt=t&q=$encoded",
-                "https://translate.google.com/translate_a/single?client=gtx&sl=$source&tl=$target&dt=t&q=$encoded"
+                "https://translate.google.com/translate_a/single?client=gtx&sl=$source&tl=$target&dt=t&q=$encoded",
+                "https://api.mymemory.translated.net/get?q=$encoded&langpair=$languagePair",
             )
             val value = firstTranslation(endpoints, query, target)
             if (value != null) {
@@ -133,7 +136,15 @@ object Translation {
                     val raw = Network.read(request, app.baseClient) { response ->
                         if (response.isSuccessful) response.body?.string() else null
                     } ?: return@optional null
-                    if (index == 0) parseCompact(raw, target) else parse(raw, target)
+                    when {
+                        index == 0 -> parseCompact(raw, target)
+                        request.url.host == "api.mymemory.translated.net" -> {
+                            val payload = JSONObject(raw)
+                            if (payload.optInt("responseStatus") != 200 || payload.optBoolean("quotaFinished")) null
+                            else valid(payload.optJSONObject("responseData")?.optString("translatedText").orEmpty(), target)
+                        }
+                        else -> parse(raw, target)
+                    }
                 }
                 results.send(translation?.takeUnless { it.equals(query, ignoreCase = true) })
             }

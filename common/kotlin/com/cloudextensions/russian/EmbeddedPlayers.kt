@@ -8,7 +8,9 @@ import org.jsoup.nodes.Document
 
 /** Player data belongs to the requested source, never to advertisements or another feed item. */
 object EmbeddedPlayers {
-    internal fun initials(page:Document):JSONObject? {
+    internal fun isXHamsterHost(host: String) = host in setOf("xhamster.com", "ru.xhamster.com")
+
+    fun initials(page:Document):JSONObject? {
         for(script in page.select("script")) {
             val match=Regex("window\\.initials\\s*=\\s*").find(script.data()) ?: continue
             return try{JSONTokener(script.data().substring(match.range.last+1)).nextValue() as? JSONObject}catch(_:Exception){null}
@@ -17,12 +19,12 @@ object EmbeddedPlayers {
     }
     fun original(page:Document):String? {
         val host=try{URI(page.baseUri()).host.orEmpty().removePrefix("www.")}catch(_:Exception){return null}
-        if(host!="xhamster.com")return null
+        if(!isXHamsterHost(host))return null
         val url=initials(page)?.optJSONObject("sharingComponent")?.optString("shareLink") ?: return null
-        return absolute(page.baseUri(),url)?.takeIf{URI(it).host.orEmpty().removePrefix("www.")==host && it!=page.baseUri()}
+        return absolute(page.baseUri(),url)?.takeIf{isXHamsterHost(URI(it).host.orEmpty().removePrefix("www.")) && it!=page.baseUri()}
     }
     fun sources(page:Document):List<Playback.Source> {
-        if(try{URI(page.baseUri()).host.orEmpty().removePrefix("www.")!="xhamster.com"}catch(_:Exception){true})return emptyList()
+        if(try{!isXHamsterHost(URI(page.baseUri()).host.orEmpty().removePrefix("www."))}catch(_:Exception){true})return emptyList()
         val data=initials(page)?.optJSONObject("xplayerSettings")?.optJSONObject("sources") ?: return emptyList()
         val result=mutableListOf<Playback.Source>()
         // Apply the same public URL transformation as the site's player.
