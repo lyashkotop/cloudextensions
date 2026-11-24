@@ -4,12 +4,14 @@ import com.cloudextensions.russian.Metadata
 import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.Playback
+import com.cloudextensions.russian.PosterSource
 import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.RussianProvider
 import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
 import com.cloudextensions.russian.Translation
 import com.cloudextensions.russian.VideoDetail
+import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.newExtractorLink
@@ -25,7 +27,7 @@ class DomashkaProvider : RussianProvider(
         id = "Domashka",
         title = "1. Domashka.live",
         origin = "https://domashka.live",
-        cards = ".thumb[data-vw]:has(a.thumb__preview[href^=/][href$=.html] img[src])",
+        cards = ".thumb[data-vw]:has(a.thumb__preview[href^=/][href$=.html])",
         link = "a.thumb__preview[href]",
         titleSelector = ".thumb__title",
         detailTitleSelector = "main > h1.title",
@@ -42,7 +44,7 @@ class DomashkaProvider : RussianProvider(
             Section("Частное", "/chastnoe/"),
         ),
     ),
-) {
+), PosterSource {
     override val includeTaxonomyResults = false
 
     override suspend fun searchRequest(term: String): PageRequest =
@@ -53,6 +55,7 @@ class DomashkaProvider : RussianProvider(
 
     override suspend fun page(request: PageRequest): Document {
         val document = fetch(request).clone()
+        document.select(".thumb__preview img[src*=/assets/img/no-image.png]").removeAttr("src")
         document.select(".thumb .thumb-tags a.thumb-tags__link[href]").attr("rel", "tag")
         val cards = document.select(".thumb[data-vw]:has(a.thumb__preview[href^=/ex/])")
             .mapNotNull { card ->
@@ -77,6 +80,25 @@ class DomashkaProvider : RussianProvider(
             translated[title]?.let { image.attr("alt", it) }
         }
         return document
+    }
+
+    private fun playerPoster(document: Document): String? =
+        document.selectFirst("main .split-player__left .player video[poster]")
+            ?.absUrl("poster")?.toHttpUrlOrNull()
+            ?.takeIf { it.host == "ic.pckcdn.net" && it.encodedPath.startsWith("/i/") }
+            ?.toString()
+
+    override suspend fun resolvePoster(url: String, poster: String?, headers: Map<String, String>): String? =
+        poster ?: playerPoster(fetch(PageRequest(url)))
+
+    override suspend fun load(url: String): LoadResponse {
+        val document = page(PageRequest(url))
+        val detail = loadDocument(url, document)
+        playerPoster(document)?.let { poster ->
+            Metadata.rememberPoster(url, poster)
+            detail.posterUrl = poster
+        }
+        return detail
     }
 
     override fun readMetadata(document: Document): VideoDetail {
