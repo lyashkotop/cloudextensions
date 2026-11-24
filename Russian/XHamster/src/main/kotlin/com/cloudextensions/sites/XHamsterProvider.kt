@@ -21,12 +21,20 @@ class XHamsterProvider : RussianProvider(
         sections = listOf(Section("Популярное", "/best"), Section("Новинки", "/newest")),
     ),
 ) {
+    private val catalogueAgent =
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
     override suspend fun searchRequest(term: String): PageRequest =
         PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search/")
             .addPathSegment(term.replace(' ', '+')).build().toString())
 
     override suspend fun page(request: PageRequest): Document {
-        val original = super.page(request.copy(headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE)))
+        val section = request.url.toHttpUrlOrNull()?.pathSegments?.firstOrNull()
+        val headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE)
+        val catalogueHeaders = if (section == "best" || section == "newest") {
+            headers + ("User-Agent" to catalogueAgent)
+        } else headers
+        val original = super.page(request.copy(headers = catalogueHeaders))
         val address = original.baseUri().toHttpUrlOrNull() ?: return original
         if (!address.encodedPath.startsWith("/search/")) return original
         val state = EmbeddedPlayers.initials(original) ?: return original
