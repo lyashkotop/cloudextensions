@@ -49,7 +49,7 @@ object DetailEnrichment {
             }
             if (host in xhamsterPlayerHosts) {
                 val id = xhamsterPartner.matchEntire(path)?.groupValues?.get(1) ?: continue
-                val target = if (id.startsWith("xh")) "https://xhamster.com/videos/$id" else url
+                val target = if (id.startsWith("xh")) "https://xhamster.com/videos/$id" else "https://$host/e/$id"
                 return Original(target, "", desktop = true)
             }
         }

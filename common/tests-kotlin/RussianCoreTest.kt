@@ -103,6 +103,7 @@ fun main(args:Array<String>) {
     val partnerPlayer = Jsoup.parse("<iframe src='https://xh.partners/p/HfWa'></iframe>", "https://tubesafari.com/video?id=HfWa")
     verify(DetailEnrichment.original(partnerPlayer) == "https://xh.partners/e/HfWa", "legacy partner codes resolve through the public player")
     fun safariPlayer(url: String) = Jsoup.parse("<iframe src='$url'></iframe>", partnerPlayer.baseUri())
+    verify(DetailEnrichment.original(safariPlayer("https://xh.video/e/U4zKB")) == "https://xh.video/e/U4zKB", "TubeSafari accepts the second published xHamster player host")
     verify(DetailEnrichment.original(safariPlayer("https://xhamster.com/embed/6907847")) == "https://xhamster.com/videos/6907847", "a legacy player can identify the source by its numeric video ID")
     verify(DetailEnrichment.original(safariPlayer("https://xhamster.com/embed")) == null, "a player error page never identifies a source video")
     verify(DetailEnrichment.original(safariPlayer("https://example.org/embed/6907847")) == null, "only the original player host identifies a source video")
