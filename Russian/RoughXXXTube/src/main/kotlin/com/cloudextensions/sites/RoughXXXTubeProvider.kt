@@ -5,6 +5,8 @@ import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.RussianProvider
 import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
+import com.lagradost.cloudstream3.ErrorLoadingException
+import kotlinx.coroutines.delay
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okio.ByteString.Companion.encodeUtf8
@@ -35,10 +37,29 @@ class RoughXXXTubeProvider : RussianProvider(
             .encodedPath("/ru/search/$token/popular/1/").build().toString())
     }
 
+    private fun matchesPage(document: Document, requested: String): Boolean {
+        val actual = document.baseUri().toHttpUrlOrNull() ?: return false
+        val expected = requested.toHttpUrlOrNull() ?: return false
+        if (actual.host != expected.host) return false
+        val path = expected.encodedPath.trimEnd('/')
+        if (path.isEmpty()) return actual.encodedPath.trimEnd('/') == "/ru"
+        return actual.encodedPath.trimEnd('/') == path &&
+            (document.attr("data-response-code") in setOf("404", "410") ||
+                document.selectFirst(".content > h1") != null)
+    }
+
     override suspend fun page(request: PageRequest): Document {
-        val original = super.page(request.copy(
-            headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE),
-        ))
+        val localized = request.copy(headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE))
+        var original = super.page(localized)
+        if (!matchesPage(original, request.url)) {
+            delay(120)
+            original = super.page(localized.copy(headers = localized.headers + ("Cache-Control" to "no-cache")))
+            if (!matchesPage(original, request.url)) {
+                val path = request.url.toHttpUrlOrNull()?.encodedPath.orEmpty()
+                if (path.startsWith("/ru/video/")) throw ErrorLoadingException("Видео удалено или недоступно")
+                throw ErrorLoadingException("RoughXXXTube: сайт не вернул запрошенную страницу")
+            }
+        }
         val document = original.clone()
         val next = document.selectFirst(".more > a[href]")
         if (next != null) {
