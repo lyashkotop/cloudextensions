@@ -16,7 +16,7 @@ import java.util.Locale
 object Translation {
     @Volatile private var shared:SharedPreferences?=null
     fun configure(context:Context){shared=context.applicationContext.getSharedPreferences("cloudextensions-translations",Context.MODE_PRIVATE)}
-    private val dictionary=mapOf("bdsm" to "бдсм","guy" to "парень","woman" to "женщина","girl" to "девушка","man" to "мужчина","mother" to "мать","mom" to "мама","aunt" to "тётя","lesbian" to "лесбиянка","lesbians" to "лесбиянки","spanking" to "порка","two words" to "два слова", "russian slaves" to "русские рабыни")
+    private val dictionary=mapOf("bdsm" to "бдсм","guy" to "парень","woman" to "женщина","girl" to "девушка","man" to "мужчина","mother" to "мать","mom" to "мама","aunt" to "тётя","lesbian" to "лесбиянка","lesbians" to "лесбиянки","spanking" to "порка","two words" to "два слова", "russian slaves" to "русские рабыни", "russian slave" to "русская рабыня")
     private val searchGroups = listOf(
         setOf("домашка", "домашнее", "любительское", "homemade", "amateur", "amateurs"),
         setOf("бдсм", "bdsm"),
@@ -40,6 +40,11 @@ object Translation {
         }
         return searchGroups.firstOrNull { canonical in it }.orEmpty()
     }
+    private val russianSlaveForms = setOf("русская рабыня", "russian slave", "russian slaves", "русские рабыни")
+
+    internal fun searchForms(query: String): Set<String> =
+        russianSlaveForms.takeIf { Metadata.clean(query).lowercase(Locale.ROOT) in it }.orEmpty()
+
     private val cache=Collections.synchronizedMap(BoundedMap<String,String>(256))
     fun target(query: String): String? {
         val normalized=query.trim().replace(Regex("\\s+")," ")

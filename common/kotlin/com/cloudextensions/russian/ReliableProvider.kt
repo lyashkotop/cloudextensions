@@ -434,13 +434,14 @@ class ReliableProvider(
         } catch (e: Exception) {
             Batch(null, e)
         }
+        val forms = aliases.ifEmpty { Translation.searchForms(query) }
         val batches = coroutineScope {
-            if (aliases.isEmpty()) {
+            if (forms.isEmpty()) {
                 val original = async { branch(query) }
                 val translated = async { Translation.translated(query)?.let { branch(it) } }
                 listOfNotNull(original.await(), translated.await())
             } else {
-                val terms = listOf(query) + aliases.filterNot { it.equals(Metadata.clean(query), ignoreCase = true) }
+                val terms = listOf(query) + forms.filterNot { it.equals(Metadata.clean(query), ignoreCase = true) }
                 val replies = terms.filter { page <= (history.aliasEnds[it] ?: Int.MAX_VALUE) }.map { term ->
                     async {
                         term to if (term == query) branch(term) else RequestLimits.optional(6500) { branch(term) }
