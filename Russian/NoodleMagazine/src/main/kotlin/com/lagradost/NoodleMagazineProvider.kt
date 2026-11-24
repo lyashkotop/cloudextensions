@@ -7,6 +7,10 @@ import com.lagradost.cloudstream3.utils.*
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.selects.select
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
@@ -34,14 +38,18 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         "milf" to "MILF",
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)
-    private val homeOrigins get() = listOf("https://noodlemagazine.com", mainUrl)
+    private val homeOrigin = "https://noodlemagazine.com"
+    private val homeMirror = "https://hot.tyler-brown.com"
+    private val catalogueHosts = setOf("noodlemagazine.com", "tyler-brown.com", "hot.tyler-brown.com")
     private val homePages = NoodleCatalogue()
     private val homeOrders = ConcurrentHashMap<String, List<Int>>()
     private val searchPages = NoodleCatalogue()
     private fun route(query:String,page:Int,origin:String=mainUrl)=PageRequest("$origin/video/"+URLEncoder.encode(query,"UTF-8").replace("+","%20")+"?p="+(page-1),allowNotFound=true)
-    private fun referer(url: String): String =
-        homeOrigins.firstOrNull { url.toHttpUrlOrNull()?.host == it.toHttpUrlOrNull()?.host }
-            ?.let { "$it/" } ?: "$mainUrl/"
+    private fun referer(url: String): String {
+        val address = url.toHttpUrlOrNull()
+        return if (address != null && address.host in catalogueHosts) "${address.scheme}://${address.host}/"
+        else "$mainUrl/"
+    }
 
     private suspend fun document(request: PageRequest) = Network.page(
         request.copy(headers = mapOf("Cookie" to "ui_lang=ru", "Accept-Language" to Network.RUSSIAN_LANGUAGE)),
@@ -61,7 +69,7 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
             }!!
             val sourcePage = order.getOrNull(page - 1) ?: page
             if (page != 1 || sourcePage == 1) return@page homeCards(section.data, sourcePage)
-            val videos = RequestLimits.optional(5000) { homeCards(section.data, sourcePage) }.orEmpty()
+            val videos = RequestLimits.optional(8000) { homeCards(section.data, sourcePage) }.orEmpty()
             if (videos.isNotEmpty()) videos else {
                 // Recover when a random page has moved or is slow to respond.
                 homeOrders[section.data] = listOf(1)
@@ -71,16 +79,26 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         return newHomePageResponse(section.name,cards,cards.isNotEmpty())
     }
 
-    private suspend fun homeCards(category: String, page: Int): List<SearchResponse> {
-        var responded = false
-        for (origin in homeOrigins) {
-            val cards = RequestLimits.optional(3200) { categoryCards(category, page, origin, requireSameRoute = true) }
-                ?: continue
-            responded = true
-            if (cards.isNotEmpty()) return cards
+    private suspend fun homeCards(category: String, page: Int): List<SearchResponse> = coroutineScope {
+        suspend fun fetch(origin: String) =
+            RequestLimits.optional(7000) { categoryCards(category, page, origin, requireSameRoute = true) }
+
+        val primary = async { fetch(homeOrigin) }
+        val mirror = async {
+            delay(350)
+            fetch(homeMirror)
         }
-        if (responded) return emptyList()
-        throw ErrorLoadingException("Noodle Magazine: оба адреса каталога сейчас недоступны")
+        val (first, remaining) = select {
+            primary.onAwait { it to mirror }
+            mirror.onAwait { it to primary }
+        }
+        if (!first.isNullOrEmpty()) {
+            remaining.cancel()
+            return@coroutineScope first
+        }
+        val second = remaining.await()
+        second?.takeIf { it.isNotEmpty() } ?: first ?: second
+            ?: throw ErrorLoadingException("Noodle Magazine: каталог не ответил для раздела «$category»")
     }
 
     private suspend fun categoryCards(
@@ -94,8 +112,8 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         if (requireSameRoute) {
             val expected = request.url.toHttpUrlOrNull() ?: return emptyList()
             val actual = pageDocument.baseUri().toHttpUrlOrNull() ?: return emptyList()
-            if (expected.encodedPath.trimEnd('/') != actual.encodedPath.trimEnd('/') ||
-                homeOrigins.none { actual.host == it.toHttpUrlOrNull()?.host }
+            if (expected.pathSegments.dropLastWhile { it.isEmpty() } != actual.pathSegments.dropLastWhile { it.isEmpty() } ||
+                actual.host !in catalogueHosts
             ) throw ErrorLoadingException("Noodle Magazine: сайт перенаправил на другую страницу")
         }
         return Metadata.searchCards(pageDocument, spec, request).map(::response)
