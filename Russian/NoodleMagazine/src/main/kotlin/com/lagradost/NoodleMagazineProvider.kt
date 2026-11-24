@@ -23,13 +23,15 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     override val hasMainPage=true
     override val hasQuickSearch=false
     override val hasDownloadSupport=true
-    override val mainPage=mainPageOf(
-        "/popular/month" to "Popular","/popular/trending" to "Trending",
-        "bdsm" to "БДСМ","homemade" to "Домашнее",
-        "lesbian" to "Лесбиянки","spanking" to "Порка",
-        "студентки" to "Студентки","naked in public" to "На публике",
+    override val mainPage = mainPageOf(
+        "bdsm" to "БДСМ",
+        "homemade" to "Домашнее",
+        "рабыня" to "Рабыня",
+        "spanking" to "Порка",
+        "студентки" to "Студентки",
+        "naked in public" to "На публике",
         "разделась" to "Разделась",
-        "fetish" to "Фетиш","anal" to "Анал","milf" to "MILF"
+        "milf" to "MILF",
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)
     private val homeOrigins = listOf("https://noodlemagazine.com", "https://hot.tyler-brown.com")
