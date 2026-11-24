@@ -17,7 +17,7 @@ import java.util.Locale
 object Translation {
     @Volatile private var shared:SharedPreferences?=null
     fun configure(context:Context){shared=context.applicationContext.getSharedPreferences("cloudextensions-translations",Context.MODE_PRIVATE)}
-    private val dictionary=mapOf("bdsm" to "бдсм","guy" to "парень","woman" to "женщина","girl" to "девушка","man" to "мужчина","mother" to "мать","mom" to "мама","aunt" to "тётя","lesbian" to "лесбиянка","lesbians" to "лесбиянки","spanking" to "порка","two words" to "два слова", "russian slaves" to "русские рабыни", "russian slave" to "русская рабыня")
+    private val dictionary=mapOf("bdsm" to "бдсм","guy" to "парень","woman" to "женщина","girl" to "девушка","man" to "мужчина","mother" to "мать","mom" to "мама","aunt" to "тётя","lesbian" to "лесбиянка","lesbians" to "лесбиянки","spanking" to "порка","two words" to "два слова", "russian slaves" to "русские рабыни", "russian slave" to "русская рабыня", "slave" to "рабыня")
     private val searchGroups = listOf(
         setOf("домашка", "домашнее", "любительское", "homemade", "amateur", "amateurs"),
         setOf("бдсм", "bdsm"),

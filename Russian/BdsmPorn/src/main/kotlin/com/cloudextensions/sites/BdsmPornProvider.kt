@@ -4,11 +4,17 @@ import com.cloudextensions.russian.Metadata
 import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.Playback
+import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.RussianProvider
 import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
 import com.cloudextensions.russian.VideoDetail
+import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.newSearchResponseList
+import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import okhttp3.HttpUrl
@@ -43,6 +49,39 @@ class BdsmPornProvider : RussianProvider(
     override suspend fun searchRequest(term: String): PageRequest =
         PageRequest(mainUrl.toHttpUrl().newBuilder()
             .encodedPath("/search").query(null).addQueryParameter("q", term).build().toString())
+
+    private val guyTitle = Regex("""(?iu)(?<![\p{L}\p{N}])(?:пар(?:ень|ня|ню|нем|не|ни|ней|ням|нями|нях)|guys?)(?![\p{L}\p{N}])""")
+    private val slaveTitle = Regex("""(?iu)(?<![\p{L}\p{N}])(?:рабын(?:я|и|ю|ей|ь|ям|ями|ях)|slaves?)(?![\p{L}\p{N}])""")
+
+    override suspend fun search(query: String, page: Int): SearchResponseList {
+        val section = when (Metadata.clean(query).lowercase(Locale.ROOT)) {
+            "парень", "guy" -> "/videos" to guyTitle
+            "рабыня", "рабыни", "slave", "slaves" -> "/bdsm" to slaveTitle
+            else -> return super.search(query, page)
+        }
+        if (page < 1) return newSearchResponseList(emptyList(), false)
+        val original = try {
+            Result.success(super.search(query, page))
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+        val response = original.getOrNull()
+        if (response != null && (response.items.isNotEmpty() || response.hasNext)) return response
+
+        val catalogue = RequestLimits.optional(4000) {
+            val request = MainPageRequest(section.first, section.first, sequentialMainPage)
+            val first = getMainPage(page * 2 - 1, request)
+            val next = if (first.hasNext) getMainPage(page * 2, request) else null
+            val matches = (first.items + next?.items.orEmpty()).flatMap { it.list }
+                .filter { section.second.containsMatchIn(it.name) }
+                .distinctBy { it.url }
+            newSearchResponseList(matches, next?.hasNext == true)
+        }
+        if (catalogue != null && (catalogue.items.isNotEmpty() || catalogue.hasNext)) return catalogue
+        return original.getOrThrow()
+    }
 
     override suspend fun page(request: PageRequest): Document {
         val localized = request.copy(headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE))
