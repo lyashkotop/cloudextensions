@@ -397,6 +397,8 @@ fun main(args:Array<String>) {
         verify(Translation.translated("guy")=="парень","English query receives Russian companion")
         verify(Translation.translated("Порка")=="spanking","Russian spanking query uses the catalogue keyword")
         verify(Translation.translated("spanking")=="порка","English spanking query receives the Russian companion")
+        verify(Translation.translated("  русские   рабыни  ") == "russian slaves" &&
+            Translation.translated("RUSSIAN SLAVES") == "русские рабыни", "Russian slaves phrase translates both ways")
         verify(Translation.translated("два слова")=="two words","two Russian words receive English companion")
         verify(Translation.translated("two words")=="два слова","two English words receive Russian companion")
     }

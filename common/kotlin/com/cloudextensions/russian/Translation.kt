@@ -2,7 +2,11 @@ package com.cloudextensions.russian
 
 import java.net.URLEncoder
 import java.util.Collections
-import kotlinx.coroutines.CancellationException
+import com.lagradost.cloudstream3.app
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import okhttp3.Request
 import org.json.JSONArray
 import android.content.Context
 import android.content.SharedPreferences
@@ -12,7 +16,7 @@ import java.util.Locale
 object Translation {
     @Volatile private var shared:SharedPreferences?=null
     fun configure(context:Context){shared=context.applicationContext.getSharedPreferences("cloudextensions-translations",Context.MODE_PRIVATE)}
-    private val dictionary=mapOf("bdsm" to "бдсм","guy" to "парень","woman" to "женщина","girl" to "девушка","man" to "мужчина","mother" to "мать","mom" to "мама","aunt" to "тётя","lesbian" to "лесбиянка","lesbians" to "лесбиянки","spanking" to "порка","two words" to "два слова")
+    private val dictionary=mapOf("bdsm" to "бдсм","guy" to "парень","woman" to "женщина","girl" to "девушка","man" to "мужчина","mother" to "мать","mom" to "мама","aunt" to "тётя","lesbian" to "лесбиянка","lesbians" to "лесбиянки","spanking" to "порка","two words" to "два слова", "russian slaves" to "русские рабыни")
     private val searchGroups = listOf(
         setOf("домашка", "домашнее", "любительское", "homemade", "amateur", "amateurs"),
         setOf("бдсм", "bdsm"),
@@ -67,7 +71,8 @@ object Translation {
         return result.takeIf { it.isNotBlank()&&valid }
     }
     suspend fun translated(query:String):String? {
-        return text(query,target(query)?:return null)
+        val phrase = Metadata.clean(query)
+        return text(phrase, target(phrase) ?: return null)
     }
     suspend fun text(query:String,target:String):String? {
         require(target in listOf("ru","en"))
@@ -100,14 +105,37 @@ object Translation {
                 "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$source&tl=$target&dt=t&q=$encoded",
                 "https://translate.google.com/translate_a/single?client=gtx&sl=$source&tl=$target&dt=t&q=$encoded"
             )
-            for((index,url) in endpoints.withIndex()) {
-                val value=RequestLimits.optional(3000){
-                    val raw=Network.page(PageRequest(url),"https://translate.google.com/").wholeText()
-                    if(index==0)parseCompact(raw,target) else parse(raw,target)
-                }?.takeUnless{it.equals(query,true)}
-                if(value!=null){cache[key]=value;prefs?.edit()?.putString(digest,value)?.putLong(digest+".time",System.currentTimeMillis())?.apply();return value}
+            val value = firstTranslation(endpoints, query, target)
+            if (value != null) {
+                cache[key] = value
+                prefs?.edit()?.putString(digest, value)?.putLong(digest + ".time", System.currentTimeMillis())?.apply()
             }
-            return null
+            return value
         } finally { prefs?.edit()?.remove(digest+".pending")?.apply() }
     }
+    private suspend fun firstTranslation(endpoints: List<String>, query: String, target: String): String? = coroutineScope {
+        val results = Channel<String?>(endpoints.size)
+        val workers = endpoints.mapIndexed { index, endpoint ->
+            launch {
+                if (index > 0) delay(index * 200L)
+                val translation = RequestLimits.optional(3000) {
+                    val request = Request.Builder().url(endpoint)
+                        .header("User-Agent", Network.USER_AGENT)
+                        .header("Accept", "application/json").build()
+                    val raw = Network.read(request, app.baseClient) { response ->
+                        if (response.isSuccessful) response.body?.string() else null
+                    } ?: return@optional null
+                    if (index == 0) parseCompact(raw, target) else parse(raw, target)
+                }
+                results.send(translation?.takeUnless { it.equals(query, ignoreCase = true) })
+            }
+        }
+        try {
+            repeat(workers.size) { results.receive()?.let { return@coroutineScope it } }
+            null
+        } finally {
+            workers.forEach { it.cancel() }
+        }
+    }
+
 }

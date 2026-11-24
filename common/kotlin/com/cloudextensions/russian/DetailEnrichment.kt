@@ -11,6 +11,7 @@ object DetailEnrichment {
     private val xvideosId = Regex("^/embedframe/([A-Za-z0-9]+)/?$")
     private val pornhubId = Regex("^/embed/(ph[A-Za-z0-9]+|[0-9a-fA-F]{13})/?$")
     private val xhamsterEmbed = Regex("^/embed/(xh[A-Za-z0-9]+|[0-9]+)/?$")
+    private val xhamsterPlayerHosts = setOf("xh.partners", "xh.video")
     private val xhamsterPartner = Regex("^/[ep]/([A-Za-z0-9]{3,24})/?$")
     private val desktopAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
@@ -46,9 +47,9 @@ object DetailEnrichment {
                 val target = xhamsterPlayerVideo(url) ?: continue
                 return Original(target, "", desktop = true)
             }
-            if (host == "xh.partners") {
+            if (host in xhamsterPlayerHosts) {
                 val id = xhamsterPartner.matchEntire(path)?.groupValues?.get(1) ?: continue
-                val target = if (id.startsWith("xh")) "https://xhamster.com/videos/$id" else "https://xh.partners/e/$id"
+                val target = if (id.startsWith("xh")) "https://xhamster.com/videos/$id" else url
                 return Original(target, "", desktop = true)
             }
         }
@@ -125,7 +126,7 @@ object DetailEnrichment {
 
     private suspend fun fetchOriginal(target: Original, referer: String, checkAvailability: Boolean): OriginalPage {
         val headers = if (target.desktop) mapOf("User-Agent" to desktopAgent) else emptyMap()
-        val video = if (URI(target.url).host == "xh.partners") {
+        val video = if (URI(target.url).host in xhamsterPlayerHosts) {
             // Legacy partner codes are aliases. Only the player redirect identifies their video.
             val player = Network.page(PageRequest(target.url, headers = headers, allowNotFound = checkAvailability), referer)
             if (checkAvailability && isUnavailable(player)) return OriginalPage(target.url, unavailable = true)

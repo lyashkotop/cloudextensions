@@ -1,6 +1,7 @@
 package com.example.tubesafari
 import com.cloudextensions.russian.*
 import org.jsoup.nodes.Document
+import okhttp3.HttpUrl.Companion.toHttpUrl
 class TubeSafariProvider: RussianProvider(SiteSpec(
  id="TubeSafari",
  title="TubeSafari",
@@ -16,6 +17,10 @@ class TubeSafariProvider: RussianProvider(SiteSpec(
  override var lang="en"
  override val posterTimeoutMs = 5600L
  override val requiresListingReview = true
+ override suspend fun searchRequest(term: String): PageRequest =
+  PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search/")
+   .addPathSegment(Metadata.clean(term).replace(' ', '-')).build().toString())
+
  override suspend fun enrichMetadata(document: Document, detail: VideoDetail): VideoDetail =
   DetailEnrichment.verifyOriginal(document, spec, detail, budget = 9_000)
  override suspend fun reviewMetadata(document: Document, detail: VideoDetail): VideoDetail =
