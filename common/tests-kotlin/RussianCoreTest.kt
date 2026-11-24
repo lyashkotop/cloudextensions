@@ -240,7 +240,9 @@ fun main(args:Array<String>) {
     verify(Translation.target("слово")=="en","one Russian word")
     verify(Translation.target("два слова")=="en","two Russian words")
     verify(Translation.target("two words")=="ru","two English words")
-    verify(Translation.target("three different words")==null,"three words stay original")
+    verify(Translation.target("three different words") == "ru" &&
+        Translation.target("три разных слова") == "en" &&
+        Translation.target("four different search words") == null, "translate up to three words in either direction")
     verify(Translation.target("123")==null,"numeric query stays original")
     val spankingAliases = setOf("порка", "spanking", "whipping", "whipped")
     verify(spankingAliases.all { Translation.searchAliases(it) == spankingAliases }, "each spanking search alias expands to the same group")

@@ -45,11 +45,12 @@ object Translation {
     internal fun searchForms(query: String): Set<String> =
         russianSlaveForms.takeIf { Metadata.clean(query).lowercase(Locale.ROOT) in it }.orEmpty()
 
-    private val cache=Collections.synchronizedMap(BoundedMap<String,String>(256))
+    private const val TRANSLATION_TTL_MS = 86_400_000L
+    private val cache = Collections.synchronizedMap(BoundedMap<String, Pair<Long, String>>(256))
     fun target(query: String): String? {
         val normalized=query.trim().replace(Regex("\\s+")," ")
         val words=normalized.split(' ')
-        if(words.size !in 1..2 || words.any{!it.matches(Regex("[\\p{L}]+(?:[-'][\\p{L}]+)*"))})return null
+        if(words.size !in 1..3 || words.any{!it.matches(Regex("[\\p{L}]+(?:[-'][\\p{L}]+)*"))})return null
         return when {
             Regex("[А-Яа-яЁё]").containsMatchIn(normalized)->"en"
             Regex("[A-Za-z]").containsMatchIn(normalized)->"ru"
@@ -86,7 +87,8 @@ object Translation {
         val known=if(target=="ru")dictionary[normalized] else dictionary.entries.firstOrNull{it.value==normalized}?.key
         if(known!=null)return known
         val source = if (target == "en" && Regex("[а-яё]+(?:[\\s'-]+[а-яё]+)*").matches(normalized)) "ru" else "auto"
-        val key="$source:$target:$normalized";cache[key]?.let{return it}
+        val key = "$source:$target:$normalized"
+        cache[key]?.takeIf { System.currentTimeMillis() - it.first < TRANSLATION_TTL_MS }?.let { return it.second }
         val prefs=shared
         val digest=java.security.MessageDigest.getInstance("SHA-256").digest(key.toByteArray()).joinToString(""){"%02x".format(it)}
         val started=System.currentTimeMillis()
@@ -94,7 +96,7 @@ object Translation {
             var busy=false
             synchronized(prefs) {
                 val cached=prefs.getString(digest,null)
-                if(cached!=null && System.currentTimeMillis()-prefs.getLong(digest+".time",0)<86_400_000)return cached
+                if(cached!=null && System.currentTimeMillis()-prefs.getLong(digest+".time",0)<TRANSLATION_TTL_MS)return cached
                 val stamp=prefs.getLong(digest+".pending",0)
                 busy=System.currentTimeMillis()-stamp<11_000
                 if(!busy)prefs.edit().putLong(digest+".pending",System.currentTimeMillis()).apply()
@@ -112,8 +114,9 @@ object Translation {
             )
             val value = firstTranslation(endpoints, query, target)
             if (value != null) {
-                cache[key] = value
-                prefs?.edit()?.putString(digest, value)?.putLong(digest + ".time", System.currentTimeMillis())?.apply()
+                val now = System.currentTimeMillis()
+                cache[key] = now to value
+                prefs?.edit()?.putString(digest, value)?.putLong(digest + ".time", now)?.apply()
             }
             return value
         } finally { prefs?.edit()?.remove(digest+".pending")?.apply() }
