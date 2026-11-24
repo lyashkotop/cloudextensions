@@ -24,6 +24,7 @@ class FreeMisogynyComicsProvider : RussianProvider(
         detailTitleSelector = "h1.entry-title",
         tagSelector = "main ul.tags a[href*=/photos-tag/]",
         related = ".wpst-related-videos",
+        searchContainer = ".search-section-videos",
         sections = listOf(Section("Videos", "/videos/")),
     ),
 ) {
@@ -35,6 +36,10 @@ class FreeMisogynyComicsProvider : RussianProvider(
             .addQueryParameter("s", term).addQueryParameter("post_type", "videos").build().toString())
 
     override suspend fun page(request: PageRequest): Document = super.page(request).clone().apply {
+        // WordPress sets this class from the photo query even when its video section has matches.
+        if (selectFirst(".search-section-videos article.type-videos a.video-thumb-link[href]") != null) {
+            body().removeClass("search-no-results")
+        }
         select("article.type-videos .badge-duration").forEach { it.attr("data-duration", it.text()) }
         select(".wpst-related-videos article.type-videos a.pr-topic-tag[href]").attr("rel", "tag")
     }
