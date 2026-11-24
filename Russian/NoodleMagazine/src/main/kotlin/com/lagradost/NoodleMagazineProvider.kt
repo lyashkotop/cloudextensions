@@ -8,6 +8,7 @@ import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import okhttp3.Headers
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import org.jsoup.nodes.Document
 
@@ -31,12 +32,20 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         "fetish" to "Фетиш","anal" to "Анал","milf" to "MILF"
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)
+    private val homeOrigins = listOf("https://noodlemagazine.com", "https://hot.tyler-brown.com")
     private val homePages = NoodleCatalogue()
     private val homeOrders = ConcurrentHashMap<String, List<Int>>()
     private val searchPages = NoodleCatalogue()
-    private fun route(query:String,page:Int)=PageRequest("$mainUrl/video/"+URLEncoder.encode(query,"UTF-8").replace("+","%20")+"?p="+(page-1),allowNotFound=true)
-    private suspend fun document(request:PageRequest)=Network.page(request.copy(headers=mapOf("Cookie" to "ui_lang=ru","Accept-Language" to "ru-RU,ru;q=0.9")),"$mainUrl/")
-    private fun response(card:VideoCard):SearchResponse=newMovieSearchResponse(card.title,card.url,TvType.NSFW){posterUrl=card.poster;posterHeaders=Network.headers("$mainUrl/")}
+    private fun route(query:String,page:Int,origin:String=mainUrl)=PageRequest("$origin/video/"+URLEncoder.encode(query,"UTF-8").replace("+","%20")+"?p="+(page-1),allowNotFound=true)
+    private fun referer(url: String): String =
+        homeOrigins.firstOrNull { url.toHttpUrlOrNull()?.host == it.toHttpUrlOrNull()?.host }
+            ?.let { "$it/" } ?: "$mainUrl/"
+
+    private suspend fun document(request: PageRequest) = Network.page(
+        request.copy(headers = mapOf("Cookie" to "ui_lang=ru", "Accept-Language" to Network.RUSSIAN_LANGUAGE)),
+        referer(request.url),
+    )
+    private fun response(card:VideoCard):SearchResponse=newMovieSearchResponse(card.title,card.url,TvType.NSFW){posterUrl=card.poster;posterHeaders=Network.headers(referer(card.url))}
     private suspend fun results(query:String,page:Int):List<SearchResponse>{val request=route(query,page);return Metadata.searchCards(document(request),spec,request).map(::response)}
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse {
         if(page<1)return newHomePageResponse(request.name,emptyList(),false)
@@ -49,22 +58,50 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
                 }
             }!!
             val sourcePage = order.getOrNull(page - 1) ?: page
-            val videos = categoryCards(request.data, sourcePage)
-            if (videos.isNotEmpty() || page != 1 || sourcePage == 1) videos
-            else {
-                // Recover when the source has shortened a category since the last refresh.
+            if (page != 1 || sourcePage == 1) return@page homeCards(request.data, sourcePage)
+            val videos = RequestLimits.optional(5000) { homeCards(request.data, sourcePage) }.orEmpty()
+            if (videos.isNotEmpty()) videos else {
+                // Recover when a random page has moved or is slow to respond.
                 homeOrders[request.data] = listOf(1)
-                categoryCards(request.data, 1)
+                homeCards(request.data, 1)
             }
         }
         return newHomePageResponse(request.name,cards,cards.isNotEmpty())
     }
 
-    private suspend fun categoryCards(category: String, page: Int): List<SearchResponse> {
-        if (!category.startsWith("/")) return results(category, page)
-        val separator = if (category.contains('?')) "&" else "?"
-        val request = PageRequest("$mainUrl$category${separator}p=${page - 1}", allowNotFound = true)
-        return Metadata.searchCards(document(request), spec, request).map(::response)
+    private suspend fun homeCards(category: String, page: Int): List<SearchResponse> {
+        var responded = false
+        for (origin in homeOrigins) {
+            val section = when {
+                category != "/popular/month" -> category
+                origin == homeOrigins.first() -> "/home"
+                else -> "/recent"
+            }
+            val cards = RequestLimits.optional(3200) { categoryCards(section, page, origin, requireSameRoute = true) }
+                ?: continue
+            responded = true
+            if (cards.isNotEmpty()) return cards
+        }
+        if (responded) return emptyList()
+        throw ErrorLoadingException("Noodle Magazine: оба адреса каталога сейчас недоступны")
+    }
+
+    private suspend fun categoryCards(
+        category: String, page: Int, origin: String = mainUrl, requireSameRoute: Boolean = false,
+    ): List<SearchResponse> {
+        val request = if (category.startsWith("/")) {
+            val separator = if (category.contains('?')) "&" else "?"
+            PageRequest("$origin$category${separator}p=${page - 1}", allowNotFound = true)
+        } else route(category, page, origin)
+        val pageDocument = document(request)
+        if (requireSameRoute) {
+            val expected = request.url.toHttpUrlOrNull() ?: return emptyList()
+            val actual = pageDocument.baseUri().toHttpUrlOrNull() ?: return emptyList()
+            if (expected.encodedPath.trimEnd('/') != actual.encodedPath.trimEnd('/') ||
+                homeOrigins.none { actual.host == it.toHttpUrlOrNull()?.host }
+            ) throw ErrorLoadingException("Noodle Magazine: сайт перенаправил на другую страницу")
+        }
+        return Metadata.searchCards(pageDocument, spec, request).map(::response)
     }
 
     override suspend fun searchCategoryPage(category: String, page: Int): SearchResponseList {
@@ -93,7 +130,7 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         }
         return newMovieLoadResponse(detail.title,url,TvType.NSFW,url){
             score = VideoScores.detail("NoodleMagazine",url,page)
-            posterUrl=detail.poster;posterHeaders=Network.headers("$mainUrl/");plot=Metadata.plot(detail);tags=detail.tags;recommendations=related
+            posterUrl=detail.poster;posterHeaders=Network.headers(referer(url));plot=Metadata.plot(detail);tags=detail.tags;recommendations=related
             applyVideoDuration(detail.duration)
         }
     }
