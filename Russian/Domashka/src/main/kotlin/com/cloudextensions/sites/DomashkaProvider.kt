@@ -11,7 +11,6 @@ import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
 import com.cloudextensions.russian.Translation
 import com.cloudextensions.russian.VideoDetail
-import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.newExtractorLink
@@ -86,20 +85,13 @@ class DomashkaProvider : RussianProvider(
         document.selectFirst("main .split-player__left .player video[poster]")
             ?.absUrl("poster")?.toHttpUrlOrNull()
             ?.takeIf { it.host == "ic.pckcdn.net" && it.encodedPath.startsWith("/i/") }
-            ?.toString()
+            ?.let { poster ->
+                if (poster.query != null) poster.toString()
+                else poster.newBuilder().query("op=t16x9&width=480&c=1").build().toString()
+            }
 
     override suspend fun resolvePoster(url: String, poster: String?, headers: Map<String, String>): String? =
         poster ?: playerPoster(fetch(PageRequest(url)))
-
-    override suspend fun load(url: String): LoadResponse {
-        val document = page(PageRequest(url))
-        val detail = loadDocument(url, document)
-        playerPoster(document)?.let { poster ->
-            Metadata.rememberPoster(url, poster)
-            detail.posterUrl = poster
-        }
-        return detail
-    }
 
     override fun readMetadata(document: Document): VideoDetail {
         val detail = super.readMetadata(document)
@@ -108,7 +100,10 @@ class DomashkaProvider : RussianProvider(
             match.groupValues[2].lowercase().first() to (match.groupValues[1].toLongOrNull() ?: 0)
         }
         val seconds = (parts['ч'] ?: 0) * 3600 + (parts['м'] ?: 0) * 60 + (parts['с'] ?: 0)
-        return detail.copy(duration = Metadata.timing(seconds.toString()).ifBlank { detail.duration })
+        val poster = Metadata.savedPoster(document.baseUri())?.takeIf { it.contains("width=480") }
+            ?: playerPoster(document) ?: detail.poster
+        if (poster != null) Metadata.rememberPoster(document.baseUri(), poster)
+        return detail.copy(poster = poster, duration = Metadata.timing(seconds.toString()).ifBlank { detail.duration })
     }
 
     override suspend fun loadLinks(
