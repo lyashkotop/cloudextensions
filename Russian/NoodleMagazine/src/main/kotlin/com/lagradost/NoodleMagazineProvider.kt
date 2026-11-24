@@ -35,7 +35,6 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         "студентки" to "Студентки",
         "naked in public" to "На публике",
         "разделась" to "Разделась",
-        "milf" to "MILF",
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)
     private val homeOrigin = "https://noodlemagazine.com"
