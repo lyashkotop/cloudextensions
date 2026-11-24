@@ -43,6 +43,7 @@ object ContentPolicy {
         "bbc",
         "pregnant",
         "granny",
+        "scat",
         "furry",
         "femboy",
         "femboys",

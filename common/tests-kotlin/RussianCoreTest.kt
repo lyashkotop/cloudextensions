@@ -9,6 +9,9 @@ import org.json.JSONTokener
 private var checks=0
 private fun verify(value:Boolean,message:String){checks++;check(value){message}}
 fun main(args:Array<String>) {
+    verify(!ContentPolicy.accepts("Example SCAT video") &&
+        !ContentPolicy.accepts("Example video", listOf("scat")) &&
+        ContentPolicy.accepts("Scattered clouds"), "scat matches a complete word in titles and tags")
     verify(ContentPolicy.accepts("High-heels in the title") &&
         !ContentPolicy.accepts("Example video", listOf("high-heels")) &&
         !ContentPolicy.accepts("Example video", listOf("High Heels")), "high-heels is blocked in tags only")
