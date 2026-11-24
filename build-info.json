@@ -1,12 +1,12 @@
 {
-  "version": 209,
-  "sourceCommit": "6f457ffb91ccfc0cc1e898b0c05f1bf6e3242222",
+  "version": 210,
+  "sourceCommit": "3263e7fce42c7ecef7c8da5ce71ed09fea6ebfae",
   "packageLayout": "versioned",
   "plugins": 36,
   "rebuilt": [
     "Domashka"
   ],
-  "dexClasses": 11648,
+  "dexClasses": 11647,
   "entryRegistrationsValidated": 36,
   "kotlinProviders": 36
 }
