@@ -98,10 +98,8 @@ object ContentPolicy {
     private val blocked = Regex("""(?iu)(?<![\p{L}\p{N}])(?:$blockedPatterns)(?![\p{L}\p{N}])""")
     private val blockedTag = Regex("""(?iu)(?<![\p{L}\p{N}])(?:drain|farting|толстушки|urethra|eat[\s_-]+poop|high[\s_-]+heels)(?![\p{L}\p{N}])""")
     private val blockedDescription = Regex("""(?iu)(?<![\p{L}\p{N}])hentai(?![\p{L}\p{N}])""")
-    private val blockedTitle = Regex("""(?iu)(?<![\p{L}\p{N}])ball[\s_-]*busting(?![\p{L}\p{N}])""")
     fun accepts(title: String, tags: List<String> = emptyList(), description: String? = null): Boolean {
         if (!enabled) return true
-        if (blockedTitle.containsMatchIn(title)) return false
         val fields = listOf(title) + tags
         return fields.any(allowed::containsMatchIn) ||
             (fields.none(blocked::containsMatchIn) && tags.none(blockedTag::containsMatchIn) &&

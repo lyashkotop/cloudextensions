@@ -9,8 +9,6 @@ import org.json.JSONTokener
 private var checks=0
 private fun verify(value:Boolean,message:String){checks++;check(value){message}}
 fun main(args:Array<String>) {
-    verify(!ContentPolicy.accepts("Lesbian Ballbusting") && !ContentPolicy.accepts("Girls ball-busting") &&
-        ContentPolicy.accepts("Lesbian scene"), "ballbusting in a title takes priority over allowed words")
     verify(!ContentPolicy.accepts("Example SCAT video") &&
         !ContentPolicy.accepts("Example video", listOf("scat")) &&
         ContentPolicy.accepts("Scattered clouds"), "scat matches a complete word in titles and tags")
@@ -385,8 +383,7 @@ fun main(args:Array<String>) {
     for (word in ContentPolicy.blockedWords + listOf("3D-animated", "black  man", "female-domination", "BALL-BUSTING", "ball_basting", "ASMR", "АСМР")) {
         verify(!ContentPolicy.accepts("A $word title"),"blocked title $word")
         verify(!ContentPolicy.accepts("A video", listOf(word)),"blocked tag $word")
-        val strictTitle = word.lowercase() in setOf("ballbusting", "ball busting", "ball-busting")
-        verify(ContentPolicy.accepts("A $word title", listOf("lesbians")) != strictTitle, "title filter precedence for $word")
+        verify(ContentPolicy.accepts("A $word title", listOf("lesbians")),"lesbian tag overrides blocked title $word")
         verify(ContentPolicy.accepts("Лесбиянки", listOf(word)),"lesbian title overrides blocked tag $word")
     }
     verify(!ContentPolicy.accepts("A video", listOf("eat poop")) && ContentPolicy.accepts("Eat poop in a title"),
