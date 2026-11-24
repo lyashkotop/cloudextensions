@@ -1,13 +1,12 @@
 {
-  "version": 233,
-  "sourceCommit": "c9faece572e48777fd81d8e4d6705308d48bcfb1",
+  "version": 234,
+  "sourceCommit": "e657a21a536f952a17d185df955f064b034b9745",
   "packageLayout": "versioned",
   "plugins": 39,
   "rebuilt": [
-    "BdsmPorn",
     "NoodleMagazine"
   ],
-  "dexClasses": 12837,
+  "dexClasses": 12841,
   "entryRegistrationsValidated": 39,
   "kotlinProviders": 39
 }
