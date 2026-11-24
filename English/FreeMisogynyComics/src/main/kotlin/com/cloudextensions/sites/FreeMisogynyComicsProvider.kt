@@ -51,7 +51,7 @@ class FreeMisogynyComicsProvider : RussianProvider(
             ?.takeIf {
                 it.isHttps && it.host == mainUrl.toHttpUrl().host && it.encodedPath == "/" &&
                     it.queryParameter("gmzsvp_frame") == "1" &&
-                    it.queryParameter("p")?.toLongOrNull() != null
+                    !it.queryParameter("p").isNullOrBlank() && !it.queryParameter("s").isNullOrBlank()
             } ?: return false
         val player = Network.page(PageRequest(frameUrl.toString()), detail.baseUri())
         val sources = player.select("script:not([src])").flatMap { script ->
