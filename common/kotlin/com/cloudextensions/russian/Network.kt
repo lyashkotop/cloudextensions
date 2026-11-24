@@ -13,6 +13,7 @@ import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
@@ -33,6 +34,8 @@ object Network {
     private const val BDSMPORN_HOST = "ru.bdsm-porn.cc"
     private data class BrowserSession(val clearance: String, val userAgent: String)
     @Volatile private var bdsmPornSession: BrowserSession? = null
+    private val bdsmPornBrowser = Mutex()
+    private var lastRejectedBrowserCheck: Long? = null
 
     private fun rememberBrowserSession(request: Request) {
         if (!request.url.isHttps || request.url.host != BDSMPORN_HOST) return
@@ -42,7 +45,12 @@ object Network {
         bdsmPornSession = BrowserSession(clearance, agent)
     }
 
-    private class HttpFailure(val code: Int, val url: String, val retryAfter: String? = null) :
+    private class HttpFailure(
+        val code: Int,
+        val url: String,
+        val retryAfter: String? = null,
+        val browserCheck: Boolean = false,
+    ) :
         IOException("HTTP $code: ${url.toHttpUrlOrNull()?.host}")
     private val challengeHandler=Interceptor { chain ->
         cloudflare.intercept(object:Interceptor.Chain by chain {
@@ -142,6 +150,7 @@ object Network {
                 for((k,v) in headers(referer)+request.headers)builder.header(k,v)
                 request.data?.let { values -> val form=FormBody.Builder();values.forEach { (k,v)->form.add(k,v) };builder.post(form.build()) }
                 val initial=builder.build()
+                val sessionAtRequest = bdsmPornSession
                 val document=try {
                     try { execute(initial,request.allowNotFound) } catch(failure:HttpFailure) {
                         if(failure.code!=429)throw failure
@@ -156,20 +165,40 @@ object Network {
                     }
                 } catch(failure:HttpFailure) {
                     if(failure.code !in setOf(403,503))throw failure
-                    // Use the host's cookie-aware WebView challenge handler on Android.
-                    val sameHost=failure.url.toHttpUrlOrNull()?.host==initial.url.host
-                    val extra=headers(referer)+request.headers.filterKeys{sameHost || it.lowercase() !in setOf("cookie","authorization")}
-                    val response=kotlinx.coroutines.withTimeout(7000) {
-                        if(request.data==null || failure.url!=fetchUrl)app.get(failure.url,headers=extra,interceptor=challengeHandler)
-                        else app.post(failure.url,headers=extra,data=request.data,interceptor=challengeHandler)
-                    }
-                    try {
-                        if(response.code !in 200..299 && !(request.allowNotFound && response.code in setOf(404, 410)))throw HttpFailure(response.code,response.url)
-                        if (response.code in 200..299) rememberBrowserSession(response.okhttpResponse.request)
-                        Jsoup.parse(response.text, response.url).apply {
-                            attr("data-response-code", response.code.toString())
+                    if (initial.url.host == BDSMPORN_HOST && failure.url.toHttpUrlOrNull()?.host == BDSMPORN_HOST) {
+                        if (!failure.browserCheck) throw failure
+                        bdsmPornBrowser.withLock browser@{
+                            // Concurrent query variants can reuse the session acquired by the first request.
+                            if (bdsmPornSession != null && bdsmPornSession != sessionAtRequest) {
+                                try {
+                                    return@browser execute(initial, request.allowNotFound)
+                                } catch (retry: HttpFailure) {
+                                    if (!retry.browserCheck) throw retry
+                                }
+                            }
+                            val now = System.nanoTime()
+                            val lastFailure = lastRejectedBrowserCheck
+                            if (lastFailure != null && now - lastFailure < TimeUnit.SECONDS.toNanos(4)) {
+                                throw bdsmPornAccessError()
+                            }
+                            val checked = withTimeoutOrNull(10_000) {
+                                try {
+                                    browserDocument(request, referer, initial, failure, fetchUrl)
+                                } catch (retry: HttpFailure) {
+                                    if (retry.code !in setOf(403, 503)) throw retry
+                                    null
+                                }
+                            }
+                            if (checked == null) {
+                                lastRejectedBrowserCheck = System.nanoTime()
+                                throw bdsmPornAccessError()
+                            }
+                            lastRejectedBrowserCheck = null
+                            checked
                         }
-                    } finally { response.okhttpResponse.close() }
+                    } else kotlinx.coroutines.withTimeout(7000) {
+                        browserDocument(request, referer, initial, failure, fetchUrl)
+                    }
                 }
                 if(refresh)document.setBaseUri(request.url)
                 Metadata.alias(request.url,document.baseUri())
@@ -178,6 +207,32 @@ object Network {
             }
         }} finally {
             locks.computeIfPresent(lockKey) { _, pending -> if (--pending.users == 0) null else pending }
+        }
+    }
+
+    private fun bdsmPornAccessError() =
+        ErrorLoadingException("BDSM-Porn.cc: Cloudflare не подтвердил сеанс CloudStream (HTTP 403)")
+
+    private suspend fun browserDocument(
+        request: PageRequest, referer: String, initial: Request, failure: HttpFailure, fetchUrl: String,
+    ): Document {
+        val sameHost = failure.url.toHttpUrlOrNull()?.host == initial.url.host
+        val extra = headers(referer) + request.headers.filterKeys {
+            sameHost || it.lowercase() !in setOf("cookie", "authorization")
+        }
+        val response = if (request.data == null || failure.url != fetchUrl) {
+            app.get(failure.url, headers = extra, interceptor = challengeHandler)
+        } else app.post(failure.url, headers = extra, data = request.data, interceptor = challengeHandler)
+        try {
+            if (response.code !in 200..299 && !(request.allowNotFound && response.code in setOf(404, 410))) {
+                throw HttpFailure(response.code, response.url)
+            }
+            if (response.code in 200..299) rememberBrowserSession(response.okhttpResponse.request)
+            return Jsoup.parse(response.text, response.url).apply {
+                attr("data-response-code", response.code.toString())
+            }
+        } finally {
+            response.okhttpResponse.close()
         }
     }
 
@@ -206,7 +261,8 @@ object Network {
             }.build()
         return read(request, client) { response ->
             if (!response.isSuccessful && !(allowNotFound && response.code in setOf(404, 410))) {
-                throw HttpFailure(response.code, response.request.url.toString(), response.header("Retry-After"))
+                throw HttpFailure(response.code, response.request.url.toString(), response.header("Retry-After"),
+                    browserCheck = response.header("cf-mitigated").equals("challenge", ignoreCase = true))
             }
             val text = response.body?.string() ?: throw ErrorLoadingException("Пустой ответ: ${request.url.host}")
             val envelope = if (text.trimStart().startsWith("{")) {
