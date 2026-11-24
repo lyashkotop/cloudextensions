@@ -1,0 +1,11 @@
+{
+  "id": "FreeMisogynyComics",
+  "name": "Free Misogyny XXX Comics",
+  "language": "en",
+  "category": "English",
+  "entryClass": "com.cloudextensions.entries.FreeMisogynyComicsPlugin",
+  "providerClass": "com.cloudextensions.sites.FreeMisogynyComicsProvider",
+  "description": "Free Misogyny XXX Comics · video archive, search and native playback.",
+  "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/FreeMisogynyComics.png",
+  "runtime": "kotlin"
+}
