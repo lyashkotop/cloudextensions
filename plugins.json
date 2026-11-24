@@ -20,9 +20,9 @@
     "fileHash": "sha256-2397e33de689ea612597c140e23d7bc4d1ef087fe2354cc013c6b3cf4ab89fdd"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/208/Domashka.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/209/Domashka.cs3",
     "status": 1,
-    "version": 208,
+    "version": 209,
     "apiVersion": 1,
     "name": "1 · RU · Domashka.live",
     "internalName": "Domashka",
@@ -36,8 +36,8 @@
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/Domashka.png",
-    "fileSize": 229604,
-    "fileHash": "sha256-f300e16102f1e5bed4c774c51bff604b18891e936c6c6e2723f36e71fb7c78f2"
+    "fileSize": 230507,
+    "fileHash": "sha256-e1ef092873d715580b84ff5757eec69acdf7dc08ca8e1ff4695159378d19c104"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/208/Ebalka.cs3",
