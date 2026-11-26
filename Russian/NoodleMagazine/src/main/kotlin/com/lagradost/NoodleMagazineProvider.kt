@@ -8,6 +8,7 @@ import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.selects.select
@@ -27,6 +28,8 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     override val hasMainPage=true
     override val hasQuickSearch=false
     override val hasDownloadSupport=true
+    private val streamsSection = "streams"
+    private val streamQueries = listOf("стримы", "стрим вк", "перископ", "скайп", "видеочат")
     override val mainPage = mainPageOf(
         "разделась" to "Разделась",
         "bdsm" to "БДСМ",
@@ -36,6 +39,7 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         "унижение" to "Унижение",
         "студентки" to "Студентки",
         "naked in public" to "На публике",
+        streamsSection to "Стримы",
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)
     private val homeOrigin = "https://noodlemagazine.com"
@@ -80,7 +84,17 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         return newHomePageResponse(section.name,cards,cards.isNotEmpty())
     }
 
-    private suspend fun homeCards(category: String, page: Int): List<SearchResponse> = coroutineScope {
+    private suspend fun homeCards(category: String, page: Int): List<SearchResponse> {
+        if (category != streamsSection) return homeTermCards(category, page)
+        val cards = coroutineScope {
+            streamQueries.map { query ->
+                async { RequestLimits.optional(3000) { homeTermCards(query, page) }.orEmpty() }
+            }.awaitAll().flatten()
+        }
+        return cards.ifEmpty { homeTermCards(streamQueries.first(), page) }
+    }
+
+    private suspend fun homeTermCards(category: String, page: Int): List<SearchResponse> = coroutineScope {
         suspend fun fetch(origin: String) =
             RequestLimits.optional(7000) { categoryCards(category, page, origin, requireSameRoute = true) }
 
