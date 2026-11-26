@@ -53,7 +53,16 @@ class DomashkaProvider : RussianProvider(
         super.page(request.copy(headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE)))
 
     override suspend fun page(request: PageRequest): Document {
-        val document = fetch(request).clone()
+        val original = fetch(request)
+        val address = request.url.toHttpUrl()
+        val noTrainingMatches = address.encodedPath == "/search/" &&
+            address.queryParameter("q").equals("обучение", ignoreCase = true) &&
+            address.queryParameterNames == setOf("q") &&
+            Metadata.emptySearch(original, request)
+        val document = if (noTrainingMatches) {
+            val alternative = address.newBuilder().setQueryParameter("q", "урок").build().toString()
+            fetch(request.copy(url = alternative)).clone()
+        } else original.clone()
         document.select(".thumb__preview img[src*=/assets/img/no-image.png]").removeAttr("src")
         document.select(".thumb .thumb-tags a.thumb-tags__link[href]").attr("rel", "tag")
         val cards = document.select(".thumb[data-vw]:has(a.thumb__preview[href^=/ex/])")

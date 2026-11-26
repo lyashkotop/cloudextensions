@@ -18,7 +18,9 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import org.jsoup.nodes.Document
 
-class NoodleMagazineProvider(cacheDirectory: File? = null): MainAPI(),SearchPolicy,NoodlePosterSource {
+class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,NoodlePosterSource {
+    constructor() : this(ImagePrefetch.cacheDirectory())
+
     private val homeCache = cacheDirectory?.let { NoodleHomeCache(File(it, "noodle-home-v1")) }
     override val preferredTitleLanguage = "ru"
     override val reuseConfirmedPosters = true

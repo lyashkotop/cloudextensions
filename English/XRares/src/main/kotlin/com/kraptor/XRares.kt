@@ -5,6 +5,8 @@ package com.kraptor
 import com.cloudextensions.russian.ContentPolicy
 import com.cloudextensions.russian.MediaDuration
 import com.cloudextensions.russian.Metadata
+import com.cloudextensions.russian.Network
+import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.applyVideoDuration
 
@@ -65,15 +67,21 @@ class XRares : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> = search(query,1).items
 
     override suspend fun search(query: String, page: Int): SearchResponseList {
-        val encodedQuery=java.net.URLEncoder.encode(query,"UTF-8").replace("+","%20")
-        val document = if (page==1){
-            app.get("${mainUrl}/search/videos?search_query=${encodedQuery}&type=public").document
-        } else {
-            app.get("${mainUrl}/search/videos?search_query=${encodedQuery}&type=public&page=$page").document
-        }
+        val term = Metadata.clean(query)
+        val origin = mainUrl.toHttpUrlOrNull()
+        if (term.isEmpty() || origin == null || page < 1) return newSearchResponseList(emptyList(), false)
 
-        val aramaCevap = document.select("div.col-sm-6").mapNotNull { it.toMainPageResult() }
-        return newSearchResponseList(aramaCevap, hasNext = true)
+        val address = origin.newBuilder().encodedPath("/search/videos")
+            .addQueryParameter("search_query", term).addQueryParameter("type", "public")
+        if (page > 1) address.addQueryParameter("page", page.toString())
+        val request = PageRequest(address.build().toString(), allowNotFound = true)
+        val document = Network.page(request, "$mainUrl/")
+        if (Metadata.emptySearch(document, request)) return newSearchResponseList(emptyList(), false)
+        val results = document.select("div.col-sm-6").mapNotNull { it.toMainPageResult() }
+        val hasNext = results.isNotEmpty() && document.select(".pagination a[href], a[rel=next][href]").any {
+            it.absUrl("href").toHttpUrlOrNull()?.queryParameter("page")?.toIntOrNull() == page + 1
+        }
+        return newSearchResponseList(results, hasNext)
     }
 
     override suspend fun quickSearch(query: String): List<SearchResponse>? = search(query)

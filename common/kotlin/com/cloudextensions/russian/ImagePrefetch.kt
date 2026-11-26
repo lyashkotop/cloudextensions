@@ -35,7 +35,7 @@ object ImagePrefetch {
         context = value.applicationContext
     }
 
-    internal fun cacheDirectory() = context?.cacheDir
+    fun cacheDirectory() = context?.cacheDir
 
     fun warm(cards: List<SearchResponse>, priority: Boolean = false) {
         val ctx = context ?: return

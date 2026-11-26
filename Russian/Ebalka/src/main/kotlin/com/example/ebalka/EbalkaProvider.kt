@@ -75,6 +75,9 @@ class EbalkaProvider: RussianProvider(SiteSpec(
     override suspend fun page(request: PageRequest): Document {
         val url = request.url.toHttpUrlOrNull() ?: return super.page(request)
         val target = russianVideoUrl(url) ?: url
+        if (target != url) {
+            return RequestLimits.optional(2800) { russianPage(request, target) } ?: super.page(request)
+        }
         if (russianHost.matches(target.host)) return russianPage(request, target)
         if (url.host != englishHost || !url.encodedPath.startsWith("/search/")) return super.page(request)
 
@@ -151,14 +154,12 @@ class EbalkaProvider: RussianProvider(SiteSpec(
     }
 
     private suspend fun russianListing(document: Document): Document = coroutineScope {
+        if (catalogueHost == null) return@coroutineScope document
         val localized = document.clone()
         val cards = localized.select(spec.cards)
         val resolved = cards.map { card -> async { RequestLimits.optional(8500) { russianCard(card) } } }.awaitAll()
         for ((card, russian) in cards.zip(resolved)) {
-            if (russian == null) {
-                card.remove()
-                continue
-            }
+            if (russian == null) continue
             card.selectFirst(spec.link)?.attr("href", russian.url)?.attr("title", russian.title)
             card.selectFirst(spec.titleSelector)?.text(russian.title)
             card.selectFirst("img")?.attr("alt", russian.title)?.attr("title", russian.title)
@@ -170,7 +171,10 @@ class EbalkaProvider: RussianProvider(SiteSpec(
         val address = url.toHttpUrlOrNull() ?: return super.load(url)
         val target = russianVideoUrl(address) ?: address
         val id = videoId(target)?.takeIf { russianHost.matches(target.host) } ?: return super.load(url)
-        return loadDocument(url, openCard(target, id))
+        val document = if (address == target) openCard(target, id) else {
+            RequestLimits.optional(2800) { openCard(target, id) } ?: super.page(PageRequest(url))
+        }
+        return loadDocument(url, document)
     }
 
     private suspend fun openCard(url: HttpUrl, id: String): Document = coroutineScope {
