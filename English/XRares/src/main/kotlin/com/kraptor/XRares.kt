@@ -9,8 +9,6 @@ import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.applyVideoDuration
 
 import com.cloudextensions.russian.VideoScores
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.module.kotlin.readValue
 import com.lagradost.api.Log
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
@@ -19,6 +17,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import org.json.JSONObject
 import org.jsoup.Jsoup
 
 class XRares : MainAPI() {
@@ -108,8 +107,8 @@ class XRares : MainAPI() {
     private suspend fun relatedVideos(url: String, vidId: String, tags: List<String>): List<SearchResponse> = coroutineScope {
         val current = videoId(url)
         val related = if (vidId.isBlank()) emptyList() else RequestLimits.optional {
-            val response = mapper.readValue<Recommend>(recommendation(vidId))
-            Jsoup.parse(response.videos.orEmpty()).select("div.col-lg-3").mapNotNull { it.toMainPageResult() }
+            val html = JSONObject(recommendation(vidId)).optString("videos")
+            Jsoup.parse(html).select("div.col-lg-3").mapNotNull { it.toMainPageResult() }
         }.orEmpty()
         fun eligible(cards: List<SearchResponse>) = cards.filter {
             videoId(it.url) != current && ContentPolicy.accepts(it.name)
@@ -167,9 +166,4 @@ class XRares : MainAPI() {
 
         return true
     }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    data class Recommend(
-        val videos: String?
-    )
 }
