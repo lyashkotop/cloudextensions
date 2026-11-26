@@ -1,13 +1,13 @@
 {
-  "version": 239,
-  "sourceCommit": "1473d54dc6e933f604c6d878bcfb327eb1c1e38d",
+  "version": 240,
+  "sourceCommit": "74e3cfd55f6bdfc751f7832f7f988bf10a38d9fd",
   "packageLayout": "versioned",
   "plugins": 39,
   "rebuilt": [
-    "NoodleMagazine",
-    "XRares"
+    "XHamster",
+    "PornoRussia"
   ],
-  "dexClasses": 12849,
+  "dexClasses": 12851,
   "entryRegistrationsValidated": 39,
   "kotlinProviders": 39
 }
