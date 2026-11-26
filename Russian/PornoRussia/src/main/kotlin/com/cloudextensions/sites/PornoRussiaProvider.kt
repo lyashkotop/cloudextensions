@@ -5,6 +5,7 @@ import com.cloudextensions.russian.Metadata
 import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.Playback
+import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.RussianProvider
 import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
@@ -13,6 +14,9 @@ import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import java.util.Locale
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -45,11 +49,12 @@ class PornoRussiaProvider : RussianProvider(
     override val includeTaxonomyResults = false
 
     override suspend fun searchRequest(term: String): PageRequest =
-        PageRequest(searchCursor(spec.sections.first().path, term, 0).toString())
+        PageRequest(searchCursor(term, spec.sections.map { it.path }).toString())
 
-    private fun searchCursor(path: String, term: String, section: Int): HttpUrl =
-        mainUrl.toHttpUrl().newBuilder().encodedPath(path)
-            .addQueryParameter(queryKey, term).addQueryParameter(sectionKey, section.toString()).build()
+    private fun searchCursor(term: String, paths: List<String>): HttpUrl =
+        mainUrl.toHttpUrl().newBuilder().encodedPath("/s.php").addQueryParameter(queryKey, term).apply {
+            paths.forEach { addQueryParameter(routeKey, it) }
+        }.build()
 
     override suspend fun page(request: PageRequest): Document {
         val address = request.url.toHttpUrl()
@@ -76,37 +81,49 @@ class PornoRussiaProvider : RussianProvider(
     private fun nextCatalogueUrl(url: String): HttpUrl? =
         url.toHttpUrlOrNull()?.takeIf { it.host == mainUrl.toHttpUrl().host && pagePath.matches(it.encodedPath) }
 
-    private suspend fun searchCatalogue(request: PageRequest, address: HttpUrl, term: String): Document {
+    private suspend fun searchCatalogue(request: PageRequest, address: HttpUrl, term: String): Document = coroutineScope {
         val words = word.findAll(normalize(term)).map { it.value }.toList()
-        var section = address.queryParameter(sectionKey)?.toIntOrNull() ?: 0
-        var nextPath = address.encodedPath
         val response = Document.createShell(request.url)
-        // A cursor follows one page at a time. The wrapper walks sparse pages within its search budget.
-        repeat(2) {
-            if (section >= spec.sections.size) return response
-            val url = mainUrl.toHttpUrl().newBuilder().encodedPath(nextPath).build()
-            val document = super.page(request.copy(url = url.toString(), allowNotFound = true))
+        val paths = address.queryParameterValues(routeKey).filter { it != null && categoryStem(it) != null }.filterNotNull()
+        if (words.isEmpty() || paths.isEmpty()) return@coroutineScope response
+        // Visit different sections before following their pagination.
+        val current = paths.take(3)
+        val fetched = current.map { path ->
+            async {
+                val url = mainUrl.toHttpUrl().newBuilder().encodedPath(path).build()
+                RequestLimits.optional(2800) { super.page(request.copy(url = url.toString(), allowNotFound = true)) }
+            }
+        }.awaitAll()
+        if (fetched.all { it == null }) throw ErrorLoadingException("Порно Россия ТВ: каталог не ответил")
+        val following = fetched.mapIndexedNotNull { index, document ->
+            val path = current[index]
+            if (document == null) return@mapIndexedNotNull path
             for (card in document.select(spec.cards)) {
                 val title = card.selectFirst(spec.titleSelector)?.text().orEmpty()
-                if (words.isNotEmpty() && words.all(normalize(title)::contains) && ContentPolicy.accepts(title)) {
+                if (words.all(normalize(title)::contains) && ContentPolicy.accepts(title)) {
                     response.body().appendChild(card.clone())
                 }
             }
-            val category = spec.sections[section].path.removeSuffix(".html")
-            val following = document.select("a.more[href]").firstNotNullOfOrNull { link ->
-                nextCatalogueUrl(link.absUrl("href"))?.takeIf {
-                    it != url && it.encodedPath.startsWith("$category-")
+            val stem = categoryStem(path)
+            document.select("a.more[href]").firstNotNullOfOrNull { link ->
+                nextCatalogueUrl(link.absUrl("href"))?.encodedPath?.takeIf { next ->
+                    next != path && categoryStem(next) == stem && pageNumber(next) > pageNumber(path)
                 }
             }
-            if (following == null) {
-                section++
-                nextPath = spec.sections.getOrNull(section)?.path ?: return response
-            } else nextPath = following.encodedPath
         }
-        response.body().appendElement("a").attr("rel", "next")
-            .attr("href", searchCursor(nextPath, term, section).toString())
-        return response
+        val next = (paths.drop(current.size) + following).distinct()
+        if (next.isNotEmpty()) response.body().appendElement("a").attr("rel", "next")
+            .attr("href", searchCursor(term, next).toString())
+        response
     }
+
+    private fun categoryStem(path: String): String? {
+        val stem = path.removeSuffix(".html").replace(pageSuffix, "")
+        return stem.takeIf { spec.sections.any { section -> section.path == "$stem.html" } }
+    }
+
+    private fun pageNumber(path: String): Int =
+        pageSuffix.find(path.removeSuffix(".html"))?.groupValues?.get(1)?.toIntOrNull() ?: 1
 
     override fun readMetadata(document: Document): VideoDetail {
         val detail = super.readMetadata(document)
@@ -145,7 +162,8 @@ class PornoRussiaProvider : RussianProvider(
 
     private companion object {
         const val queryKey = "_ce_search"
-        const val sectionKey = "_ce_section"
+        const val routeKey = "_ce_route"
+        val pageSuffix = Regex("""-(\d+)$""")
         val pagePath = Regex("""/c/[^/]+-[0-9]+\.html""")
         val word = Regex("""[\p{L}\p{N}]+""")
         val playerFile = Regex("""\bnew\s+Playerjs\s*\(\s*\{[^}]*?\bfile\s*:\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')""")
