@@ -8,6 +8,13 @@ import java.io.File
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.selects.select
@@ -49,6 +56,28 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
     private val catalogueHosts = setOf("noodlemagazine.com", "tyler-brown.com", "hot.tyler-brown.com")
     private val homePages = NoodleCatalogue()
     private val homeOrders = ConcurrentHashMap<String, List<Int>>()
+    private val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val refreshing = ConcurrentHashMap.newKeySet<String>()
+    private val refreshPermits = Semaphore(2)
+
+    // Prepare a different page for the next visit without changing the current scroll order.
+    private fun prepareNextVisit(section: String, shown: Int) {
+        val cache = homeCache ?: return
+        if (!refreshing.add(section)) return
+        refreshScope.launch {
+            try {
+                delay(1000) // Give visible posters first use of the connection.
+                refreshPermits.withPermit {
+                    val next = (1..9).filter { it != shown }.random()
+                    val cards = RequestLimits.optional(8000) { homeCards(section, next) }
+                    if (!cards.isNullOrEmpty()) cache.write(section, next, cards)
+                }
+            } finally {
+                refreshing.remove(section)
+            }
+        }
+    }
+
     private val searchPages = NoodleCatalogue()
     private fun route(query:String,page:Int,origin:String=mainUrl)=PageRequest("$origin/video/"+URLEncoder.encode(query,"UTF-8").replace("+","%20")+"?p="+(page-1),allowNotFound=true)
     private fun referer(url: String): String {
@@ -68,9 +97,10 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
         val section = mainPage.firstOrNull { it.data == request.data }
         if (page < 1 || section == null) return newHomePageResponse(emptyList(), false)
         val cards = homePages.page(section.data, page) {
-            val cached = if (page == 1 && !homeOrders.containsKey(section.data)) homeCache?.read(section.data) else null
+            val cached = if (page == 1) homeCache?.read(section.data) else null
             if (cached != null) {
                 homeOrders[section.data] = listOf(cached.number) + (1..9).filter { it != cached.number }.shuffled()
+                prepareNextVisit(section.data, cached.number)
                 return@page cached.cards.map(::response)
             }
             val order = homeOrders.compute(section.data) { _, previous ->
@@ -88,10 +118,11 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
             }
             if (videos.isNotEmpty() || sourcePage == 1) {
                 homeCache?.write(section.data, sourcePage, videos)
+                if (videos.isNotEmpty()) prepareNextVisit(section.data, sourcePage)
                 videos
             } else {
                 // Recover when a random page has moved or is slow to respond.
-                homeOrders[section.data] = listOf(1)
+                homeOrders[section.data] = listOf(1) + (2..9).shuffled()
                 homeCards(section.data, 1).also { homeCache?.write(section.data, 1, it) }
             }
         }

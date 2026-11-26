@@ -16,7 +16,7 @@ internal class NoodleHomeCache(private val directory: File) {
         runCatching {
             val file = file(section)
             val age = System.currentTimeMillis() - file.lastModified()
-            if (age !in 0 until 180_000 || file.length() !in 1..128_000) return@runCatching null
+            if (age !in 0 until 6 * 60 * 60_000L || file.length() !in 1..128_000) return@runCatching null
 
             val snapshot = JSONObject(file.readText())
             val page = snapshot.getInt("page")
