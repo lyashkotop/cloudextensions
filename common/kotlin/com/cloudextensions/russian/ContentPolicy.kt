@@ -96,13 +96,18 @@ object ContentPolicy {
         word.split(' ').joinToString("[\\s_-]+", transform = Regex::escape)
     }
     private val blocked = Regex("""(?iu)(?<![\p{L}\p{N}])(?:$blockedPatterns)(?![\p{L}\p{N}])""")
-    private val blockedTag = Regex("""(?iu)(?<![\p{L}\p{N}])(?:drain|farting|толстушки|urethra|eat[\s_-]+poop|high[\s_-]+heels)(?![\p{L}\p{N}])""")
+    private val blockedTag = Regex("""(?iu)(?<![\p{L}\p{N}])(?:pee|drain|farting|толстушки|urethra|eat[\s_-]+poop|high[\s_-]+heels)(?![\p{L}\p{N}])""")
     private val blockedDescription = Regex("""(?iu)(?<![\p{L}\p{N}])hentai(?![\p{L}\p{N}])""")
-    fun accepts(title: String, tags: List<String> = emptyList(), description: String? = null): Boolean {
+    fun accepts(title: String, tags: List<String> = emptyList(), description: String? = null, source: String? = null): Boolean {
         if (!enabled) return true
+        val siteTag = when (source) {
+            "EPorner" -> "pornstar"
+            "XHamster" -> "Видео HD"
+            else -> null
+        }
         val fields = listOf(title) + tags
         return fields.any(allowed::containsMatchIn) ||
-            (fields.none(blocked::containsMatchIn) && tags.none(blockedTag::containsMatchIn) &&
+            (fields.none(blocked::containsMatchIn) && tags.none { blockedTag.containsMatchIn(it) || Metadata.clean(it).equals(siteTag, ignoreCase = true) } &&
                 !blockedDescription.containsMatchIn(description.orEmpty()))
     }
 }

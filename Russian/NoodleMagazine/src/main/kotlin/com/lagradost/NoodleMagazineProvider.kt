@@ -39,6 +39,7 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)
     private val homeOrigin = "https://noodlemagazine.com"
     private val homeMirror = "https://hot.tyler-brown.com"
+    @Volatile private var preferredHomeOrigin = homeOrigin
     private val catalogueHosts = setOf("noodlemagazine.com", "tyler-brown.com", "hot.tyler-brown.com")
     private val homePages = NoodleCatalogue()
     private val homeOrders = ConcurrentHashMap<String, List<Int>>()
@@ -82,21 +83,24 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         suspend fun fetch(origin: String) =
             RequestLimits.optional(7000) { categoryCards(category, page, origin, requireSameRoute = true) }
 
-        val primary = async { fetch(homeOrigin) }
+        val preferred = preferredHomeOrigin
+        val alternate = if (preferred == homeOrigin) homeMirror else homeOrigin
+        val primary = async { fetch(preferred) }
         val mirror = async {
             delay(350)
-            fetch(homeMirror)
+            fetch(alternate)
         }
-        val (first, remaining) = select {
-            primary.onAwait { it to mirror }
-            mirror.onAwait { it to primary }
+        val (first, remaining, origin) = select {
+            primary.onAwait { Triple(it, mirror, preferred) }
+            mirror.onAwait { Triple(it, primary, alternate) }
         }
         if (!first.isNullOrEmpty()) {
+            preferredHomeOrigin = origin
             remaining.cancel()
             return@coroutineScope first
         }
         val second = remaining.await()
-        second?.takeIf { it.isNotEmpty() } ?: first ?: second
+        second?.takeIf { it.isNotEmpty() }?.also { preferredHomeOrigin = if (origin == preferred) alternate else preferred } ?: first ?: second
             ?: throw ErrorLoadingException("Noodle Magazine: каталог не ответил для раздела «$category»")
     }
 

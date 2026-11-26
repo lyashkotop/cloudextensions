@@ -15,9 +15,16 @@ import java.net.URI
 import org.jsoup.nodes.Document
 class TubeBDSMProvider: RussianProvider(SiteSpec(
  id="TubeBDSM",title="TubeBDSM",origin="https://www.tubebdsm.com",cards=".card.sub:has(img)",link="a.item-link[href]",titleSelector=".item-title,.title,h2,h3",titleLanguage="ru",searchMode="get",
+ searchContainer="#content .content-block:has(> .cards-container)",
  sections=listOf(Section("New videos","/new"),Section("Popular videos","/popular"),Section("Top rated videos","/rating"))
 )){
  override var lang="en"
+ override fun isSearchResult(document: Document, route: PageRequest): Boolean {
+  val actual = document.baseUri().toHttpUrlOrNull() ?: return false
+  if (!actual.encodedPath.split('/').contains("search")) return false
+  val count = document.selectFirst("h1.content-header-title > span:last-child")?.text()
+  return count?.replace(Regex("[^0-9]"), "")?.toLongOrNull()?.let { it > 0 } == true
+ }
  private fun russian(request: PageRequest) =
   request.copy(headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE))
  override suspend fun page(request:PageRequest):org.jsoup.nodes.Document {

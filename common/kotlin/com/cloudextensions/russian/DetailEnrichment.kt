@@ -79,18 +79,22 @@ object DetailEnrichment {
         """(?iu)^(?:(?:this |the )?video (?:is (?:not available|unavailable|private)|has been (?:removed|deleted)|was (?:removed|deleted)|not found|no longer exists)|video unavailable)(?:[.!]|$)""",
     )
 
-    suspend fun verifyOriginal(page: Document, spec: SiteSpec, detail: VideoDetail, budget: Long): VideoDetail {
+    suspend fun verifyOriginal(page: Document, spec: SiteSpec, detail: VideoDetail, budget: Long, allowUnverified: Boolean = false): VideoDetail {
         if (isUnavailable(page)) throw ErrorLoadingException("Видео удалено или недоступно")
-        val target = originalPage(page) ?: throw ErrorLoadingException("Источник видео не подтверждён")
+        fun unverified(message: String): VideoDetail {
+            if (allowUnverified) return detail
+            throw ErrorLoadingException(message)
+        }
+        val target = originalPage(page) ?: return unverified("Источник видео не подтверждён")
         val checked = RequestLimits.optional(budget) { fetchOriginal(target, page.baseUri(), checkAvailability = true) }
-            ?: throw ErrorLoadingException("Не удалось проверить оригинал")
+            ?: return unverified("Не удалось проверить оригинал")
         if (checked.unavailable) throw ErrorLoadingException("Видео удалено или недоступно")
         val source = checked.page?.let { readSource(it, checked.video, target, spec) }
-            ?: throw ErrorLoadingException("Оригинал видео не подтверждён")
+            ?: return unverified("Оригинал видео не подтверждён")
         if (!ContentPolicy.accepts(source.title, source.tags, source.description)) {
             throw ErrorLoadingException("Видео скрыто фильтром категорий")
         }
-        if (source.tags.isEmpty()) throw ErrorLoadingException("Теги оригинала не подтверждены")
+        if (source.tags.isEmpty() && !allowUnverified) throw ErrorLoadingException("Теги оригинала не подтверждены")
         return merge(detail, source).copy(tags = (detail.tags + source.tags).distinctBy(String::lowercase))
     }
 

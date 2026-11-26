@@ -15,6 +15,14 @@ fun main(args:Array<String>) {
     verify(ContentPolicy.accepts("High-heels in the title") &&
         !ContentPolicy.accepts("Example video", listOf("high-heels")) &&
         !ContentPolicy.accepts("Example video", listOf("High Heels")), "high-heels is blocked in tags only")
+    verify(!ContentPolicy.accepts("A video", listOf("PEE")) &&
+        ContentPolicy.accepts("Pee in a title", listOf("peeking")), "pee matches only complete words in tags")
+    verify(!ContentPolicy.accepts("A video", listOf("PornStar"), source = "EPorner") &&
+        ContentPolicy.accepts("Pornstar", source = "EPorner") &&
+        ContentPolicy.accepts("A video", listOf("Pornstar"), source = "TubeSafari"), "pornstar is an EPorner tag rule")
+    verify(!ContentPolicy.accepts("A video", listOf("Видео  HD"), source = "XHamster") &&
+        ContentPolicy.accepts("Видео HD", source = "XHamster") &&
+        ContentPolicy.accepts("Lesbians", listOf("Видео HD"), source = "XHamster"), "xHamster applies its tag rule with the existing exception")
     for(encoded in listOf("0157e0a7f8a2d5f80bed5faff0","024f7dd1e4fb9d4315a494f00b","073595aa60711b77d27926347c","059c27f8b6659ca81889344976"))verify(PlayerUrls.decode(encoded)=="https://","real player URL prefix matches the source JavaScript decoder")
     verify(EmbeddedPlayers.decodeAb("L2dldF9maWxlLzЕvdmlkZW8ubXА0")=="/get_file/1/video.mp4","public player alphabet preserves the real media path")
     verify(EmbeddedPlayers.decodeAb("garbage")==null,"invalid encoded strings never become media URLs")
@@ -68,6 +76,17 @@ fun main(args:Array<String>) {
     verify(VideoScores.detail("HcBDSMX", hcUrl, hcPage)?.toString(10) == "7.5" &&
         VideoScores.detail("HcBDSMX", "https://hcbdsm.com/video/124/other/", hcPage) == null,
         "hcBDSM reads the current video's votes without borrowing votes from related videos")
+    val hcReuploads = Jsoup.parse("""
+        <a class=clip href="/video/201/"><h3>An Original Sample Title</h3><span>06:42</span></a>
+        <a class=clip href="/video/202/"><h3>An Original Sample Title</h3><span>06:42</span></a>
+        <a class=clip href="/video/203/"><h3>An Original Sample Title</h3><span>06:43</span></a>
+        """, "https://hcbdsm.com/latest-updates/")
+    verify(Metadata.cards(hcReuploads, hcSpec).map { it.url } == listOf(
+        "https://hcbdsm.com/video/201/", "https://hcbdsm.com/video/203/",
+    ), "hcBDSM removes identical reuploads and keeps videos of a different duration")
+    verify(Metadata.catalogueKey("HcBDSMX", "https://hcbdsm.com/video/202/alias") ==
+        Metadata.catalogueKey("HcBDSMX", "https://hcbdsm.com/video/201/"),
+        "hcBDSM retains the reupload identity across URL aliases")
     val hcControls = Jsoup.parse("""<main><div class=card-villa>
         <button aria-pressed=false><svg><path d="M7 10v12" /></svg>49</button>
         <button aria-pressed=false><svg><path d="M17 14V2" /></svg>16</button>

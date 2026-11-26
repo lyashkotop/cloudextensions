@@ -81,7 +81,8 @@ class PornoRussiaProvider : RussianProvider(
         var section = address.queryParameter(sectionKey)?.toIntOrNull() ?: 0
         var nextPath = address.encodedPath
         val response = Document.createShell(request.url)
-        repeat(5) {
+        // A cursor follows one page at a time. The wrapper walks sparse pages within its search budget.
+        repeat(2) {
             if (section >= spec.sections.size) return response
             val url = mainUrl.toHttpUrl().newBuilder().encodedPath(nextPath).build()
             val document = super.page(request.copy(url = url.toString(), allowNotFound = true))
@@ -91,8 +92,12 @@ class PornoRussiaProvider : RussianProvider(
                     response.body().appendChild(card.clone())
                 }
             }
-            val following = document.selectFirst("a.more[href]")?.absUrl("href")?.let(::nextCatalogueUrl)
-                ?.takeUnless { it == url }
+            val category = spec.sections[section].path.removeSuffix(".html")
+            val following = document.select("a.more[href]").firstNotNullOfOrNull { link ->
+                nextCatalogueUrl(link.absUrl("href"))?.takeIf {
+                    it != url && it.encodedPath.startsWith("$category-")
+                }
+            }
             if (following == null) {
                 section++
                 nextPath = spec.sections.getOrNull(section)?.path ?: return response

@@ -17,14 +17,15 @@ class TubeSafariProvider: RussianProvider(SiteSpec(
  override var lang="en"
  override val posterTimeoutMs = 5600L
  override val requiresListingReview = true
+ override val allowUnverifiedListing = true
  override suspend fun searchRequest(term: String): PageRequest =
   PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search/")
    .addPathSegment(Metadata.clean(term).replace(' ', '-')).build().toString())
 
  override suspend fun enrichMetadata(document: Document, detail: VideoDetail): VideoDetail =
-  DetailEnrichment.verifyOriginal(document, spec, detail, budget = 9_000)
+  DetailEnrichment.verifyOriginal(document, spec, detail, budget = 3_500, allowUnverified = true)
  override suspend fun reviewMetadata(document: Document, detail: VideoDetail): VideoDetail =
-  DetailEnrichment.verifyOriginal(document, spec, detail, budget = 2_800)
+  DetailEnrichment.verifyOriginal(document, spec, detail, budget = 1_800, allowUnverified = true)
  override fun readMetadata(document: Document): VideoDetail {
   val detail = super.readMetadata(document)
   if (detail.title.isNotBlank() || document.selectFirst("iframe#video2") == null) return detail

@@ -18,7 +18,10 @@ object ImagePrefetch {
     @Volatile private var context: Context? = null
     @Volatile private var warned = false
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val permits = Semaphore(6)
+    private val priorityPermits = Semaphore(3)
+    private val backgroundPermits = Semaphore(3)
+    private val pendingPriority = Semaphore(12)
+    private val pendingBackground = Semaphore(12)
     private data class Poster(val url: String, val headers: Map<String, String>)
 
     private val scheduled = BoundedMap<Poster, Long>(256)
@@ -34,28 +37,31 @@ object ImagePrefetch {
 
     internal fun cacheDirectory() = context?.cacheDir
 
-    fun warm(cards: List<SearchResponse>) {
+    fun warm(cards: List<SearchResponse>, priority: Boolean = false) {
         val ctx = context ?: return
         cards.asSequence().mapNotNull { card ->
             card.posterUrl?.takeIf(String::isNotBlank)?.let { Poster(it, card.posterHeaders.orEmpty().toMap()) }
-        }.distinct().take(12).forEach { warm(ctx, it) }
+        }.distinct().take(if (priority) 3 else 9).forEach { warm(ctx, it, priority) }
     }
 
     fun warm(url: String?, headers: Map<String, String>) {
         val ctx = context ?: return
-        if (!url.isNullOrBlank()) warm(ctx, Poster(url, headers.toMap()))
+        if (!url.isNullOrBlank()) warm(ctx, Poster(url, headers.toMap()), priority = true)
     }
 
-    private fun warm(ctx: Context, poster: Poster) {
+    private fun warm(ctx: Context, poster: Poster, priority: Boolean) {
+        val queue = if (priority) pendingPriority else pendingBackground
+        val workers = if (priority) priorityPermits else backgroundPermits
         val started = System.nanoTime()
         synchronized(scheduled) {
             if (scheduled[poster]?.let { started - it < 300_000_000_000L } == true) return
+            if (!queue.tryAcquire()) return
             scheduled[poster] = started
         }
         scope.launch {
             try {
                 val loaded = withTimeoutOrNull(5000) {
-                    permits.withPermit {
+                    workers.withPermit {
                         val request = coil.enqueue(ctx, poster)
                         try {
                             val result = request.await()
@@ -73,7 +79,10 @@ object ImagePrefetch {
                 forget(poster, started)
                 warn(e.javaClass.simpleName)
             } catch (e: LinkageError) {
+                forget(poster, started)
                 warn(e.javaClass.simpleName)
+            } finally {
+                queue.release()
             }
         }
     }

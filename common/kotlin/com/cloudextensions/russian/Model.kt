@@ -8,11 +8,12 @@ interface SearchPolicy {
     val translateQueries:Boolean get()=true
     val includeTaxonomyResults: Boolean get() = true
     val requiresListingReview: Boolean get() = false
+    val allowUnverifiedListing: Boolean get() = false
     val preferredTitleLanguage: String get() = ""
     suspend fun fullTitle(url:String):String? = null
 }
 
-internal interface SearchMetadataSource {
+interface SearchMetadataSource {
     suspend fun searchMetadata(url: String): VideoDetail
 }
 

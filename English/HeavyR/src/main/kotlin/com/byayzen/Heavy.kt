@@ -3,6 +3,10 @@
 package com.byayzen
 
 import com.cloudextensions.russian.VideoScores
+import com.cloudextensions.russian.ContentPolicy
+import com.cloudextensions.russian.SearchMetadataSource
+import com.cloudextensions.russian.SearchPolicy
+import com.cloudextensions.russian.VideoDetail
 import com.cloudextensions.russian.Metadata
 import com.cloudextensions.russian.MediaDuration
 import com.cloudextensions.russian.applyVideoDuration
@@ -18,7 +22,21 @@ import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 
-class Heavy : MainAPI() {
+class Heavy : MainAPI(), SearchPolicy, SearchMetadataSource {
+    override val requiresListingReview = true
+
+    private fun metadata(document: Document): VideoDetail = VideoDetail(
+        title = document.selectFirst("h1.video-title")?.text().orEmpty(),
+        poster = null,
+        description = document.selectFirst("div.video-data p")?.text().orEmpty(),
+        tags = document.select("div.tags a[title]").map { it.text() },
+        duration = "",
+        year = null,
+    )
+
+    override suspend fun searchMetadata(url: String): VideoDetail =
+        metadata(Network.page(PageRequest(url), mainUrl))
+
     override var mainUrl = "https://www.heavy-r.com"
     override var name = "Heavy-R"
     override val hasMainPage = true
@@ -130,10 +148,12 @@ class Heavy : MainAPI() {
     override suspend fun load(url: String): LoadResponse? {
         val document = com.cloudextensions.russian.Network.page(com.cloudextensions.russian.PageRequest(url),mainUrl)
 
-        val title = document.selectFirst("h1.video-title")?.text()?.trim() ?: return null
+        val detail = metadata(document)
+        val title = detail.title.takeIf(String::isNotBlank) ?: return null
+        if (!ContentPolicy.accepts(title, detail.tags, detail.description, "HeavyR")) {
+            throw ErrorLoadingException("Видео скрыто фильтром категорий")
+        }
         val poster = fixUrlNull(document.selectFirst("meta[property=\"og:image\"]")?.attr("content"))
-        val description = document.selectFirst("div.video-data p")?.text()?.trim()
-        val tags = document.select("div.tags a[title]").map { it.text() }
         val media = document.selectFirst("video#video-file source[type=video/mp4][src]")?.absUrl("src")
         val seconds = MediaDuration.fromMp4(media, document.baseUri())
 
@@ -145,8 +165,8 @@ class Heavy : MainAPI() {
             applyVideoDuration(seconds)
             score = VideoScores.detail("HeavyR",url,document)
             this.posterUrl = poster
-            this.plot = description
-            this.tags = tags
+            this.plot = detail.description
+            this.tags = detail.tags
             this.recommendations = recommendations
         }
     }

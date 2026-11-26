@@ -2,7 +2,10 @@
 
 package com.kraptor
 
+import com.cloudextensions.russian.ContentPolicy
 import com.cloudextensions.russian.MediaDuration
+import com.cloudextensions.russian.Metadata
+import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.applyVideoDuration
 
 import com.cloudextensions.russian.VideoScores
@@ -12,6 +15,10 @@ import com.lagradost.api.Log
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.Jsoup
 
 class XRares : MainAPI() {
@@ -85,11 +92,7 @@ class XRares : MainAPI() {
 
         val vidId = document.selectFirst("a[href*=related_videos][id]")?.attr("id")?.substringAfterLast("_") ?: ""
 
-        val recommendations = runCatching {
-            val response = com.cloudextensions.russian.RequestLimits.optional { recommendation(vidId) }.orEmpty().takeIf { it.isNotBlank() } ?: return@runCatching emptyList()
-            val recPost = mapper.readValue<Recommend>(response)
-            Jsoup.parse(recPost.videos ?: "").select("div.col-lg-3").mapNotNull { it.toRecommendationResult() }
-        }.getOrElse { emptyList() }
+        val recommendations = relatedVideos(url, vidId, tags)
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
             applyVideoDuration(seconds)
@@ -100,6 +103,30 @@ class XRares : MainAPI() {
             this.tags = tags
             this.recommendations = recommendations
         }
+    }
+
+    private suspend fun relatedVideos(url: String, vidId: String, tags: List<String>): List<SearchResponse> = coroutineScope {
+        val current = videoId(url)
+        val related = if (vidId.isBlank()) emptyList() else RequestLimits.optional {
+            val response = mapper.readValue<Recommend>(recommendation(vidId))
+            Jsoup.parse(response.videos.orEmpty()).select("div.col-lg-3").mapNotNull { it.toMainPageResult() }
+        }.orEmpty()
+        fun eligible(cards: List<SearchResponse>) = cards.filter {
+            videoId(it.url) != current && ContentPolicy.accepts(it.name)
+        }.distinctBy { videoId(it.url) }
+        val visible = eligible(related)
+        if (visible.size >= 9) return@coroutineScope visible
+        val matches = tags.asSequence().map(Metadata::clean).filter(String::isNotBlank)
+            .filter { ContentPolicy.accepts(it) }.distinctBy(String::lowercase).take(3).toList()
+            .map { tag -> async { RequestLimits.optional(2200) { search(tag, 1).items }.orEmpty() } }
+            .awaitAll().flatten()
+        eligible(visible + matches).take(9)
+    }
+
+    private fun videoId(url: String): String {
+        val path = url.toHttpUrlOrNull()?.pathSegments.orEmpty()
+        return path.drop(1).firstOrNull()?.takeIf { it.toLongOrNull() != null }
+            ?: Metadata.catalogueKey("XRares", url)
     }
 
     private suspend fun recommendation(vidId: String): String{
@@ -115,22 +142,6 @@ class XRares : MainAPI() {
             "move" to "next"
         )).text
         return response
-    }
-
-    private fun Element.toRecommendationResult(): SearchResponse? {
-        val title     = this.selectFirst("span.video-title")?.text() ?: return null
-        val href      = fixUrlNull(this.selectFirst("a")?.attr("href")) ?: return null
-        val posterUrl = com.cloudextensions.russian.Metadata.poster(this,mainUrl) ?: fixUrlNull(this.selectFirst("img")?.attr("src"))
-        val private   = this.selectFirst("div.label-private")?.text() ?: ""
-
-        if (private.contains("private", true)){
-            return null
-        }
-
-        return newMovieSearchResponse(title, href, TvType.NSFW) {
-            this.posterUrl = posterUrl
-            this.score     = VideoScores.card("XRares", href, this@toRecommendationResult)
-        }
     }
 
     override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {

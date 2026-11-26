@@ -138,9 +138,11 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         return Pagination.search(root, spec, mainUrl, term)
     }
 
+    protected open fun isSearchResult(document: Document, route: PageRequest): Boolean = true
+
     private suspend fun fetchSearchPage(route: PageRequest, taxonomy: Boolean = false): SearchPage {
         val document = page(route.copy(allowNotFound = true))
-        if (Metadata.emptySearch(document, route) ||
+        if (Metadata.emptySearch(document, route) || (!taxonomy && !isSearchResult(document, route)) ||
             (taxonomy && URI(document.baseUri()).path.orEmpty().trim('/').isEmpty())
         ) return SearchPage(emptyList(), null)
         val results = if (!taxonomy && spec.searchContainer.isNotBlank()) {
@@ -171,7 +173,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
             VideoScores.rememberDetail(spec.id, url, score)
         }
         val heading=document.selectFirst("h1")?.text().orEmpty()
-        if(!ContentPolicy.accepts(heading,meta.tags + Metadata.cardTags(url),meta.description))throw ErrorLoadingException("Видео скрыто фильтром категорий")
+        if(!ContentPolicy.accepts(heading,meta.tags + Metadata.cardTags(url),meta.description, spec.id))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         if(meta.title.isBlank())throw ErrorLoadingException("Название не получено")
         return meta
     }
@@ -181,7 +183,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
     protected suspend fun loadDocument(url: String, document: Document): LoadResponse {
         val detail=enrichMetadata(document, readMetadata(document))
         if(detail.title.isBlank())throw ErrorLoadingException("На странице нет названия видео")
-        if(!ContentPolicy.accepts(detail.title,detail.tags + Metadata.cardTags(url),detail.description))throw ErrorLoadingException("Видео скрыто фильтром категорий")
+        if(!ContentPolicy.accepts(detail.title,detail.tags + Metadata.cardTags(url),detail.description, spec.id))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         val posterHeaders = Network.imageHeaders(detail.poster, mainUrl.trimEnd('/') + "/")
         if (this !is PosterSource) ImagePrefetch.warm(detail.poster, posterHeaders)
         val recommendations=RequestLimits.optional { related(document,detail,url) }.orEmpty()
@@ -199,7 +201,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
     }
     protected open suspend fun related(document: Document,detail: VideoDetail,url: String): List<SearchResponse> {
         val result=LinkedHashMap<String,VideoCard>()
-        fun add(cards: List<VideoCard>) { for(card in cards)if(videoKey(card.url)!=videoKey(url))if(!result.containsKey(videoKey(card.url)))result[videoKey(card.url)]=card }
+        fun add(cards: List<VideoCard>) { for(card in cards)if (Metadata.catalogueKey(spec.id, card.url) != Metadata.catalogueKey(spec.id, url)) result.putIfAbsent(Metadata.catalogueKey(spec.id, card.url), card) }
         for(container in document.select(spec.related))add(Metadata.cards(container,spec))
         if(result.isEmpty()) {
             val endpoint=document.selectFirst("#related-videos[hx-get]")?.attr("hx-get")?.let { absolute(document.baseUri(),it) }

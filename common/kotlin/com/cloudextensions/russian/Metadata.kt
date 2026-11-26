@@ -24,12 +24,18 @@ object Metadata {
     private val durations = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val streakListingKeys = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val tubeListingKeys = Collections.synchronizedMap(BoundedMap<String, String>(4096))
+    private val hcListingKeys = Collections.synchronizedMap(BoundedMap<String, String>(1024))
     private val tubeErrorPrefix = Regex("""(?iu)^(?:видео недоступно|video (?:is )?unavailable)(?:[\s:!.–—-]+|$)""")
+    private val hcClock = Regex("""(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}""")
     private val tubeClock = Regex("""(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}""")
     private val tubePublicId = Regex("[A-Za-z0-9]{6,32}")
 
     fun catalogueKey(source: String?, url: String): String =
-        if (source == "TubeBDSM") tubeListingKeys[url] ?: videoKey(url) else videoKey(url)
+        when (source) {
+            "TubeBDSM" -> tubeListingKeys[url]
+            "HcBDSMX" -> hcListingKeys[videoKey(url)]
+            else -> null
+        } ?: videoKey(url)
 
     private fun tubeDuration(card: Element): String =
         card.selectFirst(".item-meta-container .badge:not(.rating-badge)")?.text()
@@ -189,11 +195,24 @@ object Metadata {
                     listOf(card.attr("data-orientation"), link.attr("data-orientation"))
                 ).map(::clean).filter(String::isNotBlank).distinct()
             if (tags.isNotEmpty()) listedTags[videoKey(url)] = tags
-            if (!ContentPolicy.accepts(label,tags)) continue
+            if (!ContentPolicy.accepts(label, tags, source = spec.id)) continue
             val clocks=card.select(".prop span,.video_length,.m_time").map { clean(it.text()) }.filter { it.matches(Regex("(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}")) }
             val duration = (card.select(".duration, .card__duration, .video-duration, .time, [data-duration]").asSequence().map { timing(it.attr("data-duration").ifBlank { it.text() }) }.toList()+clocks.map(::timing)).firstOrNull(String::isNotBlank).orEmpty()
-            val fullDuration = if (tube) tubeDuration(card).ifBlank { duration } else duration
+            val fullDuration = when {
+                tube -> tubeDuration(card).ifBlank { duration }
+                spec.id == "HcBDSMX" -> duration.ifBlank {
+                    card.select("span").firstNotNullOfOrNull { span ->
+                        span.ownText().takeIf { it.matches(hcClock) }?.let(::timing)?.takeIf(String::isNotBlank)
+                    }.orEmpty()
+                }
+                else -> duration
+            }
             if (fullDuration.isNotBlank()) durations[videoKey(url)] = fullDuration
+            if (spec.id == "HcBDSMX" && fullDuration.isNotBlank() && !isTruncatedTitle(label) &&
+                titleWord.findAll(label).take(3).count() == 3
+            ) {
+                hcListingKeys.putIfAbsent(videoKey(url), "hcbdsm:clip:$fullDuration:${clean(visible.ifBlank { label }).lowercase(Locale.ROOT)}")
+            }
             if (tube) rememberTubeKey(card, url, label, fullDuration)
             if (spec.id == "BDSMStreak") {
                 val exactDuration = timing(card.selectFirst(".duration-pill")?.text())

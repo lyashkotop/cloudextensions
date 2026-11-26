@@ -69,9 +69,8 @@ class BdsmPornProvider : RussianProvider(
 
         val catalogue = RequestLimits.optional(4000) {
             val request = MainPageRequest("Видео", "/videos", sequentialMainPage)
-            val first = getMainPage(page * 2 - 1, request)
-            val next = if (first.hasNext) getMainPage(page * 2, request) else null
-            val matches = (first.items + next?.items.orEmpty()).flatMap { it.list }
+            val listing = getMainPage(page, request)
+            val matches = listing.items.flatMap { it.list }
                 .filter { card ->
                     when (term) {
                         "парень", "guy" -> guyTitle.containsMatchIn(card.name)
@@ -80,9 +79,9 @@ class BdsmPornProvider : RussianProvider(
                     }
                 }
                 .distinctBy { it.url }
-            newSearchResponseList(matches, next?.hasNext == true)
+            newSearchResponseList(matches, listing.hasNext)
         }
-        if (catalogue != null && (catalogue.items.isNotEmpty() || catalogue.hasNext)) return catalogue
+        if (catalogue != null) return catalogue
         return original.getOrThrow()
     }
 

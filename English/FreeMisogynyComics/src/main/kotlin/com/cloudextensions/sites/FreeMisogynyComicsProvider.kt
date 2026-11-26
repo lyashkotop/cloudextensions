@@ -31,6 +31,8 @@ class FreeMisogynyComicsProvider : RussianProvider(
     override var lang = "en"
     private val mediaVariable = Regex("""\bvar\s+(prHlsMaster|prMp4Fallback)\s*=\s*("(?:\\.|[^"\\])*")""")
 
+    override val requiresListingReview = true
+
     override suspend fun searchRequest(term: String): PageRequest =
         PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/")
             .addQueryParameter("s", term).addQueryParameter("post_type", "videos").build().toString())
