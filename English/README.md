@@ -19,7 +19,6 @@
 - [ThisVid](ThisVid/)
 - [TubeBDSM](TubeBDSM/)
 - [TubeSafari](TubeSafari/)
-- [UKDevilz](UKDevilz/)
 - [XRares](XRares/)
 - [Xnxx](Xnxx/)
 

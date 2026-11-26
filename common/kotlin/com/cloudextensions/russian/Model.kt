@@ -5,6 +5,7 @@ import java.net.URI
 import java.util.LinkedHashMap
 
 interface SearchPolicy {
+    val russianTitlesOnly: Boolean get() = false
     val translateQueries:Boolean get()=true
     val includeTaxonomyResults: Boolean get() = true
     val requiresListingReview: Boolean get() = false

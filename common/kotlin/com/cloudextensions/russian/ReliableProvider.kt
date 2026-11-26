@@ -401,6 +401,7 @@ class ReliableProvider(
 
     private fun warmDetails(cards: List<SearchResponse>) {
         for (card in cards.take(12)) {
+            if (savedReview(card.url, DETAIL_MAX_AGE_NANOS) != null) continue
             if (warmingDetails.add(card.url) && pendingDetails.trySend(card).isFailure) {
                 warmingDetails.remove(card.url)
             }
@@ -443,6 +444,7 @@ class ReliableProvider(
     private data class SavedSearchPage(val response: SearchResponseList, val nextUpstreamPage: Int)
     private class SearchHistory {
         val mutex = Mutex()
+        @Volatile var reuseFirstUntil = System.nanoTime() + LISTING_TIMEOUT_MS * 1_000_000L
         val pages = mutableMapOf<Int, SavedSearchPage>()
         var reviewRank: Map<String, Int> = emptyMap()
         var taxonomy: List<Section>? = null
@@ -465,7 +467,7 @@ class ReliableProvider(
         data class Batch(val response: SearchResponseList?, val error: Exception? = null)
         suspend fun branch(term: String): Batch = try {
             val response = source.search(term, page)
-            if (term == query && response != null && !requiresListingReview) {
+            if (response != null) {
                 val first = response.items.asSequence()
                     .filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
                     .take(3).map { normalizeCard(it, title = it.name) }.toList()
@@ -477,7 +479,13 @@ class ReliableProvider(
         } catch (e: Exception) {
             Batch(null, e)
         }
-        val forms = aliases.ifEmpty { Translation.searchForms(query) }
+        val russianOnly = (source as? SearchPolicy)?.russianTitlesOnly == true
+        val forms = aliases.ifEmpty { Translation.searchForms(query) }.filterNot {
+            russianOnly && Translation.target(it) == "ru"
+        }
+        if (forms.isEmpty() && russianOnly && Translation.target(query) == "en") {
+            return source.search(query, page) ?: newSearchResponseList(emptyList(), false)
+        }
         val batches = coroutineScope {
             if (forms.isEmpty()) {
                 val reviewStart = System.nanoTime() + 10_000_000_000L
@@ -600,13 +608,15 @@ class ReliableProvider(
         val listingDeadline = System.nanoTime() + LISTING_TIMEOUT_MS * 1_000_000L
         if (page < 1 || !ContentPolicy.accepts(query)) return@required newSearchResponseList(emptyList(), false)
         val history = synchronized(searchHistory) {
-            if (page == 1) SearchHistory().also { searchHistory[query] = it }
-            else searchHistory.getOrPut(query) { SearchHistory() }
+            val previous = searchHistory[query]
+            if (previous != null && (page != 1 || System.nanoTime() < previous.reuseFirstUntil)) previous
+            else SearchHistory().also { searchHistory[query] = it }
         }
         history.mutex.withLock {
             history.pages[page]?.let {
                 val saved = it.response
                 val fresh = saved.items.filter { card -> isListable(card.url) }.map(::cachedScore)
+                ImagePrefetch.warm(fresh, priority = true)
                 warmDetails(fresh)
                 return@withLock newSearchResponseList(fresh, saved.hasNext)
             }
@@ -630,10 +640,14 @@ class ReliableProvider(
                 if (cards.size >= SEARCH_PAGE_MINIMUM || !result.hasNext || limit == 0) break
                 result = RequestLimits.optional(remainingMillis(deadline)) { combinedSearch(query, upstream, history) } ?: break
             }
-            warmDetails(cards)
             val prepared = prepareListing(cards, listingDeadline)
+            warmDetails(prepared)
             ImagePrefetch.warm(prepared.drop(3))
             val response = newSearchResponseList(prepared, result.hasNext)
+            if (page == 1) {
+                history.reuseFirstUntil = if (prepared.size >= SEARCH_PAGE_MINIMUM && prepared.take(3).all { !it.posterUrl.isNullOrBlank() })
+                    System.nanoTime() + 20_000_000_000L else 0L
+            }
             history.pages[page] = SavedSearchPage(response, upstream)
             response
         }

@@ -25,6 +25,7 @@ object ImagePrefetch {
     private data class Poster(val url: String, val headers: Map<String, String>)
 
     private val scheduled = BoundedMap<Poster, Long>(256)
+    private val waitingBackground = mutableSetOf<Poster>()
     private val coil by lazy {
         val singleton = try { coilClass("coil3.SingletonImageLoader") } catch (_: ClassNotFoundException) { null }
         if (singleton == null) CoilAccess("coil", coilClass("coil.Coil"), "imageLoader")
@@ -54,14 +55,20 @@ object ImagePrefetch {
         val workers = if (priority) priorityPermits else backgroundPermits
         val started = System.nanoTime()
         synchronized(scheduled) {
-            if (scheduled[poster]?.let { started - it < 300_000_000_000L } == true) return
+            val recent = scheduled[poster]?.let { started - it < 300_000_000_000L } == true
+            if (recent && !(priority && poster in waitingBackground)) return
             if (!queue.tryAcquire()) return
+            if (priority) waitingBackground.remove(poster) else waitingBackground.add(poster)
             scheduled[poster] = started
         }
         scope.launch {
             try {
-                val loaded = withTimeoutOrNull(5000) {
-                    workers.withPermit {
+                val loaded = workers.withPermit {
+                    synchronized(scheduled) {
+                        if (scheduled[poster] != started) return@launch
+                        waitingBackground.remove(poster)
+                    }
+                    withTimeoutOrNull(5000) {
                         val request = coil.enqueue(ctx, poster)
                         try {
                             val result = request.await()
@@ -71,7 +78,7 @@ object ImagePrefetch {
                         }
                     }
                 }
-                if (loaded != true) forget(poster, started)
+                if (loaded == true) PosterRequests.decoded(poster.url, poster.headers) else forget(poster, started)
             } catch (e: CancellationException) {
                 forget(poster, started)
                 throw e

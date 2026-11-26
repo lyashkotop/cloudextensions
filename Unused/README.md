@@ -12,6 +12,7 @@
 - Javtiful
 - Javx
 - SpankBang
+- [UKDevilz](UKDevilz/)
 - Whoreshub
 
 Дополнительно отключены: JavGG, Javangel, Javdoe, SuperJav. Из японских оставлены только MissAV и JavGuru.
