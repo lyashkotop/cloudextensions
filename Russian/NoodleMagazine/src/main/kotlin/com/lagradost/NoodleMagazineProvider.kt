@@ -39,7 +39,7 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)
     private val homeOrigin = "https://noodlemagazine.com"
     private val homeMirror = "https://hot.tyler-brown.com"
-    @Volatile private var preferredHomeOrigin = homeMirror
+    @Volatile private var preferredHomeOrigin = homeOrigin
     private val catalogueHosts = setOf("noodlemagazine.com", "tyler-brown.com", "hot.tyler-brown.com")
     private val homePages = NoodleCatalogue()
     private val homeOrders = ConcurrentHashMap<String, List<Int>>()
