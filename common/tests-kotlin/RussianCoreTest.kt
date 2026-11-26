@@ -287,6 +287,17 @@ fun main(args:Array<String>) {
         "the homepage can opt out of content rules without changing search filtering or deduplication")
     verify(cards.single().poster=="https://example.org/poster.jpg","lazy source beats placeholder")
     verify(cards.single().title=="A complete original title","full source title")
+    val title128 = "The full title of a video as published by the provider ".repeat(3).take(127) + "!"
+    val longTitleListing = Jsoup.parse(
+        """<div class=card data-full-title="$title128"><a href="/video/128/" title="${title128.take(64)}">Preview</a></div>""",
+        "https://example.org/",
+    )
+    val longTitleUrl = "https://example.org/video/128/"
+    verify(Metadata.cards(longTitleListing, spec).single().title == title128 &&
+        Metadata.title(longTitleUrl, listOf(title128.take(64))) == title128,
+        "the full 128-character title survives parsing and a later short card")
+    verify(Metadata.detail(Jsoup.parse("<h1>$title128</h1>", longTitleUrl), spec).title == title128,
+        "video details retain the full 128-character title")
     val detail=Jsoup.parse("""<h1>A title in another language</h1><meta itemprop=duration content=PT2M3S><meta itemprop=description content=''><meta property=og:description content='unrelated promotional metadata'><div class=video-tags><a>для</a><a>ра</a><a>Real tag</a><a>Real tag</a></div>""","https://example.org/video/1/")
     val metadata=Metadata.detail(detail,spec)
     verify(metadata.title=="A title in another language","the published detail title supersedes the listing")

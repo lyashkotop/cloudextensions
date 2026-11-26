@@ -80,8 +80,12 @@ object Network {
     private val permits = Semaphore(6)
     private val detailPermits = Semaphore(2)
     // A homepage can request all sections at once. Use a bounded dispatcher for those HTML requests.
-    private val cataloguePermits = Semaphore(10)
-    private val catalogueDispatcher = okhttp3.Dispatcher().apply { maxRequests = 10; maxRequestsPerHost = 10 }
+    private const val catalogueConcurrency = 12
+    private val cataloguePermits = Semaphore(catalogueConcurrency)
+    private val catalogueDispatcher = okhttp3.Dispatcher().apply {
+        maxRequests = catalogueConcurrency
+        maxRequestsPerHost = catalogueConcurrency
+    }
     private object Catalogue : AbstractCoroutineContextElement(Catalogue.Key) {
         object Key : CoroutineContext.Key<Catalogue>
     }

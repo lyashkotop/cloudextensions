@@ -185,8 +185,13 @@ object Metadata {
                 if (notice.isNotBlank()) title.children().filter { it.text() == notice }.forEach { it.remove() }
                 title.text()
             } else heading?.text().orEmpty()
-            val candidates = listOf(localizedTitle(card,spec.titleLanguage).orEmpty(),link.attr("title"),
-                link.attr("aria-label"),image?.attr("alt").orEmpty(),heading?.attr("title").orEmpty(),visible,image?.attr("aria-label").orEmpty())
+            val candidates = listOf(
+                localizedTitle(card, spec.titleLanguage).orEmpty(),
+                card.attr("data-full-title"), link.attr("data-full-title"), heading?.attr("data-full-title").orEmpty(),
+                link.attr("title"), link.attr("aria-label"), image?.attr("alt").orEmpty(),
+                heading?.attr("title").orEmpty(), visible, image?.attr("aria-label").orEmpty(),
+                card.attr("data-title"), link.attr("data-title"), heading?.attr("data-title").orEmpty(),
+            )
             val label = title(url, if (tube) candidates.map { clean(it).replaceFirst(tubeErrorPrefix, "") } else candidates,
                 language = spec.titleLanguage)
             if (label.isBlank()) continue

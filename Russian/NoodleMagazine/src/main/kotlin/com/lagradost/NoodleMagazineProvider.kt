@@ -4,6 +4,7 @@ package com.lagradost
 import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
+import java.io.File
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
@@ -17,7 +18,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import org.jsoup.nodes.Document
 
-class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
+class NoodleMagazineProvider(cacheDirectory: File? = null): MainAPI(),SearchPolicy,NoodlePosterSource {
+    private val homeCache = cacheDirectory?.let { NoodleHomeCache(File(it, "noodle-home-v1")) }
     override val preferredTitleLanguage = "ru"
     override val reuseConfirmedPosters = true
     override val fastHomeCovers = true
@@ -35,6 +37,7 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     )
     override val mainPage = mainPageOf(
         "разделась" to "Разделась",
+        streamsSection to "Стримы",
         "bdsm" to "БДСМ",
         "homemade" to "Домашнее",
         "рабыня" to "Рабыня",
@@ -42,7 +45,6 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         "унижение" to "Унижение",
         "студентки" to "Студентки",
         "naked in public" to "На публике",
-        streamsSection to "Стримы",
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)
     private val homeOrigin = "https://noodlemagazine.com"
@@ -75,6 +77,11 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         // Both groups use the same source page before advancing to the next one.
         val orderIndex = if (streamQueries.isEmpty()) page - 1 else (page - 1) / streamQueryGroups.size
         val cards = homePages.page(section.data, page) {
+            val cached = if (page == 1 && !homeOrders.containsKey(section.data)) homeCache?.read(section.data) else null
+            if (cached != null) {
+                homeOrders[section.data] = listOf(cached.number) + (1..9).filter { it != cached.number }.shuffled()
+                return@page cached.cards.map(::response)
+            }
             val order = homeOrders.compute(section.data) { _, previous ->
                 if (page != 1 && previous != null) previous
                 else (1..9).shuffled().let {
@@ -82,12 +89,19 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
                 }
             }!!
             val sourcePage = order.getOrNull(orderIndex) ?: orderIndex + 1
-            if (page != 1 || sourcePage == 1) return@page homeCards(section.data, sourcePage, streamQueries)
-            val videos = RequestLimits.optional(8000) { homeCards(section.data, sourcePage, streamQueries) }.orEmpty()
-            if (videos.isNotEmpty()) videos else {
+            if (page != 1) return@page homeCards(section.data, sourcePage, streamQueries)
+            val videos = if (sourcePage == 1) {
+                homeCards(section.data, sourcePage, streamQueries)
+            } else {
+                RequestLimits.optional(8000) { homeCards(section.data, sourcePage, streamQueries) }.orEmpty()
+            }
+            if (videos.isNotEmpty() || sourcePage == 1) {
+                homeCache?.write(section.data, sourcePage, videos)
+                videos
+            } else {
                 // Recover when a random page has moved or is slow to respond.
                 homeOrders[section.data] = listOf(1)
-                homeCards(section.data, 1, streamQueries)
+                homeCards(section.data, 1, streamQueries).also { homeCache?.write(section.data, 1, it) }
             }
         }
         return newHomePageResponse(section.name,cards,cards.isNotEmpty())
