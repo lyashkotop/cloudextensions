@@ -80,9 +80,9 @@
     "fileHash": "sha256-2f35c1fc10bd477231261aa987a4f80342de9e06a43a14d5c60ac8de1c8386bc"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/237/NoodleMagazine.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/239/NoodleMagazine.cs3",
     "status": 1,
-    "version": 237,
+    "version": 239,
     "apiVersion": 1,
     "name": "1 · RU · 🇷🇺 Noodle Magazine",
     "internalName": "NoodleMagazine",
@@ -96,8 +96,8 @@
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/NoodleMagazine.png",
-    "fileSize": 243696,
-    "fileHash": "sha256-38f228d23c4933413e8340fe21ff9b51ab137f6d25e416c537013dc96c333b46"
+    "fileSize": 243693,
+    "fileHash": "sha256-1b6c4fe5bb2dfe5f6eb09cbb039bd1ba9139b715985fc7a7b95b0dad8554f543"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/237/Perdol.cs3",
@@ -760,9 +760,9 @@
     "fileHash": "sha256-06ab00921e4d3b172ffd3799cc72564caf4b7c6c5d7469f68380a60eefcfb8b0"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/237/XRares.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/239/XRares.cs3",
     "status": 1,
-    "version": 237,
+    "version": 239,
     "apiVersion": 1,
     "name": "3 · EN · XRares",
     "internalName": "XRares",
@@ -776,7 +776,7 @@
     ],
     "language": "en",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/XRares.png",
-    "fileSize": 241471,
-    "fileHash": "sha256-5225b04cac21f3ef961fc89982c84d37149cece8063fc0ab5db59b01c521730b"
+    "fileSize": 240626,
+    "fileHash": "sha256-d253a70c399403d483f4b44fe2471b1a126cbd96aeec9dfad5b7a19b6aa5f5bc"
   }
 ]
