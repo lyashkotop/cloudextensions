@@ -408,13 +408,13 @@ class ReliableProvider(
         val rows = coroutineScope {
             result.items.map { row ->
                 async {
-                    val visible = cards(row.list, expandTitles = !fastHome && !requiresListingReview)
                     if (fastHome) {
-                        // The homepage can use catalogue metadata without waiting for detail requests.
-                        val ready = fastHomeCards(visible)
+                        val catalogue = row.list.filter { isAvailable(it.url) }.map { normalizeCard(it) }
+                        val ready = fastHomeCards(catalogue)
                         ImagePrefetch.warm(ready, priority = true)
                         return@async row.copy(list = ready)
                     }
+                    val visible = cards(row.list, expandTitles = !requiresListingReview)
                     val checked = if (requiresListingReview) {
                         reviewedCards(visible, deadline - 6_000_000_000L)
                     } else visible

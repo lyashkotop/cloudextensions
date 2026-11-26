@@ -169,7 +169,7 @@ object Metadata {
         // Some site dictionaries escape Unicode twice inside the HTML JSON attribute.
         return Regex("""\\u([0-9a-fA-F]{4})""").replace(raw){it.groupValues[1].toInt(16).toChar().toString()}
     }
-    fun cards(page: Element, spec: SiteSpec): List<VideoCard> {
+    fun cards(page: Element, spec: SiteSpec, applyContentFilter: Boolean = true): List<VideoCard> {
         val result = LinkedHashMap<String,VideoCard>()
         val hcScores = if (spec.id == "HcBDSMX") VideoScores.hcScores(page) else emptyMap()
         for (card in page.select(spec.cards)) {
@@ -195,7 +195,7 @@ object Metadata {
                     listOf(card.attr("data-orientation"), link.attr("data-orientation"))
                 ).map(::clean).filter(String::isNotBlank).distinct()
             if (tags.isNotEmpty()) listedTags[videoKey(url)] = tags
-            if (!ContentPolicy.accepts(label, tags, source = spec.id)) continue
+            if (applyContentFilter && !ContentPolicy.accepts(label, tags, source = spec.id)) continue
             val clocks=card.select(".prop span,.video_length,.m_time").map { clean(it.text()) }.filter { it.matches(Regex("(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}")) }
             val duration = (card.select(".duration, .card__duration, .video-duration, .time, [data-duration]").asSequence().map { timing(it.attr("data-duration").ifBlank { it.text() }) }.toList()+clocks.map(::timing)).firstOrNull(String::isNotBlank).orEmpty()
             val fullDuration = when {

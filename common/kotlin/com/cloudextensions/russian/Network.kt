@@ -13,6 +13,7 @@ import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
@@ -78,6 +79,12 @@ object Network {
     private val locks = ConcurrentHashMap<Pair<PageKey, Boolean>, PageGate>()
     private val permits = Semaphore(6)
     private val detailPermits = Semaphore(2)
+    // A homepage can request all sections at once. Use a bounded dispatcher for those HTML requests.
+    private val cataloguePermits = Semaphore(10)
+    private val catalogueDispatcher = okhttp3.Dispatcher().apply { maxRequests = 10; maxRequestsPerHost = 10 }
+    private object Catalogue : AbstractCoroutineContextElement(Catalogue.Key) {
+        object Key : CoroutineContext.Key<Catalogue>
+    }
     // OkHttp otherwise queues a tap behind the same host's listing and rating calls.
     private val detailDispatcher = okhttp3.Dispatcher().apply { maxRequests = 2; maxRequestsPerHost = 2 }
     internal object OpeningDetail : AbstractCoroutineContextElement(OpeningDetail.Key) {
@@ -107,6 +114,9 @@ object Network {
     internal fun replacementImageHeaders(poster: String, url: String, headers: Map<String, String>): Map<String, String> =
         headers.filterKeys { !it.equals("Cookie", ignoreCase = true) } +
             imageHeaders(poster, headers["Referer"] ?: url)
+
+    suspend fun cataloguePage(request: PageRequest, referer: String): Document =
+        withContext(Catalogue) { page(request, referer) }
 
     suspend fun page(request: PageRequest, referer: String): Document = RequestLimits.required("Страница",18_000) {
         if (coroutineContext[Background.Key] != null) {
@@ -138,7 +148,11 @@ object Network {
             dedicated ?: recent?.second ?: usable(detailCache[key])
         }
         cached()?.let { return it }
-        val requestPermits = if (opening) detailPermits else permits
+        val requestPermits = when {
+            opening -> detailPermits
+            coroutineContext[Catalogue.Key] != null -> cataloguePermits
+            else -> permits
+        }
         // A tap uses its reserved dispatcher even if speculative work is already queued for this URL.
         val lockKey = key to (retain && opening)
         val gate = locks.compute(lockKey) { _, pending -> pending?.also { it.users++ } ?: PageGate() }!!
@@ -238,8 +252,10 @@ object Network {
 
     private suspend fun execute(request: Request, allowNotFound: Boolean): Document {
         val openingDetail = coroutineContext[OpeningDetail.Key] != null
+        val catalogue = coroutineContext[Catalogue.Key] != null
         val client = app.baseClient.newBuilder().apply {
             if (openingDetail) dispatcher(detailDispatcher)
+            else if (catalogue) dispatcher(catalogueDispatcher)
         }.callTimeout(15, TimeUnit.SECONDS)
             .connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).apply {
                 if (request.url.host == BDSMPORN_HOST && bdsmPornSession != null) {

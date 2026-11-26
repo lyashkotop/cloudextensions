@@ -10,8 +10,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
@@ -59,10 +59,11 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         else "$mainUrl/"
     }
 
-    private suspend fun document(request: PageRequest) = Network.page(
-        request.copy(headers = mapOf("Cookie" to "ui_lang=ru", "Accept-Language" to Network.RUSSIAN_LANGUAGE)),
-        referer(request.url),
-    )
+    private suspend fun document(request: PageRequest, home: Boolean = false): Document {
+        val localized = request.copy(headers = mapOf("Cookie" to "ui_lang=ru", "Accept-Language" to Network.RUSSIAN_LANGUAGE))
+        val referer = referer(request.url)
+        return if (home) Network.cataloguePage(localized, referer) else Network.page(localized, referer)
+    }
     private fun response(card:VideoCard):SearchResponse=newMovieSearchResponse(card.title,card.url,TvType.NSFW){posterUrl=card.poster;posterHeaders=Network.headers(referer(card.url))}
     private suspend fun results(query:String,page:Int):List<SearchResponse>{val request=route(query,page);return Metadata.searchCards(document(request),spec,request).map(::response)}
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse {
@@ -104,14 +105,15 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
 
     private suspend fun homeTermCards(category: String, page: Int): List<SearchResponse> = coroutineScope {
         suspend fun fetch(origin: String) =
-            RequestLimits.optional(7000) { categoryCards(category, page, origin, requireSameRoute = true) }
+            RequestLimits.optional(7000) { categoryCards(category, page, origin, home = true) }
 
         val preferred = preferredHomeOrigin
         val alternate = if (preferred == homeOrigin) homeMirror else homeOrigin
         val primary = async { fetch(preferred) }
         val mirror = async {
-            delay(350)
-            fetch(alternate)
+            // Hedge a stalled request, or try the mirror immediately after an empty response or error.
+            val cards = withTimeoutOrNull(700) { primary.await() }
+            if (cards.isNullOrEmpty()) fetch(alternate) else null
         }
         val (first, remaining, origin) = select {
             primary.onAwait { Triple(it, mirror, preferred) }
@@ -128,21 +130,22 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
     }
 
     private suspend fun categoryCards(
-        category: String, page: Int, origin: String = mainUrl, requireSameRoute: Boolean = false,
+        category: String, page: Int, origin: String = mainUrl, home: Boolean = false,
     ): List<SearchResponse> {
         val request = if (category.startsWith("/")) {
             val separator = if (category.contains('?')) "&" else "?"
             PageRequest("$origin$category${separator}p=${page - 1}", allowNotFound = true)
         } else route(category, page, origin)
-        val pageDocument = document(request)
-        if (requireSameRoute) {
+        val pageDocument = document(request, home)
+        if (home) {
             val expected = request.url.toHttpUrlOrNull() ?: return emptyList()
             val actual = pageDocument.baseUri().toHttpUrlOrNull() ?: return emptyList()
             if (expected.pathSegments.dropLastWhile { it.isEmpty() } != actual.pathSegments.dropLastWhile { it.isEmpty() } ||
                 actual.host !in catalogueHosts
             ) throw ErrorLoadingException("Noodle Magazine: сайт перенаправил на другую страницу")
         }
-        return Metadata.searchCards(pageDocument, spec, request).map(::response)
+        if (Metadata.emptySearch(pageDocument, request)) return emptyList()
+        return Metadata.cards(pageDocument, spec, applyContentFilter = !home).map(::response)
     }
 
     override suspend fun searchCategoryPage(category: String, page: Int): SearchResponseList {

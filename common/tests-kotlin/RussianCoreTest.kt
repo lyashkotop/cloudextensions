@@ -282,6 +282,9 @@ fun main(args:Array<String>) {
     val listing=Jsoup.parse("""<div class=card><a href='/video/1/' title='A complete original title'><img src='data:image/gif;base64,x' data-original='/poster.jpg'><span class=title>A complete…</span></a><span class=duration>02:03</span></div><div class=card><a href='/video/1/' title='duplicate'>duplicate</a></div><div class=card><a href='/video/2/' title='gay'>blocked</a></div>""","https://example.org/")
     val cards=Metadata.cards(listing,spec)
     verify(cards.size==1,"deduplicate and filter cards")
+    verify(Metadata.cards(listing, spec, applyContentFilter = false).size == 2 &&
+        Metadata.searchCards(listing, spec, PageRequest(listing.baseUri())).size == 1,
+        "the homepage can opt out of content rules without changing search filtering or deduplication")
     verify(cards.single().poster=="https://example.org/poster.jpg","lazy source beats placeholder")
     verify(cards.single().title=="A complete original title","full source title")
     val detail=Jsoup.parse("""<h1>A title in another language</h1><meta itemprop=duration content=PT2M3S><meta itemprop=description content=''><meta property=og:description content='unrelated promotional metadata'><div class=video-tags><a>для</a><a>ра</a><a>Real tag</a><a>Real tag</a></div>""","https://example.org/video/1/")
