@@ -14,6 +14,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
@@ -260,10 +261,18 @@ class ReliableProvider(
         return accepted + items.drop(cursor).filter { savedReview(it.url)?.allowed != false }
     }
 
-    private suspend fun prepareSearch(items: List<SearchResponse>, deadline: Long): List<SearchResponse> = coroutineScope {
+    private suspend fun prepareSearch(items: List<SearchResponse>, deadline: Long, reviewRank: Map<String, Int>): List<SearchResponse> = coroutineScope {
         val normalized = items.filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }.map { normalizeCard(it) }
         ImagePrefetch.warm(normalized, priority = true)
-        val reviewed = withContext(Network.CacheDetail) { previewSearch(normalized, deadline) }
+        val reviewed = withContext(Network.CacheDetail) {
+            if (reviewRank.isEmpty()) previewSearch(normalized, deadline)
+            else {
+                // Share the detail-check budget across languages, then restore the site's display order.
+                val queue = normalized.sortedBy { reviewRank[searchKey(it)] ?: Int.MAX_VALUE }
+                val accepted = reviewedCards(queue, deadline).associateBy(::searchKey)
+                normalized.mapNotNull { accepted[searchKey(it)] }
+            }
+        }
         reviewed.map { card ->
             async {
                 if (card !is MovieSearchResponse || !Metadata.isTruncatedTitle(card.name)) return@async card
@@ -435,6 +444,7 @@ class ReliableProvider(
     private class SearchHistory {
         val mutex = Mutex()
         val pages = mutableMapOf<Int, SavedSearchPage>()
+        var reviewRank: Map<String, Int> = emptyMap()
         var taxonomy: List<Section>? = null
         val taxonomyEnds = mutableMapOf<String, Int>()
         val aliasEnds = mutableMapOf<String, Int>()
@@ -448,7 +458,7 @@ class ReliableProvider(
     private suspend fun upstreamSearch(
         query: String, page: Int, history: SearchHistory, aliases: Set<String>,
     ): SearchResponseList {
-        if (aliases.isEmpty() && (lang !in listOf("ru", "en") || (source as? SearchPolicy)?.translateQueries == false ||
+        if (aliases.isEmpty() && ((source as? SearchPolicy)?.translateQueries == false ||
             (source as? AdaptedProvider)?.translateQueries == false)) {
             return source.search(query, page) ?: newSearchResponseList(emptyList(), false)
         }
@@ -470,9 +480,20 @@ class ReliableProvider(
         val forms = aliases.ifEmpty { Translation.searchForms(query) }
         val batches = coroutineScope {
             if (forms.isEmpty()) {
+                val reviewStart = System.nanoTime() + 10_000_000_000L
                 val original = async { branch(query) }
                 val translated = async { Translation.translated(query)?.let { branch(it) } }
-                listOfNotNull(original.await(), translated.await())
+                val originalFirst = select {
+                    original.onAwait { true }
+                    translated.onAwait { false }
+                }
+                val first = if (originalFirst) original.await() else translated.await()
+                val other = if (originalFirst) translated else original
+                val second = if (requiresListingReview && !first?.response?.items.isNullOrEmpty() && !other.isCompleted) {
+                    // Keep enough of the request deadline to validate the results already received.
+                    withTimeoutOrNull(remainingMillis(reviewStart)) { other.await() }.also { other.cancel() }
+                } else other.await()
+                if (originalFirst) listOfNotNull(first, second) else listOfNotNull(second, first)
             } else {
                 val terms = listOf(query) + forms.filterNot { it.equals(Metadata.clean(query), ignoreCase = true) }
                 val replies = terms.filter { page <= (history.aliasEnds[it] ?: Int.MAX_VALUE) }.map { term ->
@@ -487,6 +508,14 @@ class ReliableProvider(
             }
         }
         val responses = batches.mapNotNull { it.response }
+        history.reviewRank = if (requiresListingReview && responses.count { it.items.isNotEmpty() } > 1) {
+            buildMap {
+                for (response in responses) response.items.forEachIndexed { index, card ->
+                    val key = searchKey(card)
+                    put(key, minOf(get(key) ?: Int.MAX_VALUE, index))
+                }
+            }
+        } else emptyMap()
         if (responses.isEmpty()) batches.firstNotNullOfOrNull { it.error }?.let { throw it }
         return newSearchResponseList(responses.flatMap { it.items }, responses.any { it.hasNext })
     }
@@ -593,7 +622,7 @@ class ReliableProvider(
             var limit = if (page == 1 && !expandSparse) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
             while (true) {
                 val unique = result.items.distinctBy(::searchKey).filter { searchKey(it) !in seen }
-                val checked = prepareSearch(unique, deadline)
+                val checked = prepareSearch(unique, deadline, history.reviewRank)
                 cards += checked
                 seen += checked.map(::searchKey)
                 upstream++

@@ -459,6 +459,7 @@ fun main(args:Array<String>) {
     verify(Metadata.title("https://example.org/null-title",listOf("null","Original full title"))=="Original full title","JSON null never becomes the title")
     verify(Translation.target("big грудь")=="en","mixed two-word query gets an English companion")
     kotlinx.coroutines.runBlocking {
+        verify(Translation.translated("Подруга") == "girlfriend" && Translation.translated("girlfriend") == "подруга", "girlfriend searches translate offline in both directions")
         verify(Translation.translated("парень")=="guy","Russian query receives English companion")
         verify(Translation.translated("guy")=="парень","English query receives Russian companion")
         verify(Translation.translated("Порка")=="spanking","Russian spanking query uses the catalogue keyword")
