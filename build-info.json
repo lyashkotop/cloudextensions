@@ -1,12 +1,12 @@
 {
-  "version": 243,
-  "sourceCommit": "13765b21a87317ba5f3befe6b5580e603d10ba00",
+  "version": 244,
+  "sourceCommit": "de6d7b419843dae7081a0f82c171af5972c24fa2",
   "packageLayout": "versioned",
   "plugins": 39,
   "rebuilt": [
     "NoodleMagazine"
   ],
-  "dexClasses": 12851,
+  "dexClasses": 12855,
   "entryRegistrationsValidated": 39,
   "kotlinProviders": 39
 }
