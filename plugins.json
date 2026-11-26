@@ -80,9 +80,9 @@
     "fileHash": "sha256-2aed237f78f0cd0bb6d496f85a07aa47c708439b182ddfb8dc680d08ffc844c8"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/254/NoodleMagazine.cs3",
+    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/255/NoodleMagazine.cs3",
     "status": 1,
-    "version": 254,
+    "version": 255,
     "apiVersion": 1,
     "name": "1 · RU · 🇷🇺 Noodle Magazine",
     "internalName": "NoodleMagazine",
@@ -96,8 +96,8 @@
     ],
     "language": "ru",
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/NoodleMagazine.png",
-    "fileSize": 248922,
-    "fileHash": "sha256-dad08e6e8472db8d15cfe75a9f046d1aa1bfee35a03b6aa452e96915d0b04593"
+    "fileSize": 250649,
+    "fileHash": "sha256-59a1957fa3cfde358e095110e60d04305d4699fe6294d02bcf143ccc7bf9be97"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/Russian/254/Perdol.cs3",
