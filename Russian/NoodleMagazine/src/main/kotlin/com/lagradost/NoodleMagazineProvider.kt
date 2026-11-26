@@ -9,7 +9,6 @@ import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeoutOrNull
@@ -33,21 +32,14 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
     override val hasMainPage=true
     override val hasQuickSearch=false
     override val hasDownloadSupport=true
-    private val streamsSection = "streams"
-    private val streamQueryGroups = listOf(
-        listOf("стрим вк", "перископ", "скайп"),
-        listOf("стримы", "видеочат"),
-    )
     override val mainPage = mainPageOf(
         "разделась" to "Разделась",
-        streamsSection to "Стримы",
         "bdsm" to "БДСМ",
         "homemade" to "Домашнее",
         "рабыня" to "Рабыня",
         "spanking" to "Порка",
         "унижение" to "Унижение",
         "студентки" to "Студентки",
-        "naked in public" to "На публике",
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)
     private val homeOrigin = "https://noodlemagazine.com"
@@ -74,11 +66,6 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse {
         val section = mainPage.firstOrNull { it.data == request.data }
         if (page < 1 || section == null) return newHomePageResponse(emptyList(), false)
-        val streamQueries = if (section.data == streamsSection) {
-            streamQueryGroups[(page - 1) % streamQueryGroups.size]
-        } else emptyList()
-        // Both groups use the same source page before advancing to the next one.
-        val orderIndex = if (streamQueries.isEmpty()) page - 1 else (page - 1) / streamQueryGroups.size
         val cards = homePages.page(section.data, page) {
             val cached = if (page == 1 && !homeOrders.containsKey(section.data)) homeCache?.read(section.data) else null
             if (cached != null) {
@@ -91,12 +78,12 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
                     if (it.first() == previous?.firstOrNull()) it.drop(1) + it.first() else it
                 }
             }!!
-            val sourcePage = order.getOrNull(orderIndex) ?: orderIndex + 1
-            if (page != 1) return@page homeCards(section.data, sourcePage, streamQueries)
+            val sourcePage = order.getOrNull(page - 1) ?: page
+            if (page != 1) return@page homeCards(section.data, sourcePage)
             val videos = if (sourcePage == 1) {
-                homeCards(section.data, sourcePage, streamQueries)
+                homeCards(section.data, sourcePage)
             } else {
-                RequestLimits.optional(8000) { homeCards(section.data, sourcePage, streamQueries) }.orEmpty()
+                RequestLimits.optional(8000) { homeCards(section.data, sourcePage) }.orEmpty()
             }
             if (videos.isNotEmpty() || sourcePage == 1) {
                 homeCache?.write(section.data, sourcePage, videos)
@@ -104,23 +91,13 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
             } else {
                 // Recover when a random page has moved or is slow to respond.
                 homeOrders[section.data] = listOf(1)
-                homeCards(section.data, 1, streamQueries).also { homeCache?.write(section.data, 1, it) }
+                homeCards(section.data, 1).also { homeCache?.write(section.data, 1, it) }
             }
         }
         return newHomePageResponse(section.name,cards,cards.isNotEmpty())
     }
 
-    private suspend fun homeCards(category: String, page: Int, streamQueries: List<String>): List<SearchResponse> {
-        if (streamQueries.isEmpty()) return homeTermCards(category, page)
-        val cards = coroutineScope {
-            streamQueries.map { query ->
-                async { RequestLimits.optional(3000) { homeTermCards(query, page) }.orEmpty() }
-            }.awaitAll().flatten()
-        }
-        return cards.ifEmpty { homeTermCards(streamQueries.first(), page) }
-    }
-
-    private suspend fun homeTermCards(category: String, page: Int): List<SearchResponse> = coroutineScope {
+    private suspend fun homeCards(category: String, page: Int): List<SearchResponse> = coroutineScope {
         suspend fun fetch(origin: String) =
             RequestLimits.optional(7000) { categoryCards(category, page, origin, home = true) }
 
