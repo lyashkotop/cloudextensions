@@ -129,13 +129,23 @@ class PornoMolokoProvider : RussianProvider(
     ): Boolean {
         val document = page(PageRequest(data))
         val base = document.baseUri().toHttpUrl()
-        val streams = playerScripts(document).flatMap { script ->
-            playerFile.findAll(script).mapNotNull { match ->
-                decode(match.groupValues[1])?.let(base::resolve)?.let { Playback.Source(it.toString()) }
-            }
+        val declared = playerScripts(document).flatMap { script ->
+            playerFile.findAll(script).mapNotNull { match -> decode(match.groupValues[1]) }
         }.toList()
-        // The download menu repeats one URL under several labels. Use the real player file.
-        return Playback.linksFromPage(name, mainUrl, data, document, streams, subtitleCallback, callback)
+        val streams = declared.filterNot(playerError::containsMatchIn).mapNotNull { value ->
+            base.resolve(value)?.let { Playback.Source(it.toString()) }
+        }
+        val linkedPlayers = declared.mapNotNull { value ->
+            playerError.find(value)?.groupValues?.get(1)?.toHttpUrlOrNull()?.takeIf {
+                it.isHttps && it.host.removePrefix("www.") == "xhamster.com" &&
+                    it.pathSegments.firstOrNull() in setOf("movies", "videos", "embed")
+            }
+        }.distinct()
+        // Some pages place the original player link in the error text instead of a media URL.
+        val playerPage = if (linkedPlayers.isEmpty()) document else document.clone().apply {
+            linkedPlayers.forEach { body().appendElement("iframe").attr("src", it.toString()) }
+        }
+        return Playback.linksFromPage(name, mainUrl, data, playerPage, streams, subtitleCallback, callback)
     }
 
     private fun playerScripts(document: Document): Sequence<String> =
@@ -148,6 +158,7 @@ class PornoMolokoProvider : RussianProvider(
         const val catalogueQuery = "_ce_search"
         val cataloguePath = Regex("""/All(?:-[0-9]+\.html|/)""")
         val words = Regex("""[\p{L}\p{N}]+""")
+        val playerError = Regex("""(?iu)^Проблемы с видео сервером\s+(https?://[^\s<>]+)""")
         val playerFile = Regex("""\bnew\s+Playerjs\s*\(\s*\{[^}]*?\bfile\s*:\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')""")
         val posterField = Regex("""\.api\(\s*["']poster["']\s*,\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')""")
     }

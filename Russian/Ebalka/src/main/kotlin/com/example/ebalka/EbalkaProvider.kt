@@ -78,7 +78,13 @@ class EbalkaProvider: RussianProvider(SiteSpec(
         if (target != url) {
             return RequestLimits.optional(2800) { russianPage(request, target) } ?: super.page(request)
         }
-        if (russianHost.matches(target.host)) return russianPage(request, target)
+        if (russianHost.matches(target.host)) {
+            if (target.pathSegments.firstOrNull() != "latest-videos") return russianPage(request, target)
+            val russian = RequestLimits.optional(3500) { russianPage(request, target) }
+            if (russian?.selectFirst(spec.cards) != null) return russian
+            val english = target.newBuilder().host(englishHost).build()
+            return Network.page(request.copy(url = english.toString()), "https://$englishHost/")
+        }
         if (url.host != englishHost || !url.encodedPath.startsWith("/search/")) return super.page(request)
 
         val english = RequestLimits.optional(3500) { super.page(request) }

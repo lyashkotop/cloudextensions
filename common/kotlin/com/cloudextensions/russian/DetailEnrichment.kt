@@ -94,7 +94,6 @@ object DetailEnrichment {
         if (!ContentPolicy.accepts(source.title, source.tags, source.description)) {
             throw ErrorLoadingException("Видео скрыто фильтром категорий")
         }
-        if (source.tags.isEmpty() && !allowUnverified) throw ErrorLoadingException("Теги оригинала не подтверждены")
         return merge(detail, source).copy(tags = (detail.tags + source.tags).distinctBy(String::lowercase))
     }
 

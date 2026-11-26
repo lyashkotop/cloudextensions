@@ -33,7 +33,7 @@ private const val LISTING_TIMEOUT_MS = 22_000L
 private const val RATING_REQUEST_TIMEOUT_MS = 6_500L
 private const val FAST_LISTING_RATING_BUDGET_MS = 1_500L
 private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
-private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex")
+private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex", "TubeSafari")
 private const val LISTING_COMPLETION_RESERVE_MS = 500L
 private const val HOME_LOOKAHEAD_MS = 600L
 
@@ -56,7 +56,6 @@ class ReliableProvider(
     private val titlePermits = Semaphore(4)
     private val requiresListingReview get() = (source as? SearchPolicy)?.requiresListingReview == true ||
         (source as? AdaptedProvider)?.requiresListingReview == true
-    private val allowUnverifiedListing get() = (source as? SearchPolicy)?.allowUnverifiedListing == true
     private val searchMetadataSource get() = source as? SearchMetadataSource ?: (source as? AdaptedProvider)?.searchMetadataSource
 
     private fun accepts(title: String, tags: List<String>, description: String? = null) =
@@ -238,9 +237,7 @@ class ReliableProvider(
     private suspend fun reviewedCards(items: List<SearchResponse>, deadline: Long): List<SearchResponse> = coroutineScope {
         items.map { card ->
             async {
-                val checked = review(card, deadline)
-                if (checked == null) return@async card.takeIf { allowUnverifiedListing }
-                if (!checked.allowed) return@async null
+                val checked = review(card, deadline)?.takeIf { it.allowed } ?: return@async null
                 val full = checked.title?.let {
                     Metadata.title(card.url, listOf(it), language = titleLanguage, fromDetail = true)
                 } ?: card.name
@@ -584,11 +581,7 @@ class ReliableProvider(
                 .flatMap { it.value.response.items.asSequence() }.mapTo(mutableSetOf(), ::searchKey)
             var upstream = history.pages[page - 1]?.nextUpstreamPage ?: page
             var result = combinedSearch(query, upstream, history)
-            val budget = when {
-                allowUnverifiedListing -> 3_000L
-                requiresListingReview -> 10_000L
-                else -> SEARCH_REVIEW_BUDGET_MS
-            }
+            val budget = if (requiresListingReview) 10_000L else SEARCH_REVIEW_BUDGET_MS
             val deadline = minOf(listingDeadline - 6_000_000_000L, System.nanoTime() + budget * 1_000_000L)
             val cards = mutableListOf<SearchResponse>()
             val genre = lang in listOf("ru", "en") && Translation.searchAliases(query).isNotEmpty()
@@ -612,7 +605,16 @@ class ReliableProvider(
             response
         }
     }
-    override suspend fun load(url: String): LoadResponse = RequestLimits.required("Карточка") { loadCard(url) }
+    override suspend fun load(url: String): LoadResponse = RequestLimits.required("Карточка") {
+        try {
+            loadCard(url)
+        } catch (e: ErrorLoadingException) {
+            if (ratingProfile == "TubeSafari" && e.message == "Видео удалено или недоступно") {
+                removedVideos[videoKey(url)] = System.nanoTime()
+            }
+            throw e
+        }
+    }
 
     private suspend fun loadCard(url: String): LoadResponse = coroutineScope {
         val saved = savedReview(url, DETAIL_MAX_AGE_NANOS)?.detail as? MovieLoadResponse

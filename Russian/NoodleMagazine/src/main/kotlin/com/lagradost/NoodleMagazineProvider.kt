@@ -21,6 +21,7 @@ import org.jsoup.nodes.Document
 class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,NoodlePosterSource {
     constructor() : this(ImagePrefetch.cacheDirectory())
 
+    private val descriptionFooter = Regex("""(?iu)(?:^|\s+)watch\s+sex\s+video\b.*?\bonline[.!…]?\s*$""")
     private val homeCache = cacheDirectory?.let { NoodleHomeCache(File(it, "noodle-home-v1")) }
     override val preferredTitleLanguage = "ru"
     override val reuseConfirmedPosters = true
@@ -190,7 +191,7 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
         }
         return newMovieLoadResponse(detail.title,url,TvType.NSFW,url){
             score = VideoScores.detail("NoodleMagazine",url,page)
-            posterUrl=detail.poster;posterHeaders=Network.headers(referer(url));plot=Metadata.plot(detail);tags=detail.tags;recommendations=related
+            posterUrl=detail.poster;posterHeaders=Network.headers(referer(url));plot=Metadata.plot(detail).replaceFirst(descriptionFooter, "").trimEnd();tags=detail.tags;recommendations=related
             applyVideoDuration(detail.duration)
         }
     }
