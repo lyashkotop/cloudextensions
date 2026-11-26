@@ -9,12 +9,17 @@ import com.cloudextensions.russian.RussianProvider
 import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
 import com.cloudextensions.russian.VideoDetail
+import com.lagradost.cloudstream3.ErrorLoadingException
+import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.newSearchResponseList
 import java.util.Locale
-import kotlinx.coroutines.CancellationException
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import okhttp3.HttpUrl
@@ -53,36 +58,48 @@ class BdsmPornProvider : RussianProvider(
     private val slaveTitle = Regex("""(?iu)(?<![\p{L}\p{N}])(?:рабын(?:я|и|ю|ей|ь|ям|ями|ях)|slaves?)(?![\p{L}\p{N}])""")
     private val titleWord = Regex("""[\p{L}\p{N}]+""")
 
+    private data class SavedSection(val timestamp: Long, val response: HomePageResponse)
+    private val savedSections = ConcurrentHashMap<Pair<String, Int>, SavedSection>()
+
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        val listing = super.getMainPage(page, request)
+        if (page in 1..4 && spec.sections.any { it.path == request.data } && listing.items.any { it.list.isNotEmpty() }) {
+            savedSections[request.data to page] = SavedSection(System.nanoTime(), listing)
+        }
+        return listing
+    }
+
     override suspend fun search(query: String, page: Int): SearchResponseList {
         val term = Metadata.clean(query).lowercase(Locale.ROOT)
         val words = titleWords(term)
         if (page < 1 || words.isEmpty()) return newSearchResponseList(emptyList(), false)
-        val original = try {
-            Result.success(super.search(query, page))
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            Result.failure(error)
-        }
-        val response = original.getOrNull()
-        if (response != null && (response.items.isNotEmpty() || response.hasNext)) return response
 
-        val catalogue = RequestLimits.optional(4000) {
-            val request = MainPageRequest("Видео", "/videos", sequentialMainPage)
-            val listing = getMainPage(page, request)
-            val matches = listing.items.flatMap { it.list }
-                .filter { card ->
-                    when (term) {
-                        "парень", "guy" -> guyTitle.containsMatchIn(card.name)
-                        "рабыня", "рабыни", "slave", "slaves" -> slaveTitle.containsMatchIn(card.name)
-                        else -> titleWords(card.name).containsAll(words)
-                    }
+        val original = RequestLimits.optional(2200) { super.search(query, page) }
+        if (original != null && (original.items.isNotEmpty() || original.hasNext)) return original
+
+        val catalogues = coroutineScope {
+            spec.sections.map { section ->
+                async {
+                    savedSections[section.path to page]
+                        ?.takeIf { System.nanoTime() - it.timestamp < 300_000_000_000L }?.response
+                        ?: RequestLimits.optional(3500) {
+                            getMainPage(page, MainPageRequest(section.name, section.path, sequentialMainPage))
+                        }
                 }
-                .distinctBy { it.url }
-            newSearchResponseList(matches, listing.hasNext)
+            }.awaitAll().filterNotNull()
         }
-        if (catalogue != null) return catalogue
-        return original.getOrThrow()
+        if (catalogues.isEmpty()) return original
+            ?: throw ErrorLoadingException("BDSM-Porn.cc: поиск и каталог не ответили")
+        val matches = catalogues.flatMap { listing -> listing.items.flatMap { it.list } }
+            .filter { card ->
+                when (term) {
+                    "парень", "guy" -> guyTitle.containsMatchIn(card.name)
+                    "рабыня", "рабыни", "slave", "slaves" -> slaveTitle.containsMatchIn(card.name)
+                    else -> titleWords(card.name).containsAll(words)
+                }
+            }
+            .distinctBy { Metadata.catalogueKey(spec.id, it.url) }
+        return newSearchResponseList(matches, catalogues.any { it.hasNext })
     }
 
     private fun titleWords(value: String): Set<String> =
