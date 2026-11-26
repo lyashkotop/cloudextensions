@@ -33,6 +33,7 @@ class NoodleMagazineProvider: MainAPI(),SearchPolicy,NoodlePosterSource {
         "homemade" to "Домашнее",
         "рабыня" to "Рабыня",
         "spanking" to "Порка",
+        "унижение" to "Унижение",
         "студентки" to "Студентки",
         "naked in public" to "На публике",
     )
