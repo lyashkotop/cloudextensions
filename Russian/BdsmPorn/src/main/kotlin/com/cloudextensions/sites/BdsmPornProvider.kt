@@ -75,7 +75,8 @@ class BdsmPornProvider : RussianProvider(
         if (page < 1 || words.isEmpty()) return newSearchResponseList(emptyList(), false)
 
         val original = RequestLimits.optional(2200) { super.search(query, page) }
-        if (original != null && (original.items.isNotEmpty() || original.hasNext)) return original
+        if (original != null && original.items.size >= 4) return original
+        // A short search response can omit title matches that are still present in the catalogue.
 
         val catalogues = coroutineScope {
             spec.sections.map { section ->
@@ -98,8 +99,8 @@ class BdsmPornProvider : RussianProvider(
                     else -> titleWords(card.name).containsAll(words)
                 }
             }
-            .distinctBy { Metadata.catalogueKey(spec.id, it.url) }
-        return newSearchResponseList(matches, catalogues.any { it.hasNext })
+        val combined = (original?.items.orEmpty() + matches).distinctBy { Metadata.catalogueKey(spec.id, it.url) }
+        return newSearchResponseList(combined, original?.hasNext == true || catalogues.any { it.hasNext })
     }
 
     private fun titleWords(value: String): Set<String> =
