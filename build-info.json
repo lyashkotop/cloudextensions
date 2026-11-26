@@ -1,8 +1,8 @@
 {
-  "version": 256,
-  "sourceCommit": "1fd66114689a2e2d0dd64716b6f691fe0cbfbd57",
+  "version": 257,
+  "sourceCommit": "73454c49044a4310aa31a54dd1e841da5d0f2f10",
   "packageLayout": "versioned",
-  "plugins": 39,
+  "plugins": 38,
   "rebuilt": [
     "BdsmPorn",
     "Domashka",
@@ -40,11 +40,10 @@
     "ThisVid",
     "TubeBDSM",
     "TubeSafari",
-    "UKDevilz",
     "Xnxx",
     "XRares"
   ],
-  "dexClasses": 13145,
-  "entryRegistrationsValidated": 39,
-  "kotlinProviders": 39
+  "dexClasses": 12802,
+  "entryRegistrationsValidated": 38,
+  "kotlinProviders": 38
 }
