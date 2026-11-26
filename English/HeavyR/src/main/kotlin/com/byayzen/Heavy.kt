@@ -6,6 +6,7 @@ import com.cloudextensions.russian.VideoScores
 import com.cloudextensions.russian.ContentPolicy
 import com.cloudextensions.russian.SearchMetadataSource
 import com.cloudextensions.russian.SearchPolicy
+import com.cloudextensions.russian.SearchListingEvidence
 import com.cloudextensions.russian.VideoDetail
 import com.cloudextensions.russian.Metadata
 import com.cloudextensions.russian.MediaDuration
@@ -13,8 +14,6 @@ import com.cloudextensions.russian.applyVideoDuration
 import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.RequestLimits
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Document
@@ -115,30 +114,29 @@ class Heavy : MainAPI(), SearchPolicy, SearchMetadataSource {
 
     private fun videoId(card: SearchResponse): String? = card.url.toHttpUrlOrNull()?.pathSegments?.getOrNull(1)
 
-    override suspend fun search(query: String, page: Int): SearchResponseList = coroutineScope {
+    override suspend fun search(query: String, page: Int): SearchResponseList {
         val term = Metadata.clean(query).replace(' ', '-')
         val empty = newSearchResponseList(emptyList(), false)
-        if (term.isBlank() || page < 1) return@coroutineScope empty
+        if (term.isBlank() || page < 1) return empty
         val request = searchRequest(term, page)
-        // Heavy-R returns its latest uploads on a no-match page, in the same grid as real results.
-        val fallbackIds = async {
-            RequestLimits.optional(3000) {
-                val fallback = Network.page(searchRequest("zzqnomatch928", 1), mainUrl)
-                searchCards(fallback).map(::videoId)
-            }
-        }
         val document = Network.page(request, mainUrl)
-        if (Metadata.emptySearch(document, request)) {
-            fallbackIds.cancel()
-            return@coroutineScope empty
-        }
+        val actual = document.baseUri().toHttpUrlOrNull()
+        val expected = request.url.toHttpUrlOrNull()
+        if (Metadata.emptySearch(document, request) || actual?.encodedPath != expected?.encodedPath) return empty
         val results = searchCards(document)
-        if (results.isEmpty()) {
-            fallbackIds.cancel()
-            return@coroutineScope empty
-        }
-        if (results.map(::videoId) == fallbackIds.await()) return@coroutineScope empty
-        newSearchResponseList(results, hasNext = hasNextPage(document, page))
+        if (results.isEmpty()) return empty
+        val next = hasNextPage(document, page)
+        if (next || results.size < 12) return newSearchResponseList(results, next)
+
+        // The no-match grid rotates a few latest uploads even across simultaneous requests.
+        val referenceIds = RequestLimits.optional(2500) {
+            val fallback = Network.page(searchRequest("zzqnomatch928", 1), mainUrl)
+            searchCards(fallback).mapNotNull(::videoId).toSet()
+        }.orEmpty()
+        if (SearchListingEvidence.heavyRIsFallback(results.mapNotNull(::videoId).toSet(), referenceIds)) return empty
+        // An unpaginated 24-card grid is ambiguous when the comparison page is unavailable or has rotated.
+        val confirmed = if (results.size == 24) results.filter { SearchListingEvidence.matchesTitle(it.name, term) } else results
+        return newSearchResponseList(confirmed, false)
     }
 
     override suspend fun search(query: String): List<SearchResponse> = search(query, 1).items

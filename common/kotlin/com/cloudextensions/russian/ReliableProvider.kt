@@ -67,6 +67,8 @@ class ReliableProvider(
         return System.nanoTime() - removedAt >= 300_000_000_000L
     }
 
+    private fun isListable(url: String): Boolean = isAvailable(url) && savedReview(url)?.allowed != false
+
     private fun normalizeCard(
         card: SearchResponse,
         image: String? = Metadata.rememberPoster(card.url, card.posterUrl),
@@ -89,7 +91,7 @@ class ReliableProvider(
 
     private suspend fun cards(items: List<SearchResponse>, expandTitles: Boolean = true): List<SearchResponse> = coroutineScope {
         val deadline = System.nanoTime() + 3_000_000_000L
-        val allowed = items.filter { isAvailable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
+        val allowed = items.filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
         val posters = allowed.map { card -> normalizeCard(card, title = card.name) }
         ImagePrefetch.warm(posters, priority = true)
         val titles = allowed.map { card ->
@@ -259,7 +261,7 @@ class ReliableProvider(
     }
 
     private suspend fun prepareSearch(items: List<SearchResponse>, deadline: Long): List<SearchResponse> = coroutineScope {
-        val normalized = items.filter { isAvailable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }.map { normalizeCard(it) }
+        val normalized = items.filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }.map { normalizeCard(it) }
         ImagePrefetch.warm(normalized, priority = true)
         val reviewed = withContext(Network.CacheDetail) { previewSearch(normalized, deadline) }
         reviewed.map { card ->
@@ -370,7 +372,9 @@ class ReliableProvider(
                 scope.launch {
                     for (card in queue) {
                         try {
-                            if (policy != null) {
+                            if (ratingProfile == "XHamster") {
+                                review(card, System.nanoTime() + 2_200_000_000L, DETAIL_MAX_AGE_NANOS)
+                            } else if (policy != null) {
                                 RequestLimits.optional(2200) { policy.fullTitle(card.url) }
                             } else {
                                 // Adapted providers and BDSMX can use their own playback metadata endpoints.
@@ -453,7 +457,7 @@ class ReliableProvider(
             val response = source.search(term, page)
             if (term == query && response != null && !requiresListingReview) {
                 val first = response.items.asSequence()
-                    .filter { isAvailable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
+                    .filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
                     .take(3).map { normalizeCard(it, title = it.name) }.toList()
                 ImagePrefetch.warm(first, priority = true)
             }
@@ -573,7 +577,7 @@ class ReliableProvider(
         history.mutex.withLock {
             history.pages[page]?.let {
                 val saved = it.response
-                val fresh = saved.items.filter { card -> isAvailable(card.url) }.map(::cachedScore)
+                val fresh = saved.items.filter { card -> isListable(card.url) }.map(::cachedScore)
                 warmDetails(fresh)
                 return@withLock newSearchResponseList(fresh, saved.hasNext)
             }
@@ -609,6 +613,9 @@ class ReliableProvider(
         try {
             loadCard(url)
         } catch (e: ErrorLoadingException) {
+            if (excludedDetails.containsMatchIn(e.message.orEmpty())) {
+                reviews[videoKey(url)] = System.nanoTime() to Review(false, null)
+            }
             if (ratingProfile == "TubeSafari" && e.message == "Видео удалено или недоступно") {
                 removedVideos[videoKey(url)] = System.nanoTime()
             }
@@ -634,10 +641,17 @@ class ReliableProvider(
         val initialRecommendations = result.recommendations.orEmpty()
         val recommendations = async {
             val visible = cards(initialRecommendations, expandTitles = false)
-            val checked = if (requiresListingReview) {
-                val budget = if (ratingProfile == "ThisVid") THISVID_RECOMMENDATION_BUDGET_MS else SEARCH_REVIEW_BUDGET_MS
-                reviewedCards(visible, System.nanoTime() + budget * 1_000_000L)
-            } else visible
+            val checked = when {
+                ratingProfile == "XHamster" -> {
+                    warmDetails(visible.filter { savedReview(it.url) == null })
+                    visible.filter { savedReview(it.url)?.allowed == true }
+                }
+                requiresListingReview -> {
+                    val budget = if (ratingProfile == "ThisVid") THISVID_RECOMMENDATION_BUDGET_MS else SEARCH_REVIEW_BUDGET_MS
+                    reviewedCards(visible, System.nanoTime() + budget * 1_000_000L)
+                }
+                else -> visible
+            }
             if (ratingProfile == "NoodleMagazine" && source is NoodlePosterSource) {
                 checked.filterIsInstance<MovieSearchResponse>().filter { it.posterUrl.isNullOrBlank() }.forEach(::queueHomePoster)
                 checked

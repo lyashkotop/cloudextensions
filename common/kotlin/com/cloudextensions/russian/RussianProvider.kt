@@ -44,7 +44,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         if(spec.id=="Ebalka" && host.matches(Regex("\\d*ebalka\\.ru\\.actor")))mainUrl="${actual.scheme}://$host"
         return document
     }
-    private fun response(card: VideoCard): SearchResponse = newMovieSearchResponse(card.title,card.url,TvType.NSFW) {
+    protected fun response(card: VideoCard): SearchResponse = newMovieSearchResponse(card.title,card.url,TvType.NSFW) {
         posterUrl=card.poster
         score=card.score
         posterHeaders=Network.headers("${mainUrl.trimEnd('/')}/")

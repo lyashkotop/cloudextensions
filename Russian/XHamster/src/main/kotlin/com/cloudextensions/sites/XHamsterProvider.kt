@@ -1,6 +1,9 @@
 package com.cloudextensions.sites
 
 import com.cloudextensions.russian.*
+import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.utils.ExtractorLink
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Document
@@ -22,6 +25,7 @@ class XHamsterProvider : RussianProvider(
     ),
 ) {
     override val requiresListingReview = true
+    override val includeTaxonomyResults = false
 
     private val catalogueAgent =
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
@@ -31,18 +35,21 @@ class XHamsterProvider : RussianProvider(
             .addPathSegment(term.replace(' ', '+')).build().toString())
 
     override suspend fun page(request: PageRequest): Document {
-        val section = request.url.toHttpUrlOrNull()?.pathSegments?.firstOrNull()
+        val requested = request.url.toHttpUrlOrNull()
+        val section = requested?.pathSegments?.firstOrNull()
         val headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE)
-        val catalogueHeaders = if (section == "best" || section == "newest") {
+        val catalogueHeaders = if (section in setOf("best", "newest", "search")) {
             headers + ("User-Agent" to catalogueAgent)
         } else headers
         val original = super.page(request.copy(headers = catalogueHeaders))
-        val address = original.baseUri().toHttpUrlOrNull() ?: return original
-        if (!address.encodedPath.startsWith("/search/")) return original
-        val state = EmbeddedPlayers.initials(original) ?: return original
-        val items = state.optJSONObject("searchResult")?.optJSONArray("videoThumbProps") ?: return original
-        val result = Document.createShell(original.baseUri())
+        if (section != "search") return original
+        val result = Document.createShell(request.url)
         result.attr("data-response-code", original.attr("data-response-code"))
+        val address = original.baseUri().toHttpUrlOrNull() ?: return result
+        if (Metadata.emptySearch(original, request) || address.encodedPath.trimEnd('/') != requested.encodedPath.trimEnd('/')) return result
+        val state = EmbeddedPlayers.initials(original) ?: return result
+        val items = SearchListingEvidence.xHamsterResults(state) ?: return result
+        result.setBaseUri(original.baseUri())
         val listing = result.body().appendElement("section").attr("id", "cloudextensions-video-results")
         for (i in 0 until items.length()) {
             val item = items.optJSONObject(i) ?: continue
@@ -52,7 +59,7 @@ class XHamsterProvider : RussianProvider(
             val title = item.optString("title").takeIf(Metadata::sourceValue) ?: continue
             val card = listing.appendElement("article").addClass("video-thumb").attr("data-video-type", "video")
             val link = card.appendElement("a").addClass("video-thumb__image-container")
-                .attr("href", url.newBuilder().host(address.host).build().toString()).attr("title", title)
+                .attr("href", url.toString()).attr("title", title)
             link.appendElement("img").attr("src", item.optString("imageURL").ifBlank { item.optString("thumbURL") })
                 .attr("alt", title)
             card.appendElement("span").attr("data-duration", item.optString("duration"))
@@ -67,5 +74,25 @@ class XHamsterProvider : RussianProvider(
         return result
     }
 
-    override fun readMetadata(document: Document): VideoDetail = AggregatorPages.detail(document, spec)
+    override fun readMetadata(document: Document): VideoDetail {
+        val detail = AggregatorPages.detail(document, spec)
+        val address = document.baseUri().toHttpUrlOrNull() ?: return detail
+        val video = EmbeddedPlayers.initials(document)?.optJSONObject("videoEntity") ?: return detail
+        val identity = video.optString("idHashSlug").takeIf(String::isNotBlank) ?: return detail
+        val slug = address.pathSegments.lastOrNull(String::isNotBlank).orEmpty()
+        if (slug != identity && !slug.endsWith("-$identity")) return detail
+        val title = Metadata.title(document.baseUri(), listOf(video.optString("title"), detail.title), "ru", fromDetail = true)
+        return detail.copy(title = title.ifBlank { detail.title })
+    }
+
+    override suspend fun related(document: Document, detail: VideoDetail, url: String): List<SearchResponse> =
+        document.select(spec.related).flatMap { Metadata.cards(it, spec) }
+            .distinctBy { it.url }.filterNot { it.url == url }.map(::response)
+
+    override suspend fun loadLinks(
+        data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,
+    ): Boolean {
+        val document = page(PageRequest(data))
+        return Playback.linksFromPage(name, mainUrl, data, document, emptyList(), subtitleCallback, callback)
+    }
 }

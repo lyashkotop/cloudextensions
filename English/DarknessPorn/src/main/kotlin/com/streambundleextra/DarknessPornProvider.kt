@@ -9,6 +9,7 @@ class DarknessPornProvider: RussianProvider(SiteSpec(
  sections=listOf(Section("Videos","/"), Section("Most viewed","/?filter=most-viewed"))
 )) {
     override var lang = "en"
+    override val requiresListingReview = true
 
     private val sitePromotion = Regex(
         """(?i)(?:^|\s+[-–—]\s+)sick\s+.*?\s*porn video!\s*Extreme\s+.*?\s*video that you won['’]t find anywhere[!.]?$"""

@@ -12,6 +12,7 @@ class BDSMStreakProvider: RussianProvider(SiteSpec(
  sections=listOf(Section("Videos","/"))
 )) {
     override var lang = "en"
+    override val requiresListingReview = true
 
     override fun readMetadata(document: Document): VideoDetail {
         val detail = super.readMetadata(document)

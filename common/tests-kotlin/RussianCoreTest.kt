@@ -23,6 +23,34 @@ fun main(args:Array<String>) {
     verify(!ContentPolicy.accepts("A video", listOf("Видео  HD"), source = "XHamster") &&
         ContentPolicy.accepts("Видео HD", source = "XHamster") &&
         ContentPolicy.accepts("Lesbians", listOf("Видео HD"), source = "XHamster"), "xHamster applies its tag rule with the existing exception")
+    verify(!ContentPolicy.accepts("A sample", listOf("PIERCED-COCK")) &&
+        ContentPolicy.accepts("Pierced cock in a title"), "pierced cock is blocked in tags only")
+    for (tag in listOf("#CBT", "#femdom", "#cbtfemdom")) {
+        verify(!ContentPolicy.accepts("Lesbians", listOf(tag), source = "BDSMStreak"),
+            "BDSMStreak rejects the explicitly blocked tag $tag before exceptions")
+    }
+    verify(!ContentPolicy.accepts("A sample", listOf("#Femdom"), source = "BDSMX") &&
+        ContentPolicy.accepts("Femdom in the title", source = "BDSMX") &&
+        ContentPolicy.accepts("A sample", listOf("femdom"), source = "DarknessPorn"),
+        "BDSMX femdom block is scoped to its tags")
+
+    val realThumbs = JSONArray().put(JSONObject().put("id", "match"))
+    val suggestionsOnly = JSONObject()
+        .put("searchResult", JSONObject().put("videoThumbProps", realThumbs))
+        .put("searchTitleSummaryComponent", JSONObject().put("resultCount", "0 результатов"))
+    verify(SearchListingEvidence.xHamsterResults(suggestionsOnly) == null,
+        "xHamster returns no search results for a popular fallback grid")
+    suggestionsOnly.getJSONObject("searchTitleSummaryComponent").put("resultCount", "1 результат")
+    verify(SearchListingEvidence.xHamsterResults(suggestionsOnly)?.length() == 1,
+        "xHamster retains the real result grid when the source reports a match")
+    val heavyLatest = (1..24).map(Int::toString).toSet()
+    val heavyRotated = (3..26).reversed().map(Int::toString).toSet()
+    verify(SearchListingEvidence.heavyRIsFallback(heavyRotated, heavyLatest) &&
+        !SearchListingEvidence.heavyRIsFallback((23..50).map(Int::toString).toSet(), heavyLatest),
+        "HeavyR rejects a rotated no-match grid and preserves a distinct search result set")
+    verify(!SearchListingEvidence.matchesTitle("Latest upload", "zzqnomatch928") &&
+        SearchListingEvidence.matchesTitle("A match with a hyphen", "with-a-hyphen"),
+        "HeavyR checks all title words when an unpaginated grid is ambiguous")
     for(encoded in listOf("0157e0a7f8a2d5f80bed5faff0","024f7dd1e4fb9d4315a494f00b","073595aa60711b77d27926347c","059c27f8b6659ca81889344976"))verify(PlayerUrls.decode(encoded)=="https://","real player URL prefix matches the source JavaScript decoder")
     verify(EmbeddedPlayers.decodeAb("L2dldF9maWxlLzЕvdmlkZW8ubXА0")=="/get_file/1/video.mp4","public player alphabet preserves the real media path")
     verify(EmbeddedPlayers.decodeAb("garbage")==null,"invalid encoded strings never become media URLs")

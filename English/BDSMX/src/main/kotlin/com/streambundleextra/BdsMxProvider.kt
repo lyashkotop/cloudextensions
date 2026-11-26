@@ -38,7 +38,7 @@ class BdsMxProvider:MainAPI() {
     private fun image(item:JSONObject)=listOf("scr","thumbsrc","thumb","poster").mapNotNull{Metadata.imageUrl(mainUrl,item.optString(it))}.firstOrNull()
     private fun card(item:JSONObject):SearchResponse? {
         val id=item.optString("video_id");val title=label(item,"title")
-        if(id.isBlank()||title.isBlank()||!ContentPolicy.accepts(title,tags(item)))return null
+        if(id.isBlank()||title.isBlank()||!ContentPolicy.accepts(title, tags(item), source = "BDSMX"))return null
         val url="$mainUrl/video/$id/${item.optString("dir")}/"
         return newMovieSearchResponse(Metadata.title(url,listOf(title)),url,TvType.NSFW){score=VideoScores.api(item);posterUrl=image(item);posterHeaders=Network.headers(mainUrl)}
     }
@@ -63,7 +63,7 @@ class BdsMxProvider:MainAPI() {
         val id=Regex("/video/(\\d+)").find(url)?.groupValues?.get(1)?.toLongOrNull() ?: throw ErrorLoadingException("Invalid video ID")
         val item=json("$mainUrl/api/json/video/86400/${id/1000000*1000000}/${id/1000*1000}/$id.json").optJSONObject("video") ?: throw ErrorLoadingException("Video metadata is missing")
         val title=label(item,"title");val labels=tags(item)
-        if(!ContentPolicy.accepts(title,labels))throw ErrorLoadingException("Video hidden by category filter")
+        if(!ContentPolicy.accepts(title, labels, source = "BDSMX"))throw ErrorLoadingException("Video hidden by category filter")
         val related=RequestLimits.optional { labels.firstOrNull()?.let{catalogue(it,1).items.filter{r->r.url!=url}} }.orEmpty()
         return newMovieLoadResponse(Metadata.title(url,listOf(title),fromDetail=true),url,TvType.NSFW,url){
             score = VideoScores.api(item)

@@ -97,9 +97,18 @@ object ContentPolicy {
     }
     private val blocked = Regex("""(?iu)(?<![\p{L}\p{N}])(?:$blockedPatterns)(?![\p{L}\p{N}])""")
     private val blockedTag = Regex("""(?iu)(?<![\p{L}\p{N}])(?:pee|drain|farting|толстушки|urethra|eat[\s_-]+poop|high[\s_-]+heels)(?![\p{L}\p{N}])""")
+    private val piercedCock = Regex("""(?iu)(?<![\p{L}\p{N}])pierced[\s_-]+cock(?![\p{L}\p{N}])""")
+    private val strictSiteTags = mapOf(
+        "BDSMStreak" to setOf("cbt", "femdom", "cbtfemdom"),
+        "BDSMX" to setOf("femdom"),
+    )
     private val blockedDescription = Regex("""(?iu)(?<![\p{L}\p{N}])hentai(?![\p{L}\p{N}])""")
     fun accepts(title: String, tags: List<String> = emptyList(), description: String? = null, source: String? = null): Boolean {
         if (!enabled) return true
+        val sourceTags = strictSiteTags[source].orEmpty()
+        if (tags.any { piercedCock.containsMatchIn(it) || Metadata.clean(it).trimStart('#').trim().lowercase() in sourceTags }) {
+            return false
+        }
         val siteTag = when (source) {
             "EPorner" -> "pornstar"
             "XHamster" -> "Видео HD"
