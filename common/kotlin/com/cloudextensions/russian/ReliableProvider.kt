@@ -36,7 +36,6 @@ private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
 private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex")
 private const val LISTING_COMPLETION_RESERVE_MS = 500L
 private const val HOME_LOOKAHEAD_MS = 600L
-private const val NOODLE_HOME_POSTER_BUDGET_MS = 850L
 
 /** UI request bounds and one real preview shared by the search and detail response. */
 class ReliableProvider(
@@ -163,24 +162,35 @@ class ReliableProvider(
     private fun resolvedPosterHeaders(poster: String, url: String, headers: Map<String, String>): Map<String, String> =
         if (poster.startsWith("file:")) emptyMap() else Network.replacementImageHeaders(poster, url, headers)
 
+    private fun fastHomeCards(items: List<SearchResponse>): List<SearchResponse> = items.mapIndexed { index, card ->
+        if (card !is MovieSearchResponse) return@mapIndexed card
+        val headers = card.posterHeaders.orEmpty()
+        val original = card.posterUrl
+        val resolved = cachedPoster(PosterKey(videoKey(card.url), original, headers))
+        if (resolved != null && resolved != original) {
+            cachedScore(card.copy(posterUrl = resolved, posterHeaders = resolvedPosterHeaders(resolved, card.url, headers)))
+        } else {
+            if (original.isNullOrBlank() || (index < 3 && !PosterRequests.confirmed(original, headers)) ||
+                PosterRequests.knownUnavailable(original, headers)
+            ) {
+                queueHomePoster(card)
+            }
+            cachedScore(card)
+        }
+    }
+
     private suspend fun withResolvedPosters(
         items: List<SearchResponse>, missingOnly: Boolean = false, home: Boolean = false,
     ): List<SearchResponse> = coroutineScope {
         val provider = source as? PosterSource ?: return@coroutineScope items
-        val fastHome = home && (provider as? NoodlePosterSource)?.fastHomeCovers == true
         items.mapIndexed { index, item -> async {
             if (item !is MovieSearchResponse || (missingOnly && !item.posterUrl.isNullOrBlank())) return@async item
             val headers = item.posterHeaders.orEmpty()
             val original = item.posterUrl
-            val poster = when {
-                provider.reuseConfirmedPosters && original != null && PosterRequests.confirmed(original, headers) -> original
-                fastHome && index >= 3 && !original.isNullOrBlank() ->
-                    cachedPoster(PosterKey(videoKey(item.url), original, headers)) ?: original.also { queueHomePoster(item) }
-                else -> {
-                    val budget = if (fastHome) NOODLE_HOME_POSTER_BUDGET_MS else provider.posterTimeoutMs
-                    resolvePoster(provider, item.url, original, headers, home, budget)
-                        .also { if (it == null && fastHome) queueHomePoster(item) }
-                }
+            val poster = if (provider.reuseConfirmedPosters && original != null && PosterRequests.confirmed(original, headers)) {
+                original
+            } else {
+                resolvePoster(provider, item.url, original, headers, home)
             }
             val ready = if (poster == null || poster == item.posterUrl) item else {
                 Metadata.rememberPoster(item.url, poster)
@@ -391,13 +401,20 @@ class ReliableProvider(
 
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная", LISTING_TIMEOUT_MS) {
         val deadline = System.nanoTime() + LISTING_TIMEOUT_MS * 1_000_000L
+        val fastHome = (source as? NoodlePosterSource)?.fastHomeCovers == true
         val result = randomHome.page(page, request, ratingProfile == "NoodleMagazine", HOME_LOOKAHEAD_MS) { number ->
             source.getMainPage(number, request)
         } ?: return@required newHomePageResponse(emptyList(), false)
         val rows = coroutineScope {
             result.items.map { row ->
                 async {
-                    val visible = cards(row.list, expandTitles = !requiresListingReview)
+                    val visible = cards(row.list, expandTitles = !fastHome && !requiresListingReview)
+                    if (fastHome) {
+                        // The homepage can use catalogue metadata without waiting for detail requests.
+                        val ready = fastHomeCards(visible)
+                        ImagePrefetch.warm(ready, priority = true)
+                        return@async row.copy(list = ready)
+                    }
                     val checked = if (requiresListingReview) {
                         reviewedCards(visible, deadline - 6_000_000_000L)
                     } else visible
@@ -407,7 +424,7 @@ class ReliableProvider(
         }
         val listed = rows.flatMap { it.list }
         ImagePrefetch.warm(listed.drop(3))
-        if (lang == "ru" && source is SearchPolicy) warmDetails(listed)
+        if (!fastHome && lang == "ru" && source is SearchPolicy) warmDetails(listed)
         val visibleRows = if (ratingProfile == "TubeSafari") rows.filter { it.list.isNotEmpty() } else rows
         newHomePageResponse(visibleRows, result.hasNext)
     }

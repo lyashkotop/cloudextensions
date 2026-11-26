@@ -25,6 +25,9 @@ internal object PosterRequests {
     fun confirmed(url: String, headers: Map<String, String>): Boolean =
         cached(ImageCheck(url, headers)) == true
 
+    fun knownUnavailable(url: String, headers: Map<String, String>): Boolean =
+        cached(ImageCheck(url, headers)) == false
+
     private fun cached(key: ImageCheck): Boolean? =
         checked[key]?.takeIf { System.nanoTime() < it.expires }?.available
 
