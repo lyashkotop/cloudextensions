@@ -26,6 +26,7 @@ object Metadata {
     private val durations = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val streakListingKeys = Collections.synchronizedMap(BoundedMap<String,String>(1024))
     private val tubeListingKeys = Collections.synchronizedMap(BoundedMap<String, String>(4096))
+    private val tubeClipKeys = Collections.synchronizedMap(BoundedMap<String, String>(4096))
     private val hcListingKeys = Collections.synchronizedMap(BoundedMap<String, String>(1024))
     private val tubeErrorPrefix = Regex("""(?iu)^(?:видео недоступно|video (?:is )?unavailable)(?:[\s:!.–—-]+|$)""")
     private val hcClock = Regex("""(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}""")
@@ -38,6 +39,12 @@ object Metadata {
             "HcBDSMX" -> hcListingKeys[videoKey(url)]
             else -> null
         } ?: videoKey(url)
+
+    internal fun catalogueKeys(source: String?, url: String): Set<String> {
+        val key = catalogueKey(source, url)
+        val clip = if (source == "TubeBDSM") tubeClipKeys[url] else null
+        return if (clip == null) setOf(key) else setOf(key, clip)
+    }
 
     private val tubeVideoPath = Regex("""^/videos?/(\d+)(?:/|$)""")
 
@@ -82,6 +89,11 @@ object Metadata {
             else -> card.attr("data-public-id").takeIf(tubePublicId::matches)?.let { "tubebdsm:id:$it" }
         }
         if (key != null) tubeListingKeys[url] = key
+        val originalTitle = localizedTitle(card, "en").orEmpty().ifBlank { title }
+        val words = titleWord.findAll(originalTitle.lowercase(Locale.ROOT)).map { it.value }.toList()
+        if (duration.isNotBlank() && words.size >= 4 && !isTruncatedTitle(originalTitle)) {
+            tubeClipKeys[url] = "tubebdsm:mirror:$duration:${words.joinToString(" ")}"
+        }
     }
     private val streakStudioPrefix = Regex("""(?i)^sex\s+and\s+submission\s*[-–—:]\s*""")
     private val titleWord = Regex("""[\p{L}\p{N}]+""")
@@ -201,6 +213,7 @@ object Metadata {
     }
     fun cards(page: Element, spec: SiteSpec, applyContentFilter: Boolean = true): List<VideoCard> {
         val result = LinkedHashMap<String,VideoCard>()
+        val tubeIdentities = hashSetOf<String>()
         val hcScores = if (spec.id == "HcBDSMX") VideoScores.hcScores(page) else emptyMap()
         for (card in page.select(spec.cards)) {
             if(spec.id=="ThisVid" && card.selectFirst(".private,.icon-private,.svg-icon-private,img[src*=bg_private_video]")!=null)continue
@@ -258,6 +271,12 @@ object Metadata {
             }
             val picture=poster(link,page.baseUri()) ?: poster(card,page.baseUri());if(picture!=null)rememberPoster(url,picture)
             val key = catalogueKey(spec.id, url)
+            if (tube) {
+                val identities = catalogueKeys(spec.id, url)
+                val duplicate = identities.any(tubeIdentities::contains)
+                tubeIdentities.addAll(identities)
+                if (duplicate) continue
+            }
             if (key !in result) {
                 val score = hcScores[key] ?: VideoScores.card(spec.id, url, card)
                 result[key] = VideoCard(label, url, picture, fullDuration, tags, score)

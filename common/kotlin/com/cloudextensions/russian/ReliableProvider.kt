@@ -522,6 +522,20 @@ class ReliableProvider(
         if (source is NoodlePosterSource && (source as? SearchPolicy)?.translateQueries == true) NoodleCatalogue.identity(card.url)
         else Metadata.streakReuploadKey(card.url) ?: Metadata.catalogueKey(ratingProfile, card.url)
 
+    private fun listingKeys(card: SearchResponse): Set<String> =
+        if (ratingProfile == "TubeBDSM") Metadata.catalogueKeys(ratingProfile, card.url) else setOf(searchKey(card))
+
+    private fun distinctListings(cards: List<SearchResponse>): List<SearchResponse> {
+        if (ratingProfile != "TubeBDSM") return cards.distinctBy(::searchKey)
+        val seen = hashSetOf<String>()
+        return cards.filter { card ->
+            val keys = listingKeys(card)
+            val duplicate = keys.any(seen::contains)
+            seen.addAll(keys)
+            !duplicate
+        }
+    }
+
     private suspend fun upstreamSearch(
         query: String, page: Int, history: SearchHistory, aliases: Set<String>,
         onListing: (SearchResponseList, Boolean) -> Unit,
@@ -733,7 +747,8 @@ class ReliableProvider(
             var canFetch = previous?.canFetch ?: true
             var pending = previous?.pending
             val seen = history.pages.asSequence().filter { it.key < page }
-                .flatMap { it.value.response.items.asSequence() }.mapTo(mutableSetOf(), ::searchKey)
+                .flatMap { it.value.response.items.asSequence() }
+                .flatMap { listingKeys(it).asSequence() }.toMutableSet()
             val cards = mutableListOf<SearchResponse>()
             val genre = lang in listOf("ru", "en") && Translation.searchAliases(query).isNotEmpty()
             val expandSparse = requiresListingReview || genre || ratingProfile in setOf("PornoRussia", "BdsmPorn")
@@ -785,7 +800,7 @@ class ReliableProvider(
                     canFetch = !completeBatch || result.hasNext
                     if (completeBatch) nextSourcePage++
                     limit--
-                    candidates = SearchCandidates(result.items.distinctBy(::searchKey), history.reviewRank)
+                    candidates = SearchCandidates(distinctListings(result.items), history.reviewRank)
                 }
                 val budget = if (requiresListingReview) REQUIRED_SEARCH_REVIEW_BUDGET_MS else SEARCH_REVIEW_BUDGET_MS
                 val reviewDeadline = deadline ?: minOf(
@@ -793,7 +808,7 @@ class ReliableProvider(
                     System.nanoTime() + budget * 1_000_000L,
                 ).also { deadline = it }
                 val available = candidates.cards.filter {
-                    searchKey(it) !in seen && isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url))
+                    listingKeys(it).none(seen::contains) && isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url))
                 }
                 val count = SEARCH_PAGE_SIZE - cards.size
                 val batch = available.take(count)
@@ -823,7 +838,7 @@ class ReliableProvider(
                     candidates.copy(cards = it, retried = candidates.retried + retry.map(::searchKey))
                 }
                 cards += checked
-                seen += checked.map(::searchKey)
+                checked.forEach { seen.addAll(listingKeys(it)) }
                 if (!completeBatch || cards.size >= SEARCH_PAGE_MINIMUM || remainingMillis(reviewDeadline) <= 0 ||
                     unchecked.isEmpty() && retry.isNotEmpty()) break
             }
@@ -887,9 +902,9 @@ class ReliableProvider(
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
         val initialRecommendations = result.recommendations.orEmpty()
         val recommendations = async {
-            val visible = cards(initialRecommendations, expandTitles = false)
-                .filterNot { searchKey(it) == Metadata.catalogueKey(ratingProfile, url) }
-                .distinctBy(::searchKey)
+            val current = Metadata.catalogueKeys(ratingProfile, url)
+            val visible = distinctListings(cards(initialRecommendations, expandTitles = false)
+                .filterNot { listingKeys(it).any(current::contains) })
             val checked = if (!ContentPolicy.enabled) visible else {
                 val deadline = System.nanoTime() + 1_600_000_000L
                 val candidates = visible.filter { savedReview(it.url) == null }.take(10)

@@ -235,6 +235,20 @@ fun main(args:Array<String>) {
     verify(Metadata.catalogueKey("TubeBDSM", alias) !=
         Metadata.catalogueKey("TubeBDSM", outbound("https://partner.example/video/722541/old-title", 2)),
         "TubeBDSM keeps a distinct original video ID")
+    val firstClip = outbound("https://partner.example/video/722542/first", 3)
+    val mirrorClip = outbound("https://mirror.example/video/124/first", 4)
+    val differentClip = outbound("https://partner.example/video/722543/second", 5)
+    fun mirrorCard(url: String, title: String, duration: String, poster: String) =
+        """<a class="card" href="$url" title="$title"><img src="/$poster.jpg"><span class="duration">$duration</span></a>"""
+    val clips = mirrorCard(firstClip, "Scene from the archive", "07:31", "first") +
+        mirrorCard(mirrorClip, "Scene from the Archive!", "07:31", "mirror") +
+        mirrorCard(differentClip, "Scene from the archive", "09:45", "different")
+    val parsedClips = Metadata.cards(Jsoup.parse(clips, "https://www.tubebdsm.com"), aliasSpec)
+    verify(parsedClips.map { it.url } == listOf(firstClip, differentClip),
+        "TubeBDSM collapses matching title and exact duration across partners and keeps other cuts")
+    verify(Metadata.savedPoster(firstClip)?.endsWith("/first.jpg") == true &&
+        Metadata.savedPoster(differentClip)?.endsWith("/different.jpg") == true,
+        "TubeBDSM caches separate posters for distinct videos on the bare outbound route")
     verify(AggregatorPages.detail(nextPage,aggSpec).tags==listOf("Bondage"),"only declared Next video tags")
     verify(AggregatorPages.detail(nextPage,aggSpec).description.isEmpty(),"Next SEO advertising never substitutes a missing description")
     verify(AggregatorPages.detail(nextPage,aggSpec).duration=="00:23","Next metadata duration replaces zero numeric field")
