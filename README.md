@@ -3,7 +3,7 @@
 
 **[План развития и список задач → ROADMAP.md](ROADMAP.md)**
 
-36 расширений CloudStream на Kotlin (14 Russian и 22 English).
+34 расширения CloudStream на Kotlin (14 Russian и 20 English).
 Один сайт — один устанавливаемый `.cs3`. Общая логика не копирует в пакет другие сайты
 или библиотеки приложения.
 
