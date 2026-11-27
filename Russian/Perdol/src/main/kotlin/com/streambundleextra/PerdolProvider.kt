@@ -38,4 +38,6 @@ class PerdolProvider: RussianProvider(SiteSpec(
         Section("Фут фетиш 186","/categories/fut-fetish/"),
         Section("Эротика 476","/categories/erotika/"),
     )
-))
+)) {
+    override val requiresListingReview = true
+}

@@ -20,6 +20,7 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
  sections=listOf(Section("New videos","/new"),Section("Popular videos","/popular"),Section("Top rated videos","/rating"))
 )){
  override var lang="en"
+ override val requiresListingReview = true
  override suspend fun searchRequest(term: String): PageRequest =
      PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search/")
          .addQueryParameter("q", term).build().toString())
