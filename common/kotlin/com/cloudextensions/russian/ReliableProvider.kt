@@ -492,6 +492,7 @@ class ReliableProvider(
                             else -> reviewedCards(visible, reviewDeadline)
                         }
                     } else visible
+                    prefetchCards(checked)
                     row.copy(list = prepareListing(checked, deadline, home = true, missingPostersOnly = fastReview))
                 }
             }.awaitAll()
@@ -854,6 +855,7 @@ class ReliableProvider(
             }
 
             early.values.forEach { it.cancel() }
+            prefetchCards(cards)
             val prepared = coroutineScope {
                 val scores = async {
                     listingScores(cards.take(SEARCH_POSTER_COUNT), listingDeadline)
@@ -871,7 +873,6 @@ class ReliableProvider(
                 }
             }
             firstPhotos?.cancel()
-            prefetchCards(prepared)
             val response = newSearchResponseList(prepared, pending != null || canFetch)
             if (page == 1) {
                 history.reuseFirstUntil = if (prepared.size >= SEARCH_PAGE_MINIMUM && prepared.take(SEARCH_POSTER_COUNT).all { !it.posterUrl.isNullOrBlank() })
@@ -934,6 +935,7 @@ class ReliableProvider(
     override suspend fun load(url: String): LoadResponse = RequestLimits.required("Карточка") {
         try {
             val key = CardKey(url, ContentPolicy.enabled)
+            cachedCard(key)?.let { return@required it }
             preparing[key]?.let { withTimeoutOrNull(120) { it.await() } }
             cachedCard(key) ?: loadCard(key, background = false)
         } catch (e: ErrorLoadingException) {
