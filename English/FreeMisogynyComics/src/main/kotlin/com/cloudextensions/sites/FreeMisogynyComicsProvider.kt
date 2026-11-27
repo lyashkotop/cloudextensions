@@ -6,6 +6,7 @@ import com.cloudextensions.russian.Playback
 import com.cloudextensions.russian.RussianProvider
 import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
+import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -18,7 +19,8 @@ class FreeMisogynyComicsProvider : RussianProvider(
         id = "FreeMisogynyComics",
         title = "3. Free Misogyny XXX Comics",
         origin = "https://free-misogyny-xxx-comics.com",
-        cards = "article.type-videos:has(a.video-thumb-link[href]), .wpst-related-videos article.type-videos:has(a.related-video-link[href])",
+        cards = "article.type-videos:not(:has(.gmz-premium-badge)):has(a.video-thumb-link[href]), " +
+            ".wpst-related-videos article.type-videos:not(:has(.gmz-premium-badge)):has(a.related-video-link[href])",
         link = "a.video-thumb-link[href], a.related-video-link[href]",
         titleSelector = ".video-info-title",
         detailTitleSelector = "h1.entry-title",
@@ -38,6 +40,9 @@ class FreeMisogynyComicsProvider : RussianProvider(
             .addQueryParameter("s", term).addQueryParameter("post_type", "videos").build().toString())
 
     override suspend fun page(request: PageRequest): Document = super.page(request).clone().apply {
+        if (selectFirst(".gmzv-player-wrap .gmzv-premium-locked") != null) {
+            throw ErrorLoadingException("Видео удалено или недоступно (требуется подписка)")
+        }
         // WordPress sets this class from the photo query even when its video section has matches.
         if (selectFirst(".search-section-videos article.type-videos a.video-thumb-link[href]") != null) {
             body().removeClass("search-no-results")
