@@ -9,7 +9,7 @@ import org.json.JSONArray
 import okio.ByteString.Companion.decodeBase64
 
 /** The public site is JavaScript-only; use its declared catalogue and metadata endpoints. */
-class BdsMxProvider:MainAPI() {
+class BdsMxProvider : MainAPI(), SearchPolicy, SearchMetadataSource {
     override var name="BDSMX"
     override var mainUrl="https://bdsmx.tube"
     override var lang="en"
@@ -17,6 +17,7 @@ class BdsMxProvider:MainAPI() {
     override val hasMainPage=true
     override val hasDownloadSupport=true
     override val hasQuickSearch=false
+    override val requiresListingReview = true
     override val mainPage=mainPageOf("latest-updates" to "Videos","top-rated" to "Top rated")
     private suspend fun json(url:String)=JSONObject(app.get(url,headers=Network.headers(mainUrl) + mapOf(
         "Cookie" to "kt_lang=ru", "Accept-Language" to Network.RUSSIAN_LANGUAGE,
@@ -59,17 +60,36 @@ class BdsMxProvider:MainAPI() {
     override suspend fun search(query: String, page: Int): SearchResponseList =
         if (query.isBlank()) newSearchResponseList(emptyList(), false) else catalogue(query, page)
 
-    override suspend fun load(url:String):LoadResponse {
-        val id=Regex("/video/(\\d+)").find(url)?.groupValues?.get(1)?.toLongOrNull() ?: throw ErrorLoadingException("Invalid video ID")
-        val item=json("$mainUrl/api/json/video/86400/${id/1000000*1000000}/${id/1000*1000}/$id.json").optJSONObject("video") ?: throw ErrorLoadingException("Video metadata is missing")
-        val title=label(item,"title");val labels=tags(item)
-        if(!ContentPolicy.accepts(title, labels, source = "BDSMX"))throw ErrorLoadingException("Video hidden by category filter")
-        val related=RequestLimits.optional { labels.firstOrNull()?.let{catalogue(it,1).items.filter{r->r.url!=url}} }.orEmpty()
-        return newMovieLoadResponse(Metadata.title(url,listOf(title),fromDetail=true),url,TvType.NSFW,url){
-            posterUrl=image(item);posterHeaders=Network.headers(mainUrl);plot=label(item,"description");tags=labels;recommendations=related
-            applyVideoDuration(item.optString("duration"))
+    override suspend fun searchMetadata(url: String): VideoDetail {
+        val id = Regex("/video/(\\d+)").find(url)?.groupValues?.get(1)?.toLongOrNull()
+            ?: throw ErrorLoadingException("Invalid video ID")
+        val item = json("$mainUrl/api/json/video/86400/${id / 1000000 * 1000000}/${id / 1000 * 1000}/$id.json")
+            .optJSONObject("video") ?: throw ErrorLoadingException("Video metadata is missing")
+        val title = label(item, "title")
+        val labels = tags(item)
+        val description = label(item, "description")
+        if (!ContentPolicy.accepts(title, labels, description, source = "BDSMX")) {
+            throw ErrorLoadingException("Video hidden by category filter")
+        }
+        if (title.isBlank()) throw ErrorLoadingException("Video title is missing")
+        return VideoDetail(title, image(item), description, labels, item.optString("duration"), null)
+    }
+
+    override suspend fun load(url: String): LoadResponse {
+        val detail = searchMetadata(url)
+        val related = RequestLimits.optional(950) {
+            detail.tags.firstOrNull()?.let { catalogue(it, 1).items.filter { card -> card.url != url } }
+        }.orEmpty()
+        return newMovieLoadResponse(Metadata.title(url, listOf(detail.title), fromDetail = true), url, TvType.NSFW, url) {
+            posterUrl = detail.poster
+            posterHeaders = Network.headers(mainUrl)
+            plot = detail.description
+            tags = detail.tags
+            recommendations = related
+            applyVideoDuration(detail.duration)
         }
     }
+
     override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean {
         val id=Regex("/video/(\\d+)").find(data)?.groupValues?.get(1) ?: return false
         val text=app.get("$mainUrl/api/videofile.php?video_id=$id&lifetime=8640000",headers=Network.headers(data)).text

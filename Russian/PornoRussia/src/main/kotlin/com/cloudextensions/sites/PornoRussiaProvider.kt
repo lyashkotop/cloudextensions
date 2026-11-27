@@ -48,6 +48,7 @@ class PornoRussiaProvider : RussianProvider(
     ),
 ) {
     override val includeTaxonomyResults = false
+    override val requiresListingReview = true
 
     override suspend fun searchRequest(term: String): PageRequest =
         PageRequest(searchCursor(term, spec.sections.map { it.path }).toString())

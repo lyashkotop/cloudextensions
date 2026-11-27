@@ -94,7 +94,8 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
     .take(24)
   }
  override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean {
-  val document=super.page(PageRequest(data))
+  val request = russian(canonicalPartnerRequest(PageRequest(data)))
+  val document = super.page(request)
   if (PlayerConfig.requiresPaidAccess(document)) {
    throw ErrorLoadingException("FapHouse ограничил доступ к полной версии видео")
   }
@@ -113,7 +114,7 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
    callback(link);emitted.incrementAndGet()
    }}}catch(e:CancellationException){throw e}catch(_:Exception){}catch(_:LinkageError){}
   if(emitted.get()>0)return true
-  return Playback.linksFromPage(name, mainUrl, data, document, PlayerConfig.sources(document), subtitleCallback, callback)
+  return Playback.linksFromPage(name, mainUrl, request.url, document, PlayerConfig.sources(document), subtitleCallback, callback)
  }
  private fun pawgStream(page: Document): String? =
   page.select("#video .video-player-container video[src], #video .video-player-container video source[src]")
