@@ -61,7 +61,7 @@ object DetailEnrichment {
     fun merge(detail:VideoDetail,source:VideoDetail)=detail.copy(
         description=detail.description.ifBlank{source.description},
         tags=detail.tags.ifEmpty{source.tags},duration=detail.duration.ifBlank{source.duration},
-        poster=detail.poster ?: source.poster,year=detail.year ?: source.year,score=detail.score ?: source.score
+        poster=detail.poster ?: source.poster,year=detail.year ?: source.year
     )
     suspend fun complete(page: Document, spec: SiteSpec, detail: VideoDetail, budget: Long = 3000): VideoDetail {
         val target = originalPage(page) ?: return detail
@@ -95,22 +95,6 @@ object DetailEnrichment {
             throw ErrorLoadingException("Видео скрыто фильтром категорий")
         }
         return merge(detail, source).copy(tags = (detail.tags + source.tags).distinctBy(String::lowercase))
-    }
-
-    internal suspend fun score(page: Document, spec: SiteSpec): com.lagradost.cloudstream3.Score? {
-        val target = originalPage(page) ?: return null
-        if (URI(target.url).host == "www.pornhub.com") return null
-        return read(target, spec, budget = 2800, referer = page.baseUri())?.score
-    }
-
-    suspend fun xvideosScore(id: String, budget: Long): com.lagradost.cloudstream3.Score? {
-        val target = xvideosPage(id) ?: return null
-        val expected = URI(target).path.substringBeforeLast('/')
-        val source = RequestLimits.optional(budget) { Network.page(PageRequest(target), target) } ?: return null
-        val resolved = URI(source.baseUri())
-        if (resolved.host.orEmpty().removePrefix("www.") != "xvideos.com") return null
-        val identity = "/" + resolved.path.trimStart('/').substringBefore('/')
-        return if (identity == expected) VideoScores.detail("XVideos", target, source) else null
     }
 
     suspend fun xvideosTags(id: String, spec: SiteSpec, budget: Long): List<String> {
@@ -150,15 +134,13 @@ object DetailEnrichment {
                 val id = expected.pathSegments.last()
                 val slug = actual.encodedPath.trimEnd('/').removePrefix("/videos/")
                 if (!actual.encodedPath.startsWith("/videos/") || '/' in slug || (slug != id && !slug.endsWith("-$id"))) return null
-                AggregatorPages.detail(source, spec).copy(score = VideoScores.detail("XHamster", video, source))
+                AggregatorPages.detail(source, spec)
             }
             "xvideos.com", "pornhub.com" -> {
                 if (host == "xvideos.com" && actual.pathSegments.firstOrNull() != expected.pathSegments.firstOrNull()) return null
                 if (host == "pornhub.com" && (actual.encodedPath != expected.encodedPath ||
                     actual.queryParameter("viewkey") != expected.queryParameter("viewkey"))) return null
-                Metadata.detail(source, spec.copy(tagSelector = target.tags, descriptionSelector = target.description)).copy(
-                    score = if (host == "xvideos.com") VideoScores.detail("XVideos", video, source) else null,
-                )
+                Metadata.detail(source, spec.copy(tagSelector = target.tags, descriptionSelector = target.description))
             }
             else -> null
         }

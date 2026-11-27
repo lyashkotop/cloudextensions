@@ -64,7 +64,7 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
   val result=loadDocument(url, document)
   val target=native(document.baseUri())
   val needsDetails = result.tags.isNullOrEmpty() || result.plot.isNullOrBlank() ||
-   result.duration == null || result.recommendations.isNullOrEmpty() || result.score == null
+   result.duration == null || result.recommendations.isNullOrEmpty()
   val extra=if(target==null || !needsDetails)null else try{withTimeoutOrNull(2300){target.load(document.baseUri())}}
    catch(e:CancellationException){throw e}catch(e:ErrorLoadingException){if(Regex("(?iu)скрыто фильтром|hidden by category filter|приватн|private video").containsMatchIn(e.message.orEmpty()))throw e else null}catch(_:Exception){null}
    catch(_:LinkageError){null}
@@ -72,7 +72,6 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
    if(result.plot.isNullOrBlank())result.plot=Metadata.description(extra.plot,result.name)
    result.tags=(result.tags.orEmpty()+extra.tags.orEmpty()).distinctBy{it.lowercase()}
    if(result.duration==null)result.duration=extra.duration
-   if(result.score==null)result.score=extra.score
    if(result.recommendations.isNullOrEmpty())result.recommendations=extra.recommendations
   }
   if (result.recommendations.isNullOrEmpty()) {
@@ -131,7 +130,6 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
    newMovieSearchResponse(card.title, card.url, TvType.NSFW) {
     posterUrl = card.poster
     posterHeaders = Network.imageHeaders(card.poster, document.baseUri())
-    score = card.score
    }
   }
  }

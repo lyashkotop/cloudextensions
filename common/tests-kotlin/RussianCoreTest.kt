@@ -60,56 +60,7 @@ fun main(args:Array<String>) {
     for(encoded in listOf("0157e0a7f8a2d5f80bed5faff0","024f7dd1e4fb9d4315a494f00b","073595aa60711b77d27926347c","059c27f8b6659ca81889344976"))verify(PlayerUrls.decode(encoded)=="https://","real player URL prefix matches the source JavaScript decoder")
     verify(EmbeddedPlayers.decodeAb("L2dldF9maWxlLzЕvdmlkZW8ubXА0")=="/get_file/1/video.mp4","public player alphabet preserves the real media path")
     verify(EmbeddedPlayers.decodeAb("garbage")==null,"invalid encoded strings never become media URLs")
-    val ratedCard = Jsoup.parse("<span class='rating-badge'><span class='item-score'>63%</span></span>")
-    val target = "https://www.tubebdsm.com/out/?l=first"
-    val other = "https://www.tubebdsm.com/out/?l=second"
-    verify(VideoScores.card("TubeBDSM", target, ratedCard)?.toString(10) == "6.3", "catalogue uses the site's percentage")
-    verify(VideoScores.detail("TubeBDSM", target, ratedCard)?.toString(10) == "6.3", "detail keeps this card's catalogue rating")
-    verify(VideoScores.detail("TubeBDSM", other, ratedCard) == null, "outbound links never share a rating")
-    fun partnerRating(url: String, html: String): String? = VideoScores.detail("TubeBDSM", other, Jsoup.parse(html, url))?.toString(10)
-    val youPornVotePanel = "<div id=js_videoLikeDislikeWrapper><div id=js_videoLike data-videoid=123></div>" +
-        "<span class=tm_rating_percent>89%</span></div>"
-    verify(partnerRating("https://www.youporn.com/watch/123/", youPornVotePanel) == "8.9", "TubeBDSM uses the current YouPorn video's percentage")
-    verify(partnerRating("https://www.youporn.com/watch/456/", youPornVotePanel) == null &&
-        partnerRating("https://www.youporn.com/watch/123/", youPornVotePanel.replace("89%", "0%")) == null,
-        "TubeBDSM ignores unrelated YouPorn controls and an ambiguous zero placeholder")
-    val partnerPage = "https://partner.example/video/123/"
-    val kvsVotes = "<div class=video-info><div class=rating-container><a class=rate-like></a><a class=rate-dislike></a>" +
-        "<div class=rating><span class=voters>9 | 3</span></div></div></div>"
-    verify(partnerRating(partnerPage, kvsVotes) == "7.5", "TubeBDSM calculates partner player votes")
-    verify(partnerRating(partnerPage, "<div class=related><span class=rating>99%</span></div>") == null,
-        "TubeBDSM ignores unrelated thumbnail percentages")
-    val publishedScore = """<script type="application/ld+json">{"@type":"VideoObject","url":"$partnerPage",
-        "aggregateRating":{"ratingValue":3,"bestRating":5,"ratingCount":8}}</script>"""
-    verify(partnerRating(partnerPage, publishedScore) == "6" && partnerRating(partnerPage.replace("123", "456"), publishedScore) == null,
-        "TubeBDSM uses structured scores for their own video identity")
-    verify(VideoScores.api(JSONObject().put("likes", 0).put("dislikes", 0)) == null, "unvoted videos have no rating")
-    val stripVotesUrl = "https://vps402.strip2.co/video/123/"
-    val stripVotes = "<span id=vote_up_cnt_123>37</span><span id=vote_down_cnt_123></span>"
-    verify(VideoScores.detail("Strip2", stripVotesUrl, Jsoup.parse(stripVotes))?.toString(10) == "10",
-        "Strip2 leaves the zero counter blank on a rated video")
-    verify(VideoScores.detail("Strip2", stripVotesUrl, Jsoup.parse(stripVotes.substringBefore("<span id=vote_down"))) == null &&
-        VideoScores.detail("Strip2", stripVotesUrl, Jsoup.parse(stripVotes.replace("37", ""))) == null,
-        "Strip2 needs both counters and at least one vote")
-    verify(VideoScores.api(JSONObject().put("likes", 0).put("dislikes", 6))?.toString(10) == "1", "a rated video never falls below 1")
-    verify(VideoScores.api(JSONObject().put("likes", 3).put("dislikes", 1))?.toString(10) == "7.5", "both vote counts determine the score")
-    fun hcChunk(payload: String) = "<script>self.__next_f.push(${JSONArray().put(1).put(payload)});</script>"
-    val hcUrl = "https://hcbdsm.com/video/123/current/"
-    val hcPage = Jsoup.parse(
-        "<a class=clip href='/video/123/alias/' title='First'></a><a class=clip href='/video/124/other/' title='Second'></a>" +
-            hcChunk("""1:[{"id":124,"title":"Second","path":"/video/124/other/","likes":0,"dislikes":0},""" +
-                """{"id":123,"title":"First","path":"/video/123/current/","likes":4,"dis""") +
-            hcChunk("""likes":1}]
-                2:[{"id":123,"likes":49,"dislikes":16,"initialVote":null}]"""),
-        hcUrl,
-    )
     val hcSpec = SiteSpec("HcBDSMX", "hcBDSM", "https://hcbdsm.com", ".clip", "a", "h3", emptyList())
-    val hcListing = Jsoup.parse(hcPage.html(), "https://hcbdsm.com/latest-updates/")
-    verify(Metadata.cards(hcListing, hcSpec).map { it.score?.toString(10) } == listOf("8", null),
-        "hcBDSM matches votes to numeric video IDs, handles split chunks, and omits scores with zero votes")
-    verify(VideoScores.detail("HcBDSMX", hcUrl, hcPage)?.toString(10) == "7.5" &&
-        VideoScores.detail("HcBDSMX", "https://hcbdsm.com/video/124/other/", hcPage) == null,
-        "hcBDSM reads the current video's votes without borrowing votes from related videos")
     val hcReuploads = Jsoup.parse("""
         <a class=clip href="/video/201/"><h3>An Original Sample Title</h3><span>06:42</span></a>
         <a class=clip href="/video/202/"><h3>An Original Sample Title</h3><span>06:42</span></a>
@@ -121,16 +72,6 @@ fun main(args:Array<String>) {
     verify(Metadata.catalogueKey("HcBDSMX", "https://hcbdsm.com/video/202/alias") ==
         Metadata.catalogueKey("HcBDSMX", "https://hcbdsm.com/video/201/"),
         "hcBDSM retains the reupload identity across URL aliases")
-    val hcControls = Jsoup.parse("""<main><div class=card-villa>
-        <button aria-pressed=false><svg><path d="M7 10v12" /></svg>49</button>
-        <button aria-pressed=false><svg><path d="M17 14V2" /></svg>16</button>
-        </div></main>""", hcUrl)
-    verify(VideoScores.detail("HcBDSMX", hcUrl, hcControls)?.toString(10) == "7.5",
-        "hcBDSM recovers the rating from the vote buttons when the page has no data chunks")
-    val ratedVpoisk = Jsoup.parse("<div class='video_vote'><div id='dislike'>2</div><span id='rate-value' class='like'>60%</span><div id='like'>3</div></div>")
-    verify(VideoScores.detail("Vpoisk", "https://m.vpoisk.xyz", ratedVpoisk)?.toString(10) == "6", "Vpoisk prefers the published percentage")
-    val prostoRating = Jsoup.parse("<div class='rate-tab' itemprop='aggregateRating'><meta itemprop='ratingValue' content='4.5'><meta itemprop='bestRating' content='5'><span itemprop='ratingCount'>2</span></div>")
-    verify(VideoScores.detail("ProstoPorno", "https://prostoporno.dev", prostoRating)?.toString(10) == "9", "ProstoPorno uses the voted rating and its published maximum")
     val pervertiumAliases = Jsoup.parse(
         "<a class=card href='/videos/123/old/?ref=feed' title='First Video'></a>" +
             "<a class=card href='https://pervertium.com/videos/123/new/' title='Duplicate Video'></a>" +
@@ -140,16 +81,6 @@ fun main(args:Array<String>) {
     val pervertium = SiteSpec("Pervertium", "Pervertium", pervertiumAliases.baseUri(), ".card", "a", ".title", emptyList())
     verify(Metadata.cards(pervertiumAliases, pervertium).map { it.title } == listOf("First Video", "Distinct Video"),
         "Pervertium aliases collapse while distinct video IDs remain")
-    fun xvideosScore(likes: String, dislikes: String): String? {
-        val video = Jsoup.parse("<div class='vote-actions'><div class='rate-infos'>" +
-            "<span class='rating-good-perc'>100%</span><span class='rating-good-nbr'>$likes</span>" +
-            "<span class='rating-bad-nbr'>$dislikes</span></div></div>")
-        return VideoScores.detail("XVideos", "https://www.xvideos.com/video1/_", video)?.toString(10)
-    }
-    verify(xvideosScore("809", "272") == "7.4", "XVideos uses the vote counters when its percentage disagrees")
-    verify(xvideosScore("4.6k", "1.1k") == "8", "XVideos handles abbreviated counters")
-    verify(xvideosScore("1", "0") == "10", "unanimous XVideos votes can give ten")
-    verify(xvideosScore("0", "0") == null, "an unrated XVideos page never becomes a ten")
     val embedPage=Jsoup.parse("""<script>window.initials={"sharingComponent":{"shareLink":"https://xhamster.com/videos/source-123"},"xplayerSettings":{"sources":{"hls":{"h264":{"url":"encrypted-value"}},"standard":{"h264":[{"url":"https://cdn.example.org/source.mp4","quality":"720p"}]}}}};</script>""","https://xhamster.com/embed/123")
     verify(EmbeddedPlayers.original(embedPage)=="https://xhamster.com/videos/source-123","embed fallback uses its source-declared public permalink")
     verify(EmbeddedPlayers.sources(embedPage).single().label=="720p","only declared HTTP sources are emitted; encrypted strings are not URLs")
@@ -289,8 +220,6 @@ fun main(args:Array<String>) {
     val xCafeDetail = AggregatorPages.detail(xCafe, aggSpec)
     verify(xCafeDetail.duration == "10:36" && xCafeDetail.tags == listOf("Studio"),
         "TubeBDSM reads XCafe's exact player length and semantic genres")
-    verify(VideoScores.detail("TubeBDSM", xCafe.baseUri(), xCafe)?.toString(10) == "9",
-        "TubeBDSM reads XCafe's current-video rating when votes exist")
     verify(Playback.sources(xCafe).map { it.label } == listOf("1080p", "240p", "4320p"),
         "TubeBDSM reads source title labels so the quality limit can exclude higher streams")
     val xHamster = Jsoup.parse("""<h1>Actual video</h1><script>window.initials = {

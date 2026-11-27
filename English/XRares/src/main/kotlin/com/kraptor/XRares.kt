@@ -10,7 +10,6 @@ import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.applyVideoDuration
 
-import com.cloudextensions.russian.VideoScores
 import com.lagradost.api.Log
 import org.jsoup.nodes.Element
 import com.lagradost.cloudstream3.*
@@ -60,7 +59,6 @@ class XRares : MainAPI() {
 
         return newMovieSearchResponse(title, href, TvType.NSFW) {
             this.posterUrl = posterUrl
-            this.score     = VideoScores.card("XRares", href, this@toMainPageResult)
         }
     }
 
@@ -103,7 +101,6 @@ class XRares : MainAPI() {
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
             applyVideoDuration(seconds)
-            score = VideoScores.detail("XRares",url,document)
             this.posterUrl = poster
             this.plot = description
             this.year = year

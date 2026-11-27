@@ -40,7 +40,7 @@ class BdsMxProvider:MainAPI() {
         val id=item.optString("video_id");val title=label(item,"title")
         if(id.isBlank()||title.isBlank()||!ContentPolicy.accepts(title, tags(item), source = "BDSMX"))return null
         val url="$mainUrl/video/$id/${item.optString("dir")}/"
-        return newMovieSearchResponse(Metadata.title(url,listOf(title)),url,TvType.NSFW){score=VideoScores.api(item);posterUrl=image(item);posterHeaders=Network.headers(mainUrl)}
+        return newMovieSearchResponse(Metadata.title(url,listOf(title)),url,TvType.NSFW){posterUrl=image(item);posterHeaders=Network.headers(mainUrl)}
     }
     private suspend fun catalogue(query:String,page:Int,sort:String="relevance"):SearchResponseList {
         val q=URLEncoder.encode(query,"UTF-8")
@@ -66,7 +66,6 @@ class BdsMxProvider:MainAPI() {
         if(!ContentPolicy.accepts(title, labels, source = "BDSMX"))throw ErrorLoadingException("Video hidden by category filter")
         val related=RequestLimits.optional { labels.firstOrNull()?.let{catalogue(it,1).items.filter{r->r.url!=url}} }.orEmpty()
         return newMovieLoadResponse(Metadata.title(url,listOf(title),fromDetail=true),url,TvType.NSFW,url){
-            score = VideoScores.api(item)
             posterUrl=image(item);posterHeaders=Network.headers(mainUrl);plot=label(item,"description");tags=labels;recommendations=related
             applyVideoDuration(item.optString("duration"))
         }

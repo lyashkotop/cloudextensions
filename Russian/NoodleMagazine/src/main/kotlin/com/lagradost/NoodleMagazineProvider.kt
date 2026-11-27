@@ -245,7 +245,6 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
             try{related=NoodleCatalogue.distinct(RequestLimits.optional(950) { results(tag, 1) }.orEmpty(), url)}catch(e:CancellationException){throw e}catch(_:Exception){}
         }
         return newMovieLoadResponse(detail.title,url,TvType.NSFW,url){
-            score = VideoScores.detail("NoodleMagazine",url,page)
             posterUrl=detail.poster;posterHeaders=Network.headers(referer(url));plot=Metadata.plot(detail).replaceFirst(descriptionFooter, "").trimEnd();tags=detail.tags;recommendations=related
             applyVideoDuration(detail.duration)
         }

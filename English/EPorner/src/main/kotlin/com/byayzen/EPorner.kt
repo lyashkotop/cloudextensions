@@ -1,6 +1,5 @@
 package com.byayzen
 
-import com.cloudextensions.russian.VideoScores
 import com.cloudextensions.russian.ContentPolicy
 import com.cloudextensions.russian.SearchMetadataSource
 import com.cloudextensions.russian.SearchPolicy
@@ -87,7 +86,6 @@ class EPorner : MainAPI(), SearchPolicy, SearchMetadataSource {
             TvType.NSFW
         ) {
             this.posterUrl = poster
-            score = VideoScores.card("EPorner", url, this@toSearchResult)
         }
     }
 
@@ -113,7 +111,6 @@ class EPorner : MainAPI(), SearchPolicy, SearchMetadataSource {
         val actors = document.select("span.valor a").map { Actor(it.text()) }
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
-            score = VideoScores.detail("EPorner",url,document)
             this.posterUrl = poster
             this.plot = detail.description
             this.year = year
@@ -136,7 +133,6 @@ class EPorner : MainAPI(), SearchPolicy, SearchMetadataSource {
             TvType.NSFW
         ) {
             this.posterUrl = posterUrl
-            score = VideoScores.card("EPorner", url, this@toRecommendationResult)
         }
     }
 

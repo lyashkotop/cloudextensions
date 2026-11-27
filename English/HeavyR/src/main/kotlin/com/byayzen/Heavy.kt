@@ -2,7 +2,6 @@
 
 package com.byayzen
 
-import com.cloudextensions.russian.VideoScores
 import com.cloudextensions.russian.ContentPolicy
 import com.cloudextensions.russian.SearchMetadataSource
 import com.cloudextensions.russian.SearchPolicy
@@ -161,7 +160,6 @@ class Heavy : MainAPI(), SearchPolicy, SearchMetadataSource {
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
             applyVideoDuration(seconds)
-            score = VideoScores.detail("HeavyR",url,document)
             this.posterUrl = poster
             this.plot = detail.description
             this.tags = detail.tags

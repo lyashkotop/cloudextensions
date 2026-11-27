@@ -1,6 +1,5 @@
 package com.cloudextensions.russian
 
-import com.lagradost.cloudstream3.Score
 import java.net.URI
 import java.util.LinkedHashMap
 
@@ -34,8 +33,8 @@ data class SiteSpec(
     val searchContainer: String = "",
     val searchSections: List<Section> = emptyList(),
 )
-data class VideoCard(val title: String, val url: String, val poster: String?, val duration: String = "", val tags: List<String> = emptyList(), val score: Score? = null)
-data class VideoDetail(val title: String, val poster: String?, val description: String, val tags: List<String>, val duration: String, val year: Int?, val score: Score? = null)
+data class VideoCard(val title: String, val url: String, val poster: String?, val duration: String = "", val tags: List<String> = emptyList())
+data class VideoDetail(val title: String, val poster: String?, val description: String, val tags: List<String>, val duration: String, val year: Int?)
 data class PageRequest(val url: String, val data: Map<String, String>? = null, val allowNotFound: Boolean = false, val headers: Map<String,String> = emptyMap())
 
 internal class BoundedMap<K,V>(private val capacity: Int): LinkedHashMap<K,V>(16, .75f, true) {

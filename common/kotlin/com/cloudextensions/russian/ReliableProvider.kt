@@ -37,8 +37,6 @@ private const val MAX_UPSTREAM_PAGES_PER_EXPANSION = 4
 private const val SEARCH_REVIEW_BUDGET_MS = 1_600L
 private const val REQUIRED_SEARCH_REVIEW_BUDGET_MS = 6_000L
 private const val LISTING_TIMEOUT_MS = 22_000L
-private const val RATING_REQUEST_TIMEOUT_MS = 6_500L
-private const val FAST_LISTING_RATING_BUDGET_MS = 500L
 private val slowFirstPageSources = setOf(
     "Vpoisk", "BoundHub", "ThisVid", "HcBDSMX", "XRares", "PornoRussia",
     "SickR", "Huyamba", "ProstoPorno",
@@ -47,7 +45,6 @@ private const val FIRST_PAGE_TARGET_MS = 3_000L
 private const val FIRST_PAGE_MERGE_MS = 1_700L
 private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
 private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex", "PornVideos", "TubeSafari")
-private const val LISTING_COMPLETION_RESERVE_MS = 500L
 private const val HOME_LOOKAHEAD_MS = 600L
 private const val RECOMMENDATION_REVIEW_MS = 450L
 private val cardPrefetchSlots = Semaphore(2)
@@ -55,7 +52,7 @@ private val cardPrefetchSlots = Semaphore(2)
 /** UI request bounds and one real preview shared by the search and detail response. */
 class ReliableProvider(
     private val source: MainAPI,
-    private val ratingProfile: String? = (source as? RussianProvider)?.spec?.id,
+    private val providerId: String? = (source as? RussianProvider)?.spec?.id,
 ): MainAPI() {
     override var name:String get()=source.name;set(value){source.name=value}
     override var mainUrl:String get()=source.mainUrl;set(value){source.mainUrl=value}
@@ -74,7 +71,7 @@ class ReliableProvider(
     private val searchMetadataSource get() = source as? SearchMetadataSource ?: (source as? AdaptedProvider)?.searchMetadataSource
 
     private fun accepts(title: String, tags: List<String>, description: String? = null) =
-        ContentPolicy.accepts(title, tags, description, ratingProfile)
+        ContentPolicy.accepts(title, tags, description, providerId)
     private val removedVideos = java.util.Collections.synchronizedMap(BoundedMap<String, Long>(128))
 
     private fun isAvailable(url: String): Boolean {
@@ -193,14 +190,14 @@ class ReliableProvider(
         val original = card.posterUrl
         val resolved = cachedPoster(PosterKey(videoKey(card.url), original, headers))
         if (resolved != null && resolved != original) {
-            cachedScore(card.copy(posterUrl = resolved, posterHeaders = resolvedPosterHeaders(resolved, card.url, headers)))
+            card.copy(posterUrl = resolved, posterHeaders = resolvedPosterHeaders(resolved, card.url, headers))
         } else {
             if (original.isNullOrBlank() || (index < 3 && !PosterRequests.confirmed(original, headers)) ||
                 PosterRequests.knownUnavailable(original, headers)
             ) {
                 queueHomePoster(card)
             }
-            cachedScore(card)
+            card
         }
     }
 
@@ -354,7 +351,7 @@ class ReliableProvider(
             else {
                 // Share detail checks across languages and return the verified cards in site order.
                 val queue = if (reviewRank.isEmpty()) normalized else normalized.sortedBy { reviewRank[searchKey(it)] ?: Int.MAX_VALUE }
-                val target = if (firstPage && ratingProfile != null) 6 else Int.MAX_VALUE
+                val target = if (firstPage && providerId != null) 6 else Int.MAX_VALUE
                 val accepted = reviewedCards(queue, deadline, early, returnAfter = target).associateBy(::searchKey)
                 normalized.mapNotNull { accepted[searchKey(it)] }
             }
@@ -369,103 +366,13 @@ class ReliableProvider(
             }
         }.awaitAll().filterNotNull()
     }
-    private val ratingPermits = Semaphore(4)
-    private val listingScoreSource = (source as? ListingScoreSource) ?: (source as? AdaptedProvider)?.listingScoreSource
-    private val queuedRatings = ConcurrentHashMap.newKeySet<String>()
-    private val unrated = java.util.Collections.synchronizedMap(BoundedMap<String, Long>(512))
-    private val pendingRatings by lazy {
-        Channel<String>(6).also { queue ->
-            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + Network.Background)
-            scope.launch {
-                val profile = ratingProfile ?: return@launch
-                for (url in queue) {
-                    try { readCardScore(profile, url) }
-                    catch (_: LinkageError) {}
-                    finally { queuedRatings.remove(url) }
-                }
-            }
-        }
-    }
-
-    private fun cachedScore(card: SearchResponse): SearchResponse {
-        if (card !is MovieSearchResponse || card.score != null) return card
-        val profile = ratingProfile ?: return card
-        val score = VideoScores.cachedDetail(profile, card.url) ?: return card
-        return card.copy(score = score)
-    }
-
-    private fun recentlyUnrated(url: String): Boolean =
-        unrated[url]?.let { System.nanoTime() - it < 60_000_000_000L } == true
-
-    private suspend fun readCardScore(profile: String, url: String): Score? =
-        VideoScores.cachedDetail(profile, url) ?: ratingPermits.withPermit {
-            if (recentlyUnrated(url)) return@withPermit null
-            VideoScores.cachedDetail(profile, url) ?: RequestLimits.optional(RATING_REQUEST_TIMEOUT_MS) {
-                when (source) {
-                    is RussianProvider -> source.readListingScore(url)
-                    is NoodlePosterSource -> VideoScores.detail(profile, url, source.posterPage(url))
-                    else -> if (listingScoreSource != null) listingScoreSource.readListingScore(url)
-                    else VideoScores.detail(profile, url, Network.page(PageRequest(url), mainUrl))
-                }.also { score ->
-                    if (score != null) VideoScores.rememberDetail(profile, url, score)
-                    else unrated[url] = System.nanoTime()
-                }
-            }
-        }
-
-    private suspend fun listingScores(items: List<SearchResponse>, deadline: Long): Array<Score?> {
-        val scores = arrayOfNulls<Score>(items.size)
-        val profile = ratingProfile?.takeIf(VideoScores::loadsListingScores) ?: return scores
-        if (lang == "ru") return scores
-        val missing = items.indices.filter { index ->
-            val card = items[index]
-            if (card !is MovieSearchResponse || card.score != null) return@filter false
-            val cached = VideoScores.cachedDetail(profile, card.url)
-            scores[index] = cached
-            cached == null && !recentlyUnrated(card.url)
-        }
-        val remaining = minOf(
-            (deadline - System.nanoTime()) / 1_000_000L - LISTING_COMPLETION_RESERVE_MS,
-            FAST_LISTING_RATING_BUDGET_MS,
-        )
-        val priority = missing.take(SEARCH_POSTER_COUNT)
-        if (remaining > 0 && priority.isNotEmpty()) withTimeoutOrNull(remaining) {
-            coroutineScope {
-                priority.forEach { index ->
-                    launch { scores[index] = readCardScore(profile, items[index].url) }
-                }
-            }
-        }
-        for (index in priority) {
-            val url = items[index].url
-            if (scores[index] == null && !recentlyUnrated(url) && queuedRatings.add(url)) {
-                if (pendingRatings.trySend(url).isFailure) queuedRatings.remove(url)
-            }
-        }
-        return scores
-    }
-
-    private suspend fun prepareListing(
-        items: List<SearchResponse>, deadline: Long, home: Boolean = false, missingPostersOnly: Boolean = false,
-    ): List<SearchResponse> = coroutineScope {
-        ImagePrefetch.warm(items, priority = true)
-        val ratings = async { listingScores(items, deadline) }
-        val posters = withResolvedPosters(items, missingOnly = missingPostersOnly, home = home)
-        val scores = ratings.await()
-        posters.mapIndexed { index, poster ->
-            val score = scores[index]
-            if (poster is MovieSearchResponse && score != null && poster.score == null) poster.copy(score = score)
-            else cachedScore(poster)
-        }
-    }
-
     private val randomHome = RandomHome(::searchKey)
 
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная", LISTING_TIMEOUT_MS) {
         val deadline = System.nanoTime() + LISTING_TIMEOUT_MS * 1_000_000L
         val fastHome = (source as? NoodlePosterSource)?.fastHomeCovers == true
-        val fastReview = ratingProfile == "TubeSafari" || ratingProfile == "HurtSex"
-        val result = randomHome.page(page, request, ratingProfile == "NoodleMagazine", if (fastReview) 0 else HOME_LOOKAHEAD_MS) { number ->
+        val fastReview = providerId == "TubeSafari" || providerId == "HurtSex"
+        val result = randomHome.page(page, request, providerId == "NoodleMagazine", if (fastReview) 0 else HOME_LOOKAHEAD_MS) { number ->
             if (fastReview) Network.catalogue { source.getMainPage(number, request) }
             else source.getMainPage(number, request)
         } ?: return@required newHomePageResponse(emptyList(), false)
@@ -482,7 +389,7 @@ class ReliableProvider(
                     val visible = cards(row.list, expandTitles = !requiresListingReview, warmPosters = !fastReview)
                     val checked = if (requiresListingReview) {
                         val reviewDeadline = deadline - 6_000_000_000L
-                        when (ratingProfile) {
+                        when (providerId) {
                             "TubeSafari", "HurtSex" ->
                                 withContext(Network.CacheDetail) {
                                     reviewedCards(visible.take(24), reviewDeadline, returnAfter = 6, home = true)
@@ -493,13 +400,14 @@ class ReliableProvider(
                         }
                     } else visible
                     prefetchCards(checked)
-                    row.copy(list = prepareListing(checked, deadline, home = true, missingPostersOnly = fastReview))
+                    ImagePrefetch.warm(checked, priority = true)
+                    row.copy(list = withResolvedPosters(checked, home = true, missingOnly = fastReview))
                 }
             }.awaitAll()
         }
         val listed = rows.flatMap { it.list }
         ImagePrefetch.warm(listed.drop(3))
-        val visibleRows = if (ratingProfile == "TubeSafari") rows.filter { it.list.isNotEmpty() } else rows
+        val visibleRows = if (providerId == "TubeSafari") rows.filter { it.list.isNotEmpty() } else rows
         prefetchCards(listed)
         newHomePageResponse(visibleRows, result.hasNext)
     }
@@ -530,13 +438,13 @@ class ReliableProvider(
 
     private fun searchKey(card: SearchResponse): String =
         if (source is NoodlePosterSource && (source as? SearchPolicy)?.translateQueries == true) NoodleCatalogue.identity(card.url)
-        else Metadata.streakReuploadKey(card.url) ?: Metadata.catalogueKey(ratingProfile, card.url)
+        else Metadata.streakReuploadKey(card.url) ?: Metadata.catalogueKey(providerId, card.url)
 
     private fun listingKeys(card: SearchResponse): Set<String> =
-        if (ratingProfile == "TubeBDSM") Metadata.catalogueKeys(ratingProfile, card.url) else setOf(searchKey(card))
+        if (providerId == "TubeBDSM") Metadata.catalogueKeys(providerId, card.url) else setOf(searchKey(card))
 
     private fun distinctListings(cards: List<SearchResponse>): List<SearchResponse> {
-        if (ratingProfile != "TubeBDSM") return cards.distinctBy(::searchKey)
+        if (providerId != "TubeBDSM") return cards.distinctBy(::searchKey)
         val seen = hashSetOf<String>()
         return cards.filter { card ->
             val keys = listingKeys(card)
@@ -734,7 +642,7 @@ class ReliableProvider(
         val started = System.nanoTime()
         val listingDeadline = started + LISTING_TIMEOUT_MS * 1_000_000L
         val firstPageTarget = started + FIRST_PAGE_TARGET_MS * 1_000_000L
-        val quickFirstPage = page == 1 && ratingProfile in slowFirstPageSources
+        val quickFirstPage = page == 1 && providerId in slowFirstPageSources
         if (page < 1 || !ContentPolicy.accepts(query)) return@required newSearchResponseList(emptyList(), false)
         val history = synchronized(searchHistory) {
             val previous = searchHistory[query]
@@ -744,7 +652,7 @@ class ReliableProvider(
         history.mutex.withLock {
             history.pages[page]?.let {
                 val saved = it.response
-                val fresh = saved.items.filter { card -> isListable(card.url) }.map { cachedScore(cachedSearchPoster(it)) }
+                val fresh = saved.items.filter { card -> isListable(card.url) }.map(::cachedSearchPoster)
                 val visible = if (page == 1 && fresh.size != saved.items.size) {
                     SearchPosters.prepare(fresh, listingDeadline, ::repairSearchPoster)
                 } else fresh.also { ImagePrefetch.warm(it, priority = true) }
@@ -762,7 +670,7 @@ class ReliableProvider(
                 .flatMap { listingKeys(it).asSequence() }.toMutableSet()
             val cards = mutableListOf<SearchResponse>()
             val genre = lang in listOf("ru", "en") && Translation.searchAliases(query).isNotEmpty()
-            val expandSparse = requiresListingReview || genre || ratingProfile in setOf("PornoRussia", "BdsmPorn")
+            val expandSparse = requiresListingReview || genre || providerId in setOf("PornoRussia", "BdsmPorn")
             var limit = if (page == 1 && !expandSparse) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
             var deadline: Long? = null
             var completeBatch = true
@@ -772,7 +680,7 @@ class ReliableProvider(
             var firstPhotos: Job? = null
             fun prepareLeadingCards(response: SearchResponseList, isOriginal: Boolean) {
                 val items = response.items
-                if (page != 1 || ratingProfile == null || quickFirstPage && !requiresListingReview && !isOriginal) return
+                if (page != 1 || providerId == null || quickFirstPage && !requiresListingReview && !isOriginal) return
                 val earlyDeadline = minOf(listingDeadline - 2_000_000_000L, System.nanoTime() + 3_500_000_000L)
                 val visible = items.asSequence()
                     .filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
@@ -856,22 +764,10 @@ class ReliableProvider(
 
             early.values.forEach { it.cancel() }
             prefetchCards(cards)
-            val prepared = coroutineScope {
-                val scores = async {
-                    listingScores(cards.take(SEARCH_POSTER_COUNT), listingDeadline)
-                        .mapIndexedNotNull { index, score -> score?.let { searchKey(cards[index]) to it } }.toMap()
-                }
-                val coverDeadline = if (useFastBudget) minOf(listingDeadline,
-                    maxOf(System.nanoTime() + 400_000_000L, firstPageTarget)) else listingDeadline
-                val posters = if (page == 1) SearchPosters.prepare(cards, coverDeadline, ::repairSearchPoster, ::queueHomePoster)
+            val coverDeadline = if (useFastBudget) minOf(listingDeadline,
+                maxOf(System.nanoTime() + 400_000_000L, firstPageTarget)) else listingDeadline
+            val prepared = if (page == 1) SearchPosters.prepare(cards, coverDeadline, ::repairSearchPoster, ::queueHomePoster)
                 else cards.also { ImagePrefetch.warm(it, priority = true) }
-                val ratings = scores.await()
-                posters.map { card ->
-                    val score = ratings[searchKey(card)]
-                    if (card is MovieSearchResponse && score != null && card.score == null) card.copy(score = score)
-                    else cachedScore(card)
-                }
-            }
             firstPhotos?.cancel()
             val response = newSearchResponseList(prepared, pending != null || canFetch)
             if (page == 1) {
@@ -905,7 +801,7 @@ class ReliableProvider(
     }
 
     private fun prefetchCards(cards: List<SearchResponse>) {
-        if (ratingProfile == null || cards.isEmpty() || !cardBatch.tryAcquire()) return
+        if (providerId == null || cards.isEmpty() || !cardBatch.tryAcquire()) return
         if (!cardPrefetchSlots.tryAcquire()) {
             cardBatch.release()
             return
@@ -942,7 +838,7 @@ class ReliableProvider(
             if (excludedDetails.containsMatchIn(e.message.orEmpty())) {
                 reviews[videoKey(url)] = System.nanoTime() to Review(false, null)
             }
-            if (ratingProfile == "TubeSafari" && e.message == "Видео удалено или недоступно") {
+            if (providerId == "TubeSafari" && e.message == "Видео удалено или недоступно") {
                 removedVideos[videoKey(url)] = System.nanoTime()
             }
             throw e
@@ -983,12 +879,12 @@ class ReliableProvider(
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
         val initialRecommendations = result.recommendations.orEmpty()
         val recommendations = async {
-            val current = Metadata.catalogueKeys(ratingProfile, url)
+            val current = Metadata.catalogueKeys(providerId, url)
             val visible = distinctListings(cards(initialRecommendations, expandTitles = false, warmPosters = false)
                 .filterNot { listingKeys(it).any(current::contains) })
             var pending = emptyList<SearchResponse>()
             val checked = if (!ContentPolicy.enabled) visible else {
-                val budget = if (ratingProfile == "XRares") 1600L else RECOMMENDATION_REVIEW_MS
+                val budget = if (providerId == "XRares") 1600L else RECOMMENDATION_REVIEW_MS
                 val deadline = System.nanoTime() + budget * 1_000_000L
                 val candidates = visible.filter { savedReview(it.url) == null }.take(10)
                 val verified = withContext(Network.CacheDetail) { reviewedCards(candidates, deadline) }.associateBy(::searchKey)
@@ -999,7 +895,7 @@ class ReliableProvider(
             }
             if (source is PosterSource) checked.filterIsInstance<MovieSearchResponse>()
                 .filter { it.posterUrl.isNullOrBlank() }.take(3).forEach(::queuePoster)
-            checked.map(::cachedScore) to pending
+            checked to pending
         }
         if(result is MovieLoadResponse) {
             val headers = Network.imageHeaders(result.posterUrl, url) + result.posterHeaders.orEmpty()
@@ -1034,7 +930,6 @@ class ReliableProvider(
             if (!accepts(result.name, tags + listedTags, result.plot)) throw ErrorLoadingException("Видео скрыто фильтром категорий")
             if (result is MovieLoadResponse) ImagePrefetch.warm(result.posterUrl, result.posterHeaders.orEmpty())
         }
-        ratingProfile?.let { VideoScores.rememberDetail(it, url, result.score) }
         result.tags = tags.mapNotNull(Metadata::tag).distinctBy { it.lowercase() }
         val (verified, pending) = recommendations.await()
         result.recommendations = verified
@@ -1048,7 +943,7 @@ class ReliableProvider(
     override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = RequestLimits.required("Плеер",45_000) {
         val emitted = java.util.concurrent.atomic.AtomicBoolean()
         val rejected = java.util.concurrent.atomic.AtomicReference<Int>()
-        val resolutions = if (ratingProfile in uniqueResolutions) ConcurrentHashMap.newKeySet<Int>() else null
+        val resolutions = if (providerId in uniqueResolutions) ConcurrentHashMap.newKeySet<Int>() else null
         try {
             coroutineScope {
                 source.loadLinks(data, isCasting, subtitleCallback) { link ->
@@ -1068,7 +963,7 @@ class ReliableProvider(
             }
             if (!emitted.get()) rejected.get()?.let { throw Playback.mediaError(it) }
         } catch (e: ErrorLoadingException) {
-            if (!emitted.get() && ratingProfile in tracksRemovedVideos && Playback.missingMedia(e)) {
+            if (!emitted.get() && providerId in tracksRemovedVideos && Playback.missingMedia(e)) {
                 removedVideos[videoKey(data)] = System.nanoTime()
             }
             throw e

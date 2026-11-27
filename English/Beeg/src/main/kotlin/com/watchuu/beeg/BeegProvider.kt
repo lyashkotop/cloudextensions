@@ -44,7 +44,7 @@ import org.jsoup.nodes.Element
  *   The metadata API (api-search.xv-cdn.net/id/<id>/) is now used ONLY for metadata, never as a
  *   playable source, and a preview is clearly labelled as such if nothing better is found.
  */
-class BeegProvider : MainAPI(), ListingScoreSource {
+class BeegProvider : MainAPI() {
     override var mainUrl = "https://beeg.porn"
     override var name = "Beeg.porn"
     override var lang = "en"
@@ -183,29 +183,15 @@ class BeegProvider : MainAPI(), ListingScoreSource {
         } else player.toString()
     }
 
-    private fun ratingVideoId(url: String, markup: String? = null): String? {
-        url.toHttpUrlOrNull()?.queryParameter("e")?.takeIf { it.matches(Regex("[A-Za-z0-9]+")) }?.let { return it }
-        val player = markup?.let(::originalVideo)?.toHttpUrlOrNull() ?: return null
-        if (player.host.removePrefix("www.") !in setOf("xvideos.com", "e.xv-cdn.net")) return null
-        return player.pathSegments.takeIf { it.firstOrNull() == "embedframe" }?.getOrNull(1)
-    }
-
     private suspend fun detailPage(url: String): String =
         Network.page(PageRequest(url, headers = mapOf("User-Agent" to ua)), mainUrl).outerHtml()
 
-    override suspend fun readListingScore(url: String): Score? {
-        val id = ratingVideoId(url) ?: ratingVideoId(url, detailPage(url)) ?: return null
-        return DetailEnrichment.xvideosScore(id, budget = 2300)
-    }
-
     override suspend fun load(url: String): LoadResponse = coroutineScope {
         val id = Regex("/(?:xid/|play/\\d+-)(\\d+)").find(url)?.groupValues?.get(1)
-        val encode = ratingVideoId(url).orEmpty()
+        val encode = url.toHttpUrlOrNull()?.queryParameter("e")
+            ?.takeIf { it.matches(Regex("[A-Za-z0-9]+")) }.orEmpty()
         val spec = detailSpec
         val html = async { RequestLimits.optional(4200) { detailPage(url) }.orEmpty() }
-        val score = encode.takeIf(String::isNotBlank)?.let { embed ->
-            async { DetailEnrichment.xvideosScore(embed, budget = 2300) }
-        }
         val meta = id?.let {
             RequestLimits.optional(3500) {
                 val response = app.get("$searchApiBase/id/$it/?format=ajax&e=$encode", headers = Network.headers(mainUrl))
@@ -243,11 +229,7 @@ class BeegProvider : MainAPI(), ListingScoreSource {
             if(rid.isBlank()||label.isBlank())return@mapNotNull null
             newMovieSearchResponse(label,"$mainUrl/xid/$rid/?e=$e",TvType.NSFW){posterUrl=Metadata.imageUrl(mainUrl,item.optString("thumb"))}
         }
-        val sourceScore = if (score != null) score.await() else {
-            ratingVideoId(url, markup)?.let { DetailEnrichment.xvideosScore(it, budget = 2300) }
-        }
         newMovieLoadResponse(title,url,TvType.NSFW,url) {
-            this.score = sourceScore
             posterUrl=Metadata.choosePoster(url,meta?.optString("thumb"),detail.poster)
             plot=detail.description;this.tags=tags;this.recommendations=recommendations
             val seconds=meta?.optInt("dur",0)?:0

@@ -18,10 +18,6 @@ object AbxxxMetadata {
         result.body().appendElement("div").addClass("video-desc").text(video.optString("description"))
         result.head().appendElement("meta").attr("itemprop","duration").attr("content",video.optString("duration"))
         result.head().appendElement("meta").attr("property","og:image").attr("content",video.optString("thumbsrc"))
-        if (video.has("likes") && video.has("dislikes")) {
-            result.head().appendElement("meta").attr("data-source-votes", "")
-                .attr("data-likes", video.optString("likes")).attr("data-dislikes", video.optString("dislikes"))
-        }
         val tags=result.body().appendElement("div").addClass("video-tags")
         for (field in listOf("categories", "tags")) {
             val values = video.optJSONObject(field) ?: continue

@@ -214,7 +214,6 @@ object Metadata {
     fun cards(page: Element, spec: SiteSpec, applyContentFilter: Boolean = true): List<VideoCard> {
         val result = LinkedHashMap<String,VideoCard>()
         val tubeIdentities = hashSetOf<String>()
-        val hcScores = if (spec.id == "HcBDSMX") VideoScores.hcScores(page) else emptyMap()
         for (card in page.select(spec.cards)) {
             if(spec.id=="ThisVid" && card.selectFirst(".private,.icon-private,.svg-icon-private,img[src*=bg_private_video]")!=null)continue
             val link = if (card.tagName() == "a" && card.hasAttr("href")) card else card.selectFirst(spec.link) ?: continue
@@ -278,8 +277,7 @@ object Metadata {
                 if (duplicate) continue
             }
             if (key !in result) {
-                val score = hcScores[key] ?: VideoScores.card(spec.id, url, card)
-                result[key] = VideoCard(label, url, picture, fullDuration, tags, score)
+                result[key] = VideoCard(label, url, picture, fullDuration, tags)
             }
         }
         return result.values.toList()

@@ -46,15 +46,8 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
     }
     protected fun response(card: VideoCard): SearchResponse = newMovieSearchResponse(card.title,card.url,TvType.NSFW) {
         posterUrl=card.poster
-        score=card.score
         posterHeaders=Network.headers("${mainUrl.trimEnd('/')}/")
     }
-    internal suspend fun readListingScore(url: String): Score? {
-        val document = page(PageRequest(url))
-        return if (spec.id == "TubeSafari") DetailEnrichment.score(document, spec)
-        else VideoScores.detail(spec.id, url, document)
-    }
-
     override suspend fun getMainPage(page: Int,request: MainPageRequest): HomePageResponse {
         require(page>=1)
         val key="${request.data}:$page"
@@ -177,10 +170,6 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
             includeOriginal -> reviewMetadata(document, base)
             else -> base
         }
-        if (VideoScores.loadsListingScores(spec.id)) {
-            val score = meta.score ?: VideoScores.detail(spec.id, url, document)
-            VideoScores.rememberDetail(spec.id, url, score)
-        }
         val heading=document.selectFirst("h1")?.text().orEmpty()
         if(!ContentPolicy.accepts(heading,meta.tags + Metadata.cardTags(url),meta.description, spec.id))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         if(meta.title.isBlank())throw ErrorLoadingException("Название не получено")
@@ -201,7 +190,6 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
             this.posterHeaders=posterHeaders
             plot=Metadata.plot(detail)
             tags=detail.tags
-            score=detail.score ?: VideoScores.detail(spec.id,url,document)
             year=detail.year
             this.recommendations=recommendations
             // No rounded minute value is reused as an exact duration.
