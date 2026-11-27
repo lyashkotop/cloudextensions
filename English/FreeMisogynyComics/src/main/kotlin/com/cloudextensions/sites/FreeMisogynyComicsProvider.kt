@@ -53,13 +53,13 @@ class FreeMisogynyComicsProvider : RussianProvider(
         callback: (ExtractorLink) -> Unit,
     ): Boolean {
         val detail = page(PageRequest(data))
-        val frameUrl = detail.selectFirst("iframe.gmzsvp-reference-frame[src]")
-            ?.absUrl("src")?.toHttpUrlOrNull()
-            ?.takeIf {
-                it.isHttps && it.host == mainUrl.toHttpUrl().host && it.encodedPath == "/" &&
-                    it.queryParameter("gmzsvp_frame") == "1" &&
-                    !it.queryParameter("p").isNullOrBlank() && !it.queryParameter("s").isNullOrBlank()
-            } ?: return false
+        val frameUrl = detail.select("iframe.gmzsvp-reference-frame").asSequence().flatMap { frame ->
+            sequenceOf(frame.absUrl("src"), frame.absUrl("data-src"))
+        }.mapNotNull { it.toHttpUrlOrNull() }.firstOrNull {
+            it.isHttps && it.host == mainUrl.toHttpUrl().host && it.encodedPath == "/" &&
+                it.queryParameter("gmzsvp_frame") == "1" &&
+                !it.queryParameter("p").isNullOrBlank() && !it.queryParameter("s").isNullOrBlank()
+        } ?: return false
         val player = Network.page(PageRequest(frameUrl.toString()), detail.baseUri())
         val sources = player.select("script:not([src])").flatMap { script ->
             mediaVariable.findAll(script.data()).mapNotNull { match ->
@@ -72,6 +72,6 @@ class FreeMisogynyComicsProvider : RussianProvider(
             }.toList()
         }.distinct()
         if (sources.isEmpty()) return false
-        return Playback.linksFromPage(name, mainUrl, frameUrl.toString(), player, sources, subtitleCallback, callback)
+        return Playback.linksFromPage(name, mainUrl, frameUrl.toString(), player, sources, subtitleCallback, callback, useResolvedUrl = true)
     }
 }

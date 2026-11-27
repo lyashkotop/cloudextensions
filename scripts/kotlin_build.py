@@ -1,5 +1,6 @@
 """Compile Kotlin against the real host SDK, then package only one provider and its shared core."""
 from pathlib import Path
+import json
 import os
 import subprocess
 import re
@@ -32,7 +33,9 @@ def prepare(tools, temporary):
     compile_sources(tools, sorted((ROOT / 'common/kotlin').rglob('*.kt')), common)
     tests = temporary / 'kotlin-tests'
     compile_sources(tools, sorted((ROOT / 'common/tests-kotlin').rglob('*.kt')), tests, [common])
-    classpath = os.pathsep.join(map(str, [tests, common, *(tools / name for name in LIBRARIES)]))
+    probe_runtime = json.loads((ROOT / 'common/tools/probe-toolchain.json').read_text())
+    runtime = [tools / item['file'] for item in probe_runtime]
+    classpath = os.pathsep.join(map(str, [tests, common, *runtime, *(tools / name for name in LIBRARIES)]))
     subprocess.run(['java', '-cp', classpath, 'com.cloudextensions.russian.RussianCoreTestKt'], check=True)
     return common
 

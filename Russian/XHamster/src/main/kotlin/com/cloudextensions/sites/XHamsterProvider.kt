@@ -74,8 +74,16 @@ class XHamsterProvider : RussianProvider(
         return result
     }
 
+    private val descriptionBoundary = Regex("""(?<=[.!?])\s+|[\r\n]+""")
+    private val advertising = Regex(
+        """(?iu)\b(?:https?://|www\.|xhamster\.[a-z]+|xhamsterlive|onlyfans\.com|мой телеграм|ссылка в профиле|link in (?:my )?(?:bio|profile)|follow me (?:on|at)|подпишись|подписывайтесь|промокод)""",
+    )
+
     override fun readMetadata(document: Document): VideoDetail {
-        val detail = AggregatorPages.detail(document, spec)
+        val metadata = AggregatorPages.detail(document, spec)
+        val description = metadata.description.split(descriptionBoundary)
+            .filterNot(advertising::containsMatchIn).joinToString(" ").trim()
+        val detail = metadata.copy(description = description)
         val address = document.baseUri().toHttpUrlOrNull() ?: return detail
         val video = EmbeddedPlayers.initials(document)?.optJSONObject("videoEntity") ?: return detail
         val identity = video.optString("idHashSlug").takeIf(String::isNotBlank) ?: return detail

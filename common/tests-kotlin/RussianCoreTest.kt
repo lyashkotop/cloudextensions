@@ -10,6 +10,7 @@ private var checks=0
 private fun verify(value:Boolean,message:String){checks++;check(value){message}}
 fun main(args:Array<String>) {
     testSearchPaging()
+    testRecommendations()
     verify(!ContentPolicy.accepts("Example SCAT video") &&
         !ContentPolicy.accepts("Example video", listOf("scat")) &&
         ContentPolicy.accepts("Scattered clouds"), "scat matches a complete word in titles and tags")
@@ -217,6 +218,18 @@ fun main(args:Array<String>) {
     verify(deduplicated.map { it.title } == listOf("First","Variant"),"TubeBDSM collapses outbound aliases and preserves variants")
     verify(deduplicated.first().url.endsWith("?l=feed&c=1&v=2"),"playback retains the original outbound link")
     verify(Metadata.cards(Jsoup.parse(aliases, "https://another.test"), aliasSpec).size == 3,"other hosts retain meaningful query parameters")
+    fun outbound(destination: String, prefix: Byte): String {
+        val payload = destination.encodeToByteArray()
+        val packed = byteArrayOf(prefix, 0xd9.toByte(), payload.size.toByte()) + payload + byteArrayOf(7)
+        return "https://www.tubebdsm.com/out/?l=" + java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(packed)
+    }
+    val original = "https://partner.example/video/722540/old-title"
+    val alias = outbound("https://www.partner.example/video/722540/new-title", 1)
+    verify(Metadata.catalogueKey("TubeBDSM", original) == Metadata.catalogueKey("TubeBDSM", alias),
+        "TubeBDSM deduplicates original and tracked links despite a changing video slug")
+    verify(Metadata.catalogueKey("TubeBDSM", alias) !=
+        Metadata.catalogueKey("TubeBDSM", outbound("https://partner.example/video/722541/old-title", 2)),
+        "TubeBDSM keeps a distinct original video ID")
     verify(AggregatorPages.detail(nextPage,aggSpec).tags==listOf("Bondage"),"only declared Next video tags")
     verify(AggregatorPages.detail(nextPage,aggSpec).description.isEmpty(),"Next SEO advertising never substitutes a missing description")
     verify(AggregatorPages.detail(nextPage,aggSpec).duration=="00:23","Next metadata duration replaces zero numeric field")

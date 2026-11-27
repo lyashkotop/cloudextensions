@@ -47,6 +47,7 @@ Smali и прежние Java-парсеры удалены из актуальн
 
 ```sh
 python common/tools/fetch_tools.py --directory .tools
+python common/tools/fetch_tools.py --directory .tools --manifest common/tools/probe-toolchain.json
 python scripts/build_repository.py --version 78
 ```
 

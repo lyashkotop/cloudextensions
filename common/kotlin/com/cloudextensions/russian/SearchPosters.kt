@@ -24,6 +24,7 @@ internal object SearchPosters {
         items: List<SearchResponse>,
         deadline: Long,
         repair: suspend (MovieSearchResponse) -> MovieSearchResponse,
+        defer: (MovieSearchResponse) -> Unit = {},
     ): List<SearchResponse> {
         val budget = minOf(COVER_BUDGET_MS, (deadline - System.nanoTime()) / 1_000_000L)
         if (items.isEmpty() || budget <= 0) return items
@@ -67,6 +68,11 @@ internal object SearchPosters {
         val first = ready.keys.sorted().take(VISIBLE)
         val ordered = first.map { ready.getValue(it) } +
             items.mapIndexedNotNull { index, card -> if (index in first) null else card }
+        if (first.size < leading) {
+            (0 until leading).filterNot(ready::containsKey).forEach { index ->
+                (candidates[index] as? MovieSearchResponse)?.let(defer)
+            }
+        }
         ImagePrefetch.warm(ordered.take(VISIBLE), priority = true)
         return ordered
     }

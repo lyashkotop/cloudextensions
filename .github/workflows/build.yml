@@ -43,9 +43,11 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .tools
-          key: cloudextensions-tools-${{ runner.os }}-${{ hashFiles('common/tools/toolchain.json') }}
+          key: cloudextensions-tools-${{ runner.os }}-${{ hashFiles('common/tools/*toolchain.json') }}
       - name: Fetch and verify build tools
-        run: python common/tools/fetch_tools.py --directory .tools
+        run: |
+          python common/tools/fetch_tools.py --directory .tools
+          python common/tools/fetch_tools.py --directory .tools --manifest common/tools/probe-toolchain.json
       - name: Compile and verify provider packages
         env:
           RUN_NUMBER: ${{ github.run_number }}

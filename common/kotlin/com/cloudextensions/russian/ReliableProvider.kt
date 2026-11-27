@@ -32,7 +32,6 @@ private const val SEARCH_POSTER_COUNT = 3
 private const val MAX_UPSTREAM_PAGES_PER_EXPANSION = 4
 private const val SEARCH_REVIEW_BUDGET_MS = 1_600L
 private const val REQUIRED_SEARCH_REVIEW_BUDGET_MS = 6_000L
-private const val THISVID_RECOMMENDATION_BUDGET_MS = 1_200L
 private const val LISTING_TIMEOUT_MS = 22_000L
 private const val RATING_REQUEST_TIMEOUT_MS = 6_500L
 private const val FAST_LISTING_RATING_BUDGET_MS = 500L
@@ -160,6 +159,7 @@ class ReliableProvider(
     }
 
     private fun queueHomePoster(card: MovieSearchResponse) {
+        if (source !is NoodlePosterSource) return
         val key = videoKey(card.url)
         if (queuedHomePosters.add(key) && pendingHomePosters.trySend(card).isFailure) {
             queuedHomePosters.remove(key)
@@ -193,6 +193,14 @@ class ReliableProvider(
         if (poster == null || poster == card.posterUrl) return SearchPosters.repairFromDetail(card)
         Metadata.rememberPoster(card.url, poster)
         return card.copy(posterUrl = poster, posterHeaders = resolvedPosterHeaders(poster, card.url, headers))
+    }
+
+    private fun cachedSearchPoster(item: SearchResponse): SearchResponse {
+        if (source !is NoodlePosterSource || item !is MovieSearchResponse) return item
+        val headers = item.posterHeaders.orEmpty()
+        val image = cachedPoster(PosterKey(videoKey(item.url), item.posterUrl, headers))
+            ?: StoryboardPosters.cached(item.url) ?: return item
+        return item.copy(posterUrl = image, posterHeaders = resolvedPosterHeaders(image, item.url, headers))
     }
 
     private suspend fun withResolvedPosters(
@@ -390,42 +398,6 @@ class ReliableProvider(
             val score = scores[index]
             if (poster is MovieSearchResponse && score != null && poster.score == null) poster.copy(score = score)
             else cachedScore(poster)
-        }
-    }
-
-    private val warmingDetails = ConcurrentHashMap.newKeySet<String>()
-    private val pendingDetails by lazy {
-        Channel<SearchResponse>(12).also { queue ->
-            val policy = source as? SearchPolicy
-            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + Network.Background + Network.CacheDetail)
-            repeat(2) {
-                scope.launch {
-                    for (card in queue) {
-                        try {
-                            if (ratingProfile == "XHamster") {
-                                review(card, System.nanoTime() + 2_200_000_000L, DETAIL_MAX_AGE_NANOS)
-                            } else if (policy != null) {
-                                RequestLimits.optional(2200) { policy.fullTitle(card.url) }
-                            } else {
-                                // Adapted providers and BDSMX can use their own playback metadata endpoints.
-                                review(card, System.nanoTime() + 2_200_000_000L, DETAIL_MAX_AGE_NANOS)
-                            }
-                        } catch (_: LinkageError) {
-                        } finally {
-                            warmingDetails.remove(card.url)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun warmDetails(cards: List<SearchResponse>) {
-        for (card in cards.take(12)) {
-            if (savedReview(card.url, DETAIL_MAX_AGE_NANOS) != null) continue
-            if (warmingDetails.add(card.url) && pendingDetails.trySend(card).isFailure) {
-                warmingDetails.remove(card.url)
-            }
         }
     }
 
@@ -652,7 +624,7 @@ class ReliableProvider(
         history.mutex.withLock {
             history.pages[page]?.let {
                 val saved = it.response
-                val fresh = saved.items.filter { card -> isListable(card.url) }.map(::cachedScore)
+                val fresh = saved.items.filter { card -> isListable(card.url) }.map { cachedScore(cachedSearchPoster(it)) }
                 val visible = if (page == 1 && fresh.size != saved.items.size) {
                     SearchPosters.prepare(fresh, listingDeadline, ::repairSearchPoster)
                 } else fresh.also { ImagePrefetch.warm(it, priority = true) }
@@ -720,7 +692,7 @@ class ReliableProvider(
                     listingScores(cards.take(SEARCH_POSTER_COUNT), listingDeadline)
                         .mapIndexedNotNull { index, score -> score?.let { searchKey(cards[index]) to it } }.toMap()
                 }
-                val posters = if (page == 1) SearchPosters.prepare(cards, listingDeadline, ::repairSearchPoster)
+                val posters = if (page == 1) SearchPosters.prepare(cards, listingDeadline, ::repairSearchPoster, ::queueHomePoster)
                 else cards.also { ImagePrefetch.warm(it, priority = true) }
                 val ratings = scores.await()
                 posters.map { card ->
@@ -771,16 +743,15 @@ class ReliableProvider(
         val initialRecommendations = result.recommendations.orEmpty()
         val recommendations = async {
             val visible = cards(initialRecommendations, expandTitles = false)
-            val checked = when {
-                ratingProfile == "XHamster" -> {
-                    warmDetails(visible.filter { savedReview(it.url) == null })
-                    visible.filter { savedReview(it.url)?.allowed == true }
+                .filterNot { searchKey(it) == Metadata.catalogueKey(ratingProfile, url) }
+                .distinctBy(::searchKey)
+            val checked = if (!ContentPolicy.enabled) visible else {
+                val deadline = System.nanoTime() + 1_600_000_000L
+                val candidates = visible.filter { savedReview(it.url) == null }.take(10)
+                val verified = withContext(Network.CacheDetail) { reviewedCards(candidates, deadline) }.associateBy(::searchKey)
+                visible.mapNotNull { card ->
+                    verified[searchKey(card)] ?: card.takeIf { savedReview(it.url)?.allowed == true }
                 }
-                requiresListingReview -> {
-                    val budget = if (ratingProfile == "ThisVid") THISVID_RECOMMENDATION_BUDGET_MS else SEARCH_REVIEW_BUDGET_MS
-                    reviewedCards(visible, System.nanoTime() + budget * 1_000_000L)
-                }
-                else -> visible
             }
             if (ratingProfile == "NoodleMagazine" && source is NoodlePosterSource) {
                 checked.filterIsInstance<MovieSearchResponse>().filter { it.posterUrl.isNullOrBlank() }.forEach(::queueHomePoster)

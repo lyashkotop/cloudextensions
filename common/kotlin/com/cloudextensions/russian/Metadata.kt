@@ -9,6 +9,8 @@ import org.json.JSONObject
 import org.json.JSONTokener
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okio.ByteString.Companion.decodeBase64
 
 /** Parses source fields only. Never derives tags from title words or a description from a URL. */
 object Metadata {
@@ -32,10 +34,34 @@ object Metadata {
 
     fun catalogueKey(source: String?, url: String): String =
         when (source) {
-            "TubeBDSM" -> tubeListingKeys[url]
+            "TubeBDSM" -> tubeListingKeys[url] ?: tubeDestinationKey(url)
             "HcBDSMX" -> hcListingKeys[videoKey(url)]
             else -> null
         } ?: videoKey(url)
+
+    private val tubeVideoPath = Regex("""^/videos?/(\d+)(?:/|$)""")
+
+    private fun tubeDestinationKey(url: String): String? {
+        val address = url.toHttpUrlOrNull() ?: return null
+        val isAggregator = address.host.removePrefix("www.") == "tubebdsm.com"
+        val destination = if (isAggregator) {
+            if (address.encodedPath != "/out/") return null
+            val token = address.queryParameter("l")?.takeIf { it.length in 40..4_096 } ?: return null
+            val buffer = token.decodeBase64() ?: return null
+            // The redirect record includes a length-prefixed destination followed by feed-specific fields.
+            (1 until minOf(80, buffer.size - 7)).firstNotNullOfOrNull { index ->
+                val size = buffer[index].toInt() and 0xff
+                if ((buffer[index - 1].toInt() and 0xff) != 0xd9 || size !in 12..(buffer.size - index - 1)) return@firstNotNullOfOrNull null
+                val value = buffer.substring(index + 1, index + 1 + size).utf8()
+                if (value.any { it.isWhitespace() || it.isISOControl() }) return@firstNotNullOfOrNull null
+                value.toHttpUrlOrNull()
+            } ?: return null
+        } else address
+        val host = destination.host.removePrefix("www.")
+        if (host == "tubebdsm.com") return null
+        val video = tubeVideoPath.find(destination.encodedPath)?.groupValues?.get(1)
+        return "tubebdsm:original:" + (video?.let { "$host/video/$it" } ?: videoKey(destination.toString()))
+    }
 
     private fun tubeDuration(card: Element): String =
         card.selectFirst(".item-meta-container .badge:not(.rating-badge)")?.text()
@@ -44,7 +70,7 @@ object Metadata {
     private fun rememberTubeKey(card: Element, url: String, title: String, duration: String) {
         val partner = card.selectFirst("a.item-source")?.text()?.lowercase(Locale.ROOT).orEmpty()
         val label = title.lowercase(Locale.ROOT)
-        val key = when {
+        val key = tubeDestinationKey(url) ?: when {
             duration.isNotBlank() && !isTruncatedTitle(title) && titleWord.findAll(label).take(3).count() == 3 ->
                 "tubebdsm:clip:$duration:$label"
             duration.isNotBlank() && partner.isNotBlank() && !isTruncatedTitle(title) ->

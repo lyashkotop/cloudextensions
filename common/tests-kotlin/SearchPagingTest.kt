@@ -87,7 +87,9 @@ internal fun testSearchPaging() {
             val strictFirst = strict.search("123", 1)
             check(strictFirst.ids() == (1..20).filter { it != 8 } && strictFirst.hasNext)
             val strictSecond = strict.search("123", 2)
-            check(strictSecond.ids() == (21..24).toList() + 8 && !strictSecond.hasNext)
+            check(strictSecond.ids() == (21..24).toList() + 8 && !strictSecond.hasNext) {
+                "Expected deferred card after new results, got ${strictSecond.ids()} (hasNext=${strictSecond.hasNext})"
+            }
         }
     } finally {
         poster.delete()
