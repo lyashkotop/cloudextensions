@@ -380,26 +380,6 @@
     "fileHash": "sha256-1ce5ea6438304a8a6ba74b93943d9faed5d7ef619f660ccdcc33a5a40c1d69cb"
   },
   {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/265/ECamRips.cs3",
-    "status": 1,
-    "version": 265,
-    "apiVersion": 1,
-    "name": "3 · EN · eCamRips",
-    "internalName": "ECamRips",
-    "authors": [
-      "lyashkotop"
-    ],
-    "description": "eCamRips — browse by model, category or platform, with native playback.",
-    "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
-    "tvTypes": [
-      "NSFW"
-    ],
-    "language": "en",
-    "iconUrl": "https://www.xrisi.com/styles_cam/favicon_eca.ico",
-    "fileSize": 271110,
-    "fileHash": "sha256-07afefaf2f000410bd22aff1149ea4cd673b7a9a01b11c70d90c86b3992b1812"
-  },
-  {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/265/EPorner.cs3",
     "status": 1,
     "version": 265,
@@ -558,26 +538,6 @@
     "iconUrl": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/main/assets/icons/PunishWorld.png",
     "fileSize": 268709,
     "fileHash": "sha256-34479384a9b1e2131aea19a3ee19442b13bf495f021f8c96bc3067f36e03b968"
-  },
-  {
-    "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/265/ShowCamRips.cs3",
-    "status": 1,
-    "version": 265,
-    "apiVersion": 1,
-    "name": "3 · EN · ShowCamRips",
-    "internalName": "ShowCamRips",
-    "authors": [
-      "lyashkotop"
-    ],
-    "description": "ShowCamRips — catalogue by model, category and platform, with native search and playback.",
-    "repositoryUrl": "https://github.com/lyashkotop/cloudextensions",
-    "tvTypes": [
-      "NSFW"
-    ],
-    "language": "en",
-    "iconUrl": "https://www.xrisi.com/styles_cam/favicon.ico",
-    "fileSize": 271100,
-    "fileHash": "sha256-871613179e2c87fbd311c564baac8d2acb2334ff0b50c85d90b5f410b49431fb"
   },
   {
     "url": "https://raw.githubusercontent.com/lyashkotop/cloudextensions/builds/packages/English/265/SickR.cs3",
