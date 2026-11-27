@@ -1,5 +1,6 @@
 package com.cloudextensions.russian
 
+import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.TvType
@@ -7,6 +8,7 @@ import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newSearchResponseList
 import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.runBlocking
 
 private class SearchCatalogue(private val poster: String) : MainAPI() {
@@ -29,6 +31,24 @@ private class SearchCatalogue(private val poster: String) : MainAPI() {
     }
 
     override suspend fun load(url: String) = newMovieLoadResponse("Video ${url.substringAfterLast('/')}", url, TvType.NSFW, url)
+}
+
+private class StrictCatalogue(private val poster: String) : MainAPI(), SearchPolicy {
+    override var lang = "ru"
+    override var mainUrl = "https://strict.example"
+    override val requiresListingReview = true
+    private var attempts = 0
+
+    override suspend fun search(query: String, page: Int): SearchResponseList =
+        newSearchResponseList((1..24).map { id ->
+            newMovieSearchResponse("Video $id", "$mainUrl/$id", TvType.NSFW) { posterUrl = poster }
+        }, false)
+
+    override suspend fun load(url: String): LoadResponse {
+        val id = url.substringAfterLast('/')
+        if (id == "8" && attempts++ == 0) throw IOException("Temporary unavailable details")
+        return newMovieLoadResponse("Video $id", url, TvType.NSFW, url)
+    }
 }
 
 internal fun testSearchPaging() {
@@ -62,6 +82,12 @@ internal fun testSearchPaging() {
             check(plugin.search("подруга", 1).items.size == 6)
             check(source.requests.drop(previous).toSet() == setOf("подруга" to 1, "girlfriend" to 1))
             check(plugin.search("absent", 1).let { it.items.isEmpty() && !it.hasNext })
+
+            val strict = ReliableProvider(StrictCatalogue(poster.toURI().toString()))
+            val strictFirst = strict.search("123", 1)
+            check(strictFirst.ids() == (1..20).filter { it != 8 } && strictFirst.hasNext)
+            val strictSecond = strict.search("123", 2)
+            check(strictSecond.ids() == (21..24).toList() + 8 && !strictSecond.hasNext)
         }
     } finally {
         poster.delete()

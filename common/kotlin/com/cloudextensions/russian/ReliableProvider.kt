@@ -704,13 +704,15 @@ class ReliableProvider(
                     val key = searchKey(it)
                     key !in checkedKeys && key !in candidates.retried && savedReview(it.url) == null
                 } else emptyList()
-                val rest = available.drop(count) + retry
+                val unchecked = available.drop(count)
+                val rest = unchecked + retry
                 pending = rest.takeIf { it.isNotEmpty() }?.let {
                     candidates.copy(cards = it, retried = candidates.retried + retry.map(::searchKey))
                 }
                 cards += checked
                 seen += checked.map(::searchKey)
-                if (cards.size >= SEARCH_PAGE_MINIMUM || remainingMillis(reviewDeadline) <= 0) break
+                if (cards.size >= SEARCH_PAGE_MINIMUM || remainingMillis(reviewDeadline) <= 0 ||
+                    unchecked.isEmpty() && retry.isNotEmpty()) break
             }
 
             val prepared = coroutineScope {
