@@ -22,6 +22,11 @@ class HurtSexProvider: RussianProvider(SiteSpec(
         return detail
     }
 
+    override suspend fun reviewHomeMetadata(document: Document, detail: VideoDetail): VideoDetail {
+        Playback.rejectMissingStaticMedia(document, "nonkporno.com")
+        return detail
+    }
+
     override suspend fun searchRequest(term: String): PageRequest =
         PageRequest(mainUrl.trimEnd('/') + "/search", data = mapOf("q" to term))
 

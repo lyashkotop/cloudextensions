@@ -120,7 +120,10 @@ object Network {
             imageHeaders(poster, headers["Referer"] ?: url)
 
     suspend fun cataloguePage(request: PageRequest, referer: String): Document =
-        withContext(Catalogue) { page(request, referer) }
+        catalogue { page(request, referer) }
+
+    internal suspend fun <T> catalogue(block: suspend () -> T): T =
+        withContext(Catalogue) { block() }
 
     suspend fun page(request: PageRequest, referer: String): Document = RequestLimits.required("Страница",18_000) {
         if (coroutineContext[Background.Key] != null) {

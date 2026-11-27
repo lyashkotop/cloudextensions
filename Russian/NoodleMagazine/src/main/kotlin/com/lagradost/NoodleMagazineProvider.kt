@@ -49,7 +49,7 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
         "рабыня" to "Рабыня",
         "spanking" to "Порка",
         "унижение" to "Унижение",
-        "заставил заставили" to "Заставил / заставили",
+        "заставил заставили" to "Заставили",
         "студентки" to "Студентки",
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)

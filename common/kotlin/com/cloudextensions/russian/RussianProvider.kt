@@ -158,16 +158,23 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
     override suspend fun fullTitle(url: String): String = searchMetadata(url, includeOriginal = false).title
     protected open fun readMetadata(document:Document):VideoDetail = Metadata.detail(document,spec)
     protected open suspend fun reviewMetadata(document: Document, detail: VideoDetail): VideoDetail = detail
+    protected open suspend fun reviewHomeMetadata(document: Document, detail: VideoDetail): VideoDetail =
+        reviewMetadata(document, detail)
     final override suspend fun searchMetadata(url: String): VideoDetail = searchMetadata(url, includeOriginal = true)
+    internal suspend fun homeMetadata(url: String): VideoDetail = searchMetadata(url, includeOriginal = true, home = true)
 
-    private suspend fun searchMetadata(url: String, includeOriginal: Boolean): VideoDetail {
+    private suspend fun searchMetadata(url: String, includeOriginal: Boolean, home: Boolean = false): VideoDetail {
         val document=page(PageRequest(url, allowNotFound = requiresListingReview))
         if (document.attr("data-response-code") in setOf("404", "410")) {
             throw ErrorLoadingException("Видео удалено или недоступно")
         }
         if(spec.id=="ThisVid" && document.selectFirst(".box ul.description")==null)throw ErrorLoadingException("Не удалось проверить категории ThisVid")
         val base = readMetadata(document)
-        val meta = if (includeOriginal) reviewMetadata(document, base) else base
+        val meta = when {
+            home -> reviewHomeMetadata(document, base)
+            includeOriginal -> reviewMetadata(document, base)
+            else -> base
+        }
         if (VideoScores.loadsListingScores(spec.id)) {
             val score = meta.score ?: VideoScores.detail(spec.id, url, document)
             VideoScores.rememberDetail(spec.id, url, score)

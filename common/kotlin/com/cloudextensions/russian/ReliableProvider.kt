@@ -104,11 +104,13 @@ class ReliableProvider(
         }?.takeIf { it.isNotBlank() }
     }
 
-    private suspend fun cards(items: List<SearchResponse>, expandTitles: Boolean = true): List<SearchResponse> = coroutineScope {
+    private suspend fun cards(
+        items: List<SearchResponse>, expandTitles: Boolean = true, warmPosters: Boolean = true,
+    ): List<SearchResponse> = coroutineScope {
         val deadline = System.nanoTime() + 3_000_000_000L
         val allowed = items.filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
         val posters = allowed.map { card -> normalizeCard(card, title = card.name) }
-        ImagePrefetch.warm(posters, priority = true)
+        if (warmPosters) ImagePrefetch.warm(posters, priority = true)
         val titles = allowed.map { card ->
             if (expandTitles && Metadata.isTruncatedTitle(card.name)) async { expandTitle(card, deadline) } else null
         }
@@ -236,22 +238,30 @@ class ReliableProvider(
     }
     private data class Review(val allowed:Boolean,val detail:LoadResponse?,val title:String?=detail?.name)
     private val reviews=java.util.Collections.synchronizedMap(BoundedMap<String,Pair<Long,Review>>(128))
+    private val homeReviews=java.util.Collections.synchronizedMap(BoundedMap<String,Pair<Long,Review>>(128))
     private val reviewPermits = Semaphore(if (requiresListingReview) 6 else 4)
     private fun savedReview(url: String, maxAgeNanos: Long = 300_000_000_000L): Review? =
         reviews[videoKey(url)]?.takeIf { System.nanoTime() - it.first < maxAgeNanos }?.second
     private fun remainingMillis(deadline: Long) = (deadline - System.nanoTime()) / 1_000_000
 
-    private suspend fun review(card: SearchResponse, deadline: Long, maxAgeNanos: Long = 300_000_000_000L): Review? {
-        savedReview(card.url, maxAgeNanos)?.let { return it }
+    private suspend fun review(
+        card: SearchResponse, deadline: Long, maxAgeNanos: Long = 300_000_000_000L, home: Boolean = false,
+    ): Review? {
+        val key = videoKey(card.url)
+        fun cached() = savedReview(card.url, maxAgeNanos) ?: if (home) {
+            homeReviews[key]?.takeIf { System.nanoTime() - it.first < maxAgeNanos }?.second
+        } else null
+        cached()?.let { return it }
         val result = RequestLimits.optional(remainingMillis(deadline)) {
             reviewPermits.withPermit {
-                savedReview(card.url, maxAgeNanos)?.let { return@withPermit it }
+                cached()?.let { return@withPermit it }
                 val budget = minOf(3500L, remainingMillis(deadline))
                 RequestLimits.optional(budget) {
                     try {
                         val reader = searchMetadataSource
                         if (reader != null) {
-                            val meta = reader.searchMetadata(card.url)
+                            val meta = if (home && reader is RussianProvider) reader.homeMetadata(card.url)
+                                else reader.searchMetadata(card.url)
                             Review(accepts(meta.title, meta.tags + Metadata.cardTags(card.url), meta.description), null, meta.title)
                         } else {
                             val detail = source.load(card.url) ?: return@optional null
@@ -263,7 +273,9 @@ class ReliableProvider(
                 }
             }
         } ?: return null
-        reviews[videoKey(card.url)] = System.nanoTime() to result
+        // A homepage check can approve local metadata when its partner does not answer.
+        val cache = if (home && result.allowed) homeReviews else reviews
+        cache[key] = System.nanoTime() to result
         return result
     }
 
@@ -271,13 +283,13 @@ class ReliableProvider(
 
     private suspend fun reviewedCards(
         items: List<SearchResponse>, deadline: Long, early: Map<String, Deferred<Review?>> = emptyMap(),
-        returnAfter: Int = Int.MAX_VALUE,
+        returnAfter: Int = Int.MAX_VALUE, home: Boolean = false,
     ): List<SearchResponse> = coroutineScope {
         suspend fun checked(card: SearchResponse): SearchResponse? {
             val prechecked = early[videoKey(card.url)]?.let { task ->
                 RequestLimits.optional(remainingMillis(deadline)) { task.await() }
             }
-            val approved = (prechecked ?: review(card, deadline))?.takeIf { it.allowed } ?: return null
+            val approved = (prechecked ?: review(card, deadline, home = home))?.takeIf { it.allowed } ?: return null
             val full = approved.title?.let {
                 Metadata.title(card.url, listOf(it), language = titleLanguage, fromDetail = true)
             } ?: card.name
@@ -446,8 +458,10 @@ class ReliableProvider(
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная", LISTING_TIMEOUT_MS) {
         val deadline = System.nanoTime() + LISTING_TIMEOUT_MS * 1_000_000L
         val fastHome = (source as? NoodlePosterSource)?.fastHomeCovers == true
-        val result = randomHome.page(page, request, ratingProfile == "NoodleMagazine", if (ratingProfile == "TubeSafari") 0 else HOME_LOOKAHEAD_MS) { number ->
-            source.getMainPage(number, request)
+        val fastReview = ratingProfile == "TubeSafari" || ratingProfile == "HurtSex"
+        val result = randomHome.page(page, request, ratingProfile == "NoodleMagazine", if (fastReview) 0 else HOME_LOOKAHEAD_MS) { number ->
+            if (fastReview) Network.catalogue { source.getMainPage(number, request) }
+            else source.getMainPage(number, request)
         } ?: return@required newHomePageResponse(emptyList(), false)
         val rows = coroutineScope {
             result.items.map { row ->
@@ -459,20 +473,18 @@ class ReliableProvider(
                         ImagePrefetch.warm(ready, priority = true)
                         return@async row.copy(list = ready)
                     }
-                    val visible = cards(row.list, expandTitles = !requiresListingReview)
+                    val visible = cards(row.list, expandTitles = !requiresListingReview, warmPosters = !fastReview)
                     val checked = if (requiresListingReview) {
                         val reviewDeadline = deadline - 6_000_000_000L
                         when (ratingProfile) {
-                            "TubeSafari" -> {
-                                val first = reviewedCards(visible.take(6), reviewDeadline)
-                                first.ifEmpty { reviewedCards(visible.drop(6).take(12), reviewDeadline, returnAfter = 3) }
-                            }
-                            "HurtSex", "PornVideos", "RoughXXXTube" ->
+                            "TubeSafari", "HurtSex" ->
+                                reviewedCards(visible.take(24), reviewDeadline, returnAfter = 6, home = true)
+                            "PornVideos", "RoughXXXTube" ->
                                 reviewedCards(visible.take(20), reviewDeadline, returnAfter = 6)
                             else -> reviewedCards(visible, reviewDeadline)
                         }
                     } else visible
-                    row.copy(list = prepareListing(checked, deadline, home = true))
+                    row.copy(list = prepareListing(checked, deadline, home = true, missingPostersOnly = fastReview))
                 }
             }.awaitAll()
         }

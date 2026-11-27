@@ -25,6 +25,8 @@ class TubeSafariProvider: RussianProvider(SiteSpec(
   DetailEnrichment.verifyOriginal(document, spec, detail, budget = 3_500, allowUnverified = true)
  override suspend fun reviewMetadata(document: Document, detail: VideoDetail): VideoDetail =
   DetailEnrichment.verifyOriginal(document, spec, detail, budget = 2_500)
+ override suspend fun reviewHomeMetadata(document: Document, detail: VideoDetail): VideoDetail =
+  DetailEnrichment.verifyOriginal(document, spec, detail, budget = 800, allowUnverified = true)
  override fun readMetadata(document: Document): VideoDetail {
   val detail = super.readMetadata(document)
   if (detail.title.isNotBlank() || document.selectFirst("iframe#video2") == null) return detail
