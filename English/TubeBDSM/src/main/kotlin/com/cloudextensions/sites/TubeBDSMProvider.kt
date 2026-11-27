@@ -32,8 +32,15 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
  }
  private fun russian(request: PageRequest) =
   request.copy(headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE))
+ private fun canonicalPartnerRequest(request: PageRequest): PageRequest {
+  val target = Metadata.tubeOutboundDestination(request.url) ?: request.url.toHttpUrlOrNull()
+  if (target?.host?.removePrefix("www.") != "fhgte.com" ||
+      !target.encodedPath.matches(Regex("^/videos/[A-Za-z0-9]+/?$"))) return request
+  // This public tracking domain redirects to the same video at the publisher's canonical host.
+  return request.copy(url = target.newBuilder().scheme("https").host("faphouse.com").build().toString())
+ }
  override suspend fun page(request:PageRequest):org.jsoup.nodes.Document {
-  val document=super.page(russian(request))
+  val document=super.page(russian(canonicalPartnerRequest(request)))
   return RequestLimits.optional(4500){AbxxxMetadata.enrich(document, includeRelated = false)} ?: document
  }
  private val interceptors=java.util.Collections.synchronizedMap(object:LinkedHashMap<String,Interceptor>(128,.75f,true){override fun removeEldestEntry(e:MutableMap.MutableEntry<String,Interceptor>?)=size>128})
@@ -46,7 +53,7 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
  }catch(_:Exception){null}catch(_:LinkageError){null}
  override fun readMetadata(document:org.jsoup.nodes.Document)=AggregatorPages.detail(document,spec)
  override suspend fun load(url:String):LoadResponse {
-  val page = super.page(russian(PageRequest(url)))
+  val page = super.page(russian(canonicalPartnerRequest(PageRequest(url))))
   var document = RequestLimits.optional(4200) { AbxxxMetadata.enrich(page, includeRelated = true) } ?: page
   val listingTitle = Metadata.title(url, emptyList(), language = spec.titleLanguage)
   if (readMetadata(document).title.isBlank() && Metadata.usableDetailTitle(listingTitle)) {

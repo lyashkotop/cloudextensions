@@ -2,6 +2,7 @@ package com.cloudextensions.sites
 
 import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.PageRequest
+import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.RussianProvider
 import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
@@ -29,6 +30,7 @@ class RoughXXXTubeProvider : RussianProvider(
         ),
     ),
 ) {
+    private val videoPath = Regex("""/(?:ru|en)/video/(\d+)/?""")
     private val searchPage = Regex("""(/ru/search/[A-Za-z0-9_+-]+/popular/)([0-9]+)/""")
 
     override suspend fun searchRequest(term: String): PageRequest {
@@ -41,6 +43,12 @@ class RoughXXXTubeProvider : RussianProvider(
         val actual = document.baseUri().toHttpUrlOrNull() ?: return false
         val expected = requested.toHttpUrlOrNull() ?: return false
         if (actual.host != expected.host) return false
+        val requestedVideo = videoPath.matchEntire(expected.encodedPath)?.groupValues?.get(1)
+        if (requestedVideo != null) {
+            val actualVideo = videoPath.matchEntire(actual.encodedPath)?.groupValues?.get(1)
+            return actualVideo == requestedVideo && (document.attr("data-response-code") in setOf("404", "410") ||
+                document.selectFirst(".content > h1, video#my-player source[src]") != null)
+        }
         val path = expected.encodedPath.trimEnd('/')
         if (path.isEmpty()) return actual.encodedPath.trimEnd('/') == "/ru"
         return actual.encodedPath.trimEnd('/') == path &&
@@ -56,7 +64,15 @@ class RoughXXXTubeProvider : RussianProvider(
             original = super.page(localized.copy(headers = localized.headers + ("Cache-Control" to "no-cache")))
             if (!matchesPage(original, request.url)) {
                 val path = request.url.toHttpUrlOrNull()?.encodedPath.orEmpty()
-                if (path.startsWith("/ru/video/")) throw ErrorLoadingException("Видео удалено или недоступно")
+                if (videoPath.matches(path)) {
+                    val otherLanguage = if (path.startsWith("/ru/")) "en" else "ru"
+                    val alternative = localized.copy(url = localized.url.replace(path, "/$otherLanguage/video/" + path.substringAfter("/video/")),
+                        allowNotFound = true)
+                    val fallback = RequestLimits.optional(2200) { super.page(alternative) }
+                    if (fallback != null && matchesPage(fallback, request.url) &&
+                        fallback.attr("data-response-code") !in setOf("404", "410")) return fallback
+                    throw ErrorLoadingException("RoughXXXTube: сайт не вернул страницу видео")
+                }
                 throw ErrorLoadingException("RoughXXXTube: сайт не вернул запрошенную страницу")
             }
         }

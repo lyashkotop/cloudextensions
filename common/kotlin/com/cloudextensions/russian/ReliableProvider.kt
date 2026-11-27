@@ -443,7 +443,7 @@ class ReliableProvider(
     override suspend fun getMainPage(page:Int,request:MainPageRequest):HomePageResponse = RequestLimits.required("Главная", LISTING_TIMEOUT_MS) {
         val deadline = System.nanoTime() + LISTING_TIMEOUT_MS * 1_000_000L
         val fastHome = (source as? NoodlePosterSource)?.fastHomeCovers == true
-        val result = randomHome.page(page, request, ratingProfile == "NoodleMagazine", HOME_LOOKAHEAD_MS) { number ->
+        val result = randomHome.page(page, request, ratingProfile == "NoodleMagazine", if (ratingProfile == "TubeSafari") 0 else HOME_LOOKAHEAD_MS) { number ->
             source.getMainPage(number, request)
         } ?: return@required newHomePageResponse(emptyList(), false)
         val rows = coroutineScope {
@@ -458,7 +458,8 @@ class ReliableProvider(
                     }
                     val visible = cards(row.list, expandTitles = !requiresListingReview)
                     val checked = if (requiresListingReview) {
-                        reviewedCards(visible, deadline - 6_000_000_000L)
+                        val candidates = if (ratingProfile == "TubeSafari") visible.take(6) else visible
+                        reviewedCards(candidates, deadline - 6_000_000_000L)
                     } else visible
                     row.copy(list = prepareListing(checked, deadline, home = true))
                 }

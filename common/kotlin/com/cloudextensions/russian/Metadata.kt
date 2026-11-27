@@ -41,21 +41,25 @@ object Metadata {
 
     private val tubeVideoPath = Regex("""^/videos?/(\d+)(?:/|$)""")
 
+    fun tubeOutboundDestination(url: String): okhttp3.HttpUrl? {
+        val address = url.toHttpUrlOrNull() ?: return null
+        if (address.host.removePrefix("www.") != "tubebdsm.com" || address.encodedPath != "/out/") return null
+        val token = address.queryParameter("l")?.takeIf { it.length in 40..4_096 } ?: return null
+        val buffer = token.decodeBase64() ?: return null
+        // The redirect record includes a length-prefixed destination followed by feed-specific fields.
+        return (1 until minOf(80, buffer.size - 7)).firstNotNullOfOrNull { index ->
+            val size = buffer[index].toInt() and 0xff
+            if ((buffer[index - 1].toInt() and 0xff) != 0xd9 || size !in 12..(buffer.size - index - 1)) return@firstNotNullOfOrNull null
+            val value = buffer.substring(index + 1, index + 1 + size).utf8()
+            if (value.any { it.isWhitespace() || it.isISOControl() }) return@firstNotNullOfOrNull null
+            value.toHttpUrlOrNull()
+        }
+    }
+
     private fun tubeDestinationKey(url: String): String? {
         val address = url.toHttpUrlOrNull() ?: return null
-        val isAggregator = address.host.removePrefix("www.") == "tubebdsm.com"
-        val destination = if (isAggregator) {
-            if (address.encodedPath != "/out/") return null
-            val token = address.queryParameter("l")?.takeIf { it.length in 40..4_096 } ?: return null
-            val buffer = token.decodeBase64() ?: return null
-            // The redirect record includes a length-prefixed destination followed by feed-specific fields.
-            (1 until minOf(80, buffer.size - 7)).firstNotNullOfOrNull { index ->
-                val size = buffer[index].toInt() and 0xff
-                if ((buffer[index - 1].toInt() and 0xff) != 0xd9 || size !in 12..(buffer.size - index - 1)) return@firstNotNullOfOrNull null
-                val value = buffer.substring(index + 1, index + 1 + size).utf8()
-                if (value.any { it.isWhitespace() || it.isISOControl() }) return@firstNotNullOfOrNull null
-                value.toHttpUrlOrNull()
-            } ?: return null
+        val destination = if (address.host.removePrefix("www.") == "tubebdsm.com") {
+            tubeOutboundDestination(url) ?: return null
         } else address
         val host = destination.host.removePrefix("www.")
         if (host == "tubebdsm.com") return null

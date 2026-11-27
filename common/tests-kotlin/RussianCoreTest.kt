@@ -223,6 +223,11 @@ fun main(args:Array<String>) {
         val packed = byteArrayOf(prefix, 0xd9.toByte(), payload.size.toByte()) + payload + byteArrayOf(7)
         return "https://www.tubebdsm.com/out/?l=" + java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(packed)
     }
+    val partner = "https://fhgte.com/videos/dv5N0F?utm_source=pw"
+    verify(Metadata.tubeOutboundDestination(outbound(partner, 7))?.toString() == partner,
+        "TubeBDSM extracts the destination of the public partner redirect")
+    verify(Metadata.tubeOutboundDestination("https://another.test/out/?l=" + outbound(partner, 7).substringAfter("l=")) == null,
+        "TubeBDSM redirect parser only recognizes the aggregator's outbound links")
     val original = "https://partner.example/video/722540/old-title"
     val alias = outbound("https://www.partner.example/video/722540/new-title", 1)
     verify(Metadata.catalogueKey("TubeBDSM", original) == Metadata.catalogueKey("TubeBDSM", alias),
