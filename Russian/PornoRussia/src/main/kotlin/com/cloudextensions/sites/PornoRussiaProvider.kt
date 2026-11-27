@@ -186,9 +186,19 @@ class PornoRussiaProvider : RussianProvider(
     ): Boolean {
         val document = page(PageRequest(data))
         val base = document.baseUri().toHttpUrl()
-        val streams = playerScripts(document).mapNotNull { parse(playerFile, it)?.let(base::resolve) }
-            .map { Playback.Source(it.toString()) }
-        return Playback.linksFromPage(name, mainUrl, data, document, streams, subtitleCallback, callback)
+        val playerFiles = playerScripts(document).mapNotNull { parse(playerFile, it)?.let(base::resolve) }
+        val downloadFiles = document.select("a[href]:has(> .icon-dl)").mapNotNull { link ->
+            val file = base.resolve(link.attr("href")) ?: return@mapNotNull null
+            file.takeIf { candidate ->
+                candidate.isHttps && candidate.encodedPath.endsWith(".mp4", true) && playerFiles.any { player ->
+                    player.host == candidate.host && player.pathSegments.last() == candidate.pathSegments.last()
+                }
+            }
+        }
+        val streams = (playerFiles + downloadFiles).distinct().map { Playback.Source(it.toString()) }
+        return Playback.linksFromPage(
+            name, mainUrl, document.baseUri(), document, streams, subtitleCallback, callback, useResolvedUrl = true,
+        )
     }
 
     private fun playerScripts(document: Document) = document.select(".video-container script").map { it.data() }

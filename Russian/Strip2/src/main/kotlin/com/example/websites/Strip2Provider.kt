@@ -53,7 +53,9 @@ class Strip2Provider: RussianProvider(SiteSpec(
             ?: newHomePageResponse(emptyList(), false)
     }
 
-    fun downloadableSources(document: Document): List<Playback.Source> {
+    fun downloadableSources(document: Document): List<Playback.Source> = downloadSources(document, limitQuality = true)
+
+    private fun downloadSources(document: Document, limitQuality: Boolean): List<Playback.Source> {
         val address = document.baseUri().toHttpUrlOrNull() ?: return emptyList()
         return document.select("a[href*=/video/download/]").mapNotNull { link ->
             val url = address.resolve(link.attr("href")) ?: return@mapNotNull null
@@ -63,7 +65,7 @@ class Strip2Provider: RussianProvider(SiteSpec(
             val width = size?.groupValues?.get(1)?.toIntOrNull()
             val height = size?.groupValues?.get(2)?.toIntOrNull()
             val shortSide = if (width != null && height != null) minOf(width, height) else null
-            if (shortSide != null && !QualityLinks.allowed(shortSide)) return@mapNotNull null
+            if (limitQuality && shortSide != null && !QualityLinks.allowed(shortSide)) return@mapNotNull null
             Playback.Source(url.toString(), shortSide?.let { "${it}p" })
         }.distinctBy { it.url }
     }
@@ -75,6 +77,23 @@ class Strip2Provider: RussianProvider(SiteSpec(
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val document = page(PageRequest(data))
-        return Playback.linksFromPage(name, mainUrl, data, document, downloadableSources(document), subtitleCallback, callback)
+        val downloads = downloadableSources(document)
+        val actual = document.baseUri().toHttpUrlOrNull()
+        val direct = document.selectFirst(".file-card link[itemprop=contentUrl][href]")?.absUrl("href")
+            ?.toHttpUrlOrNull()?.takeIf { it.isHttps && it.encodedPath.endsWith(".mp4", true) }
+            ?.takeIf { media -> actual?.pathSegments?.getOrNull(1) != null &&
+                actual.pathSegments[1] in media.pathSegments }
+            ?.let { media ->
+                val identity = media.pathSegments.dropLast(1).takeLast(3)
+                val matching = downloadSources(document, limitQuality = false).firstOrNull {
+                    it.url.toHttpUrlOrNull()?.pathSegments?.dropLast(1)?.takeLast(3) == identity
+                }
+                val quality = matching?.label?.removeSuffix("p")?.toIntOrNull()
+                if (quality != null && !QualityLinks.allowed(quality)) null else Playback.Source(media.toString(), matching?.label)
+            }
+        return Playback.linksFromPage(
+            name, mainUrl, document.baseUri(), document, listOfNotNull(direct) + downloads,
+            subtitleCallback, callback, useResolvedUrl = true,
+        )
     }
 }
