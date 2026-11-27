@@ -1,11 +1,10 @@
 {
-  "version": 270,
-  "sourceCommit": "ba4721224713bb44d7871a5b51b34596ca5094d4",
+  "version": 271,
+  "sourceCommit": "cc64c5ddd7ce385d8d459746c10391a0d8971c71",
   "packageLayout": "versioned",
   "plugins": 34,
   "rebuilt": [
-    "Perdol",
-    "TubeBDSM"
+    "FreeMisogynyComics"
   ],
   "dexClasses": 13226,
   "entryRegistrationsValidated": 34,
