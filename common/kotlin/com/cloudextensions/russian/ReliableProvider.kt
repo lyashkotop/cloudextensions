@@ -7,6 +7,7 @@ import okhttp3.Interceptor
 import java.io.File
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlin.coroutines.coroutineContext
@@ -38,6 +39,12 @@ private const val REQUIRED_SEARCH_REVIEW_BUDGET_MS = 6_000L
 private const val LISTING_TIMEOUT_MS = 22_000L
 private const val RATING_REQUEST_TIMEOUT_MS = 6_500L
 private const val FAST_LISTING_RATING_BUDGET_MS = 500L
+private val slowFirstPageSources = setOf(
+    "Vpoisk", "BoundHub", "ThisVid", "HcBDSMX", "XRares", "PornoRussia",
+    "SickR", "Huyamba", "ProstoPorno", "FreeMisogynyComics",
+)
+private const val FIRST_PAGE_TARGET_MS = 3_000L
+private const val FIRST_PAGE_MERGE_MS = 1_700L
 private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
 private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex", "TubeSafari")
 private const val LISTING_COMPLETION_RESERVE_MS = 500L
@@ -468,6 +475,7 @@ class ReliableProvider(
     }
     override suspend fun search(query:String):List<SearchResponse> = search(query,1).items
     override suspend fun quickSearch(query:String):List<SearchResponse> = search(query,1).items
+    private data class FirstSearchBatch(val response: SearchResponseList, val complete: Boolean = true)
     private data class SearchCandidates(
         val cards: List<SearchResponse>,
         val reviewRank: Map<String, Int>,
@@ -496,17 +504,17 @@ class ReliableProvider(
 
     private suspend fun upstreamSearch(
         query: String, page: Int, history: SearchHistory, aliases: Set<String>,
-        onListing: (List<SearchResponse>) -> Unit,
+        onListing: (SearchResponseList, Boolean) -> Unit,
     ): SearchResponseList {
         if (aliases.isEmpty() && ((source as? SearchPolicy)?.translateQueries == false ||
             (source as? AdaptedProvider)?.translateQueries == false)) {
-            return (source.search(query, page) ?: newSearchResponseList(emptyList(), false)).also { onListing(it.items) }
+            return (source.search(query, page) ?: newSearchResponseList(emptyList(), false)).also { onListing(it, true) }
         }
         data class Batch(val response: SearchResponseList?, val error: Exception? = null)
         suspend fun branch(term: String): Batch = try {
             val response = source.search(term, page)
             if (response != null) {
-                onListing(response.items)
+                onListing(response, term == query)
                 val first = response.items.asSequence()
                     .filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
                     .take(3).map { normalizeCard(it, title = it.name) }.toList()
@@ -526,7 +534,7 @@ class ReliableProvider(
         val skipTranslation = (lang == "ru" && Translation.target(query) == "ru") ||
             (russianOnly && Translation.target(query) == "en")
         if (forms.isEmpty() && skipTranslation) {
-            return (source.search(query, page) ?: newSearchResponseList(emptyList(), false)).also { onListing(it.items) }
+            return (source.search(query, page) ?: newSearchResponseList(emptyList(), false)).also { onListing(it, true) }
         }
         val batches = coroutineScope {
             if (forms.isEmpty()) {
@@ -630,7 +638,7 @@ class ReliableProvider(
     }
 
     private suspend fun combinedSearch(
-        query: String, page: Int, history: SearchHistory, onListing: (List<SearchResponse>) -> Unit,
+        query: String, page: Int, history: SearchHistory, onListing: (SearchResponseList, Boolean) -> Unit,
     ): SearchResponseList = coroutineScope {
         val aliases = if (lang in listOf("ru", "en")) {
             Translation.searchAliases(query)
@@ -651,8 +659,38 @@ class ReliableProvider(
         newSearchResponseList(original?.items.orEmpty() + feeds.flatMap { it.items }, original?.hasNext == true || feeds.any { it.hasNext })
     }
 
+    private suspend fun firstSearchBatch(
+        query: String, history: SearchHistory, onListing: (SearchResponseList, Boolean) -> Unit,
+    ): FirstSearchBatch = coroutineScope {
+        val original = CompletableDeferred<SearchResponseList>()
+        val combined = async {
+            combinedSearch(query, 1, history) { response, isOriginal ->
+                onListing(response, isOriginal)
+                if (isOriginal) original.complete(response)
+            }
+        }
+        withTimeoutOrNull(FIRST_PAGE_MERGE_MS) { combined.await() }?.let { return@coroutineScope FirstSearchBatch(it) }
+
+        val (ready, full) = select<Pair<SearchResponseList?, SearchResponseList?>> {
+            combined.onAwait { null to it }
+            original.onAwait { it to null }
+        }
+        if (full != null) return@coroutineScope FirstSearchBatch(full)
+        val eligible = ready?.items.orEmpty().asSequence()
+            .filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
+            .distinctBy(::searchKey).take(SEARCH_PAGE_MINIMUM).count()
+        if (eligible < SEARCH_PAGE_MINIMUM) return@coroutineScope FirstSearchBatch(combined.await())
+
+        // Revisit the same source cursor on scroll and merge its translated and taxonomy branches there.
+        combined.cancel()
+        FirstSearchBatch(checkNotNull(ready), complete = false)
+    }
+
     override suspend fun search(query: String, page: Int): SearchResponseList = RequestLimits.required("Поиск", LISTING_TIMEOUT_MS) {
-        val listingDeadline = System.nanoTime() + LISTING_TIMEOUT_MS * 1_000_000L
+        val started = System.nanoTime()
+        val listingDeadline = started + LISTING_TIMEOUT_MS * 1_000_000L
+        val firstPageTarget = started + FIRST_PAGE_TARGET_MS * 1_000_000L
+        val quickFirstPage = page == 1 && ratingProfile in slowFirstPageSources
         if (page < 1 || !ContentPolicy.accepts(query)) return@required newSearchResponseList(emptyList(), false)
         val history = synchronized(searchHistory) {
             val previous = searchHistory[query]
@@ -681,11 +719,14 @@ class ReliableProvider(
             val expandSparse = requiresListingReview || genre || ratingProfile in setOf("PornoRussia", "BdsmPorn")
             var limit = if (page == 1 && !expandSparse) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
             var deadline: Long? = null
+            var completeBatch = true
+            var useFastBudget = quickFirstPage
             val early = ConcurrentHashMap<String, Deferred<Review?>>()
             val searchScope = CoroutineScope(coroutineContext)
             var firstPhotos: Job? = null
-            fun prepareLeadingCards(items: List<SearchResponse>) {
-                if (page != 1 || ratingProfile == null) return
+            fun prepareLeadingCards(response: SearchResponseList, isOriginal: Boolean) {
+                val items = response.items
+                if (page != 1 || ratingProfile == null || quickFirstPage && !isOriginal) return
                 val earlyDeadline = minOf(listingDeadline - 2_000_000_000L, System.nanoTime() + 3_500_000_000L)
                 val visible = items.asSequence()
                     .filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
@@ -711,13 +752,18 @@ class ReliableProvider(
                 if (pending != null) candidates = pending else {
                     if (!canFetch || limit == 0) break
                     history.reviewRank = emptyMap()
-                    val result = if (deadline == null) combinedSearch(query, nextSourcePage, history, ::prepareLeadingCards)
-                    else RequestLimits.optional(remainingMillis(deadline)) {
+                    val first = if (useFastBudget && nextSourcePage == 1 && deadline == null) {
+                        firstSearchBatch(query, history, ::prepareLeadingCards)
+                    } else null
+                    val result = first?.response ?: if (deadline == null) {
+                        combinedSearch(query, nextSourcePage, history, ::prepareLeadingCards)
+                    } else RequestLimits.optional(remainingMillis(deadline)) {
                         combinedSearch(query, nextSourcePage, history, ::prepareLeadingCards)
                     }
                     if (result == null) break
-                    canFetch = result.hasNext
-                    nextSourcePage++
+                    completeBatch = first?.complete != false
+                    canFetch = !completeBatch || result.hasNext
+                    if (completeBatch) nextSourcePage++
                     limit--
                     candidates = SearchCandidates(result.items.distinctBy(::searchKey), history.reviewRank)
                 }
@@ -731,7 +777,20 @@ class ReliableProvider(
                 }
                 val count = SEARCH_PAGE_SIZE - cards.size
                 val batch = available.take(count)
-                val checked = prepareSearch(batch, reviewDeadline, candidates.reviewRank, early, firstPage = page == 1)
+                val fastDeadline = if (useFastBudget && batch.size >= SEARCH_PAGE_MINIMUM) {
+                    minOf(reviewDeadline, maxOf(System.nanoTime() + 250_000_000L, firstPageTarget - 400_000_000L))
+                } else reviewDeadline
+                var checked = prepareSearch(batch, fastDeadline, candidates.reviewRank, early, firstPage = page == 1)
+                if (checked.isEmpty() && fastDeadline < reviewDeadline) {
+                    useFastBudget = false
+                    checked = prepareSearch(batch, reviewDeadline, candidates.reviewRank, early, firstPage = true)
+                }
+                if (checked.isEmpty() && !completeBatch) {
+                    useFastBudget = false
+                    deadline = null
+                    limit++
+                    continue
+                }
                 // Retry unconfirmed strict candidates once, after cards that have not been checked yet.
                 val checkedKeys = checked.mapTo(hashSetOf(), ::searchKey)
                 val retry = if (requiresListingReview) batch.filter {
@@ -745,7 +804,7 @@ class ReliableProvider(
                 }
                 cards += checked
                 seen += checked.map(::searchKey)
-                if (cards.size >= SEARCH_PAGE_MINIMUM || remainingMillis(reviewDeadline) <= 0 ||
+                if (!completeBatch || cards.size >= SEARCH_PAGE_MINIMUM || remainingMillis(reviewDeadline) <= 0 ||
                     unchecked.isEmpty() && retry.isNotEmpty()) break
             }
 
@@ -755,7 +814,9 @@ class ReliableProvider(
                     listingScores(cards.take(SEARCH_POSTER_COUNT), listingDeadline)
                         .mapIndexedNotNull { index, score -> score?.let { searchKey(cards[index]) to it } }.toMap()
                 }
-                val posters = if (page == 1) SearchPosters.prepare(cards, listingDeadline, ::repairSearchPoster, ::queueHomePoster)
+                val coverDeadline = if (useFastBudget) minOf(listingDeadline,
+                    maxOf(System.nanoTime() + 400_000_000L, firstPageTarget)) else listingDeadline
+                val posters = if (page == 1) SearchPosters.prepare(cards, coverDeadline, ::repairSearchPoster, ::queueHomePoster)
                 else cards.also { ImagePrefetch.warm(it, priority = true) }
                 val ratings = scores.await()
                 posters.map { card ->

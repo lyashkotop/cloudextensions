@@ -5,6 +5,7 @@ import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.newExtractorLink
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 class VpoiskProvider: RussianProvider(SiteSpec(
@@ -88,6 +89,10 @@ class VpoiskProvider: RussianProvider(SiteSpec(
         Section("Японцы","/cat/%D0%AF%D0%BF%D0%BE%D0%BD%D1%86%D1%8B/"),
     )
 )) {
+    override suspend fun searchRequest(term: String): PageRequest =
+        PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search/")
+            .addQueryParameter("q", term).build().toString())
+
     override suspend fun loadLinks(
         data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,
     ): Boolean {

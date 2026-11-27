@@ -79,6 +79,29 @@ private class OverlappingCatalogue(private val poster: String) : MainAPI(), Sear
     }
 }
 
+private class SlowTranslationCatalogue(private val poster: String) : MainAPI() {
+    override var lang = "ru"
+    override var mainUrl = "https://slow-companion.example"
+
+    override suspend fun search(query: String, page: Int): SearchResponseList {
+        val ids = when {
+            page != 1 -> IntRange.EMPTY
+            query == "подруга" -> 1..5
+            query == "girlfriend" -> {
+                delay(2_100)
+                4..9
+            }
+            else -> IntRange.EMPTY
+        }
+        return newSearchResponseList(ids.map { id ->
+            newMovieSearchResponse("Video $id", "$mainUrl/$id", TvType.NSFW) { posterUrl = poster }
+        }, false)
+    }
+
+    override suspend fun load(url: String): LoadResponse =
+        newMovieLoadResponse("Verified video", url, TvType.NSFW, url)
+}
+
 internal fun testSearchPaging() {
     val poster = File.createTempFile("search-poster", ".png")
     try {
@@ -111,6 +134,11 @@ internal fun testSearchPaging() {
             check(source.requests.drop(previous).toSet() == setOf("подруга" to 1, "girlfriend" to 1))
             check(plugin.search("absent", 1).let { it.items.isEmpty() && !it.hasNext })
 
+            val slowCompanion = ReliableProvider(SlowTranslationCatalogue(poster.toURI().toString()), "Vpoisk")
+            val fast = slowCompanion.search("подруга", 1)
+            check(fast.ids() == (1..5).toList() && fast.hasNext)
+            val deferred = slowCompanion.search("подруга", 2)
+            check(deferred.ids() == (6..9).toList() && !deferred.hasNext)
             val overlap = ReliableProvider(OverlappingCatalogue(poster.toURI().toString()), "EPorner")
             check(overlap.search("подруга", 1).items.map { it.url.substringAfterLast('/') } == listOf("primary", "translated"))
             val fastStrict = ReliableProvider(StrictCatalogue(poster.toURI().toString(), slowTail = true), "EPorner")
