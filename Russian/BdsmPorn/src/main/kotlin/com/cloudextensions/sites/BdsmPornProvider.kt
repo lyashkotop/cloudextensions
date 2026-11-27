@@ -125,6 +125,16 @@ class BdsmPornProvider : RussianProvider(
     private fun titleWords(value: String): Set<String> =
         titleWord.findAll(value.lowercase(Locale.ROOT)).map { it.value }.toSet()
 
+    private fun listingPoster(card: Element, base: String): String? {
+        Metadata.poster(card, base)?.let { return it }
+        val labels = "[data-poster], [data-thumbnail], [data-thumb]"
+        return (sequenceOf(card) + card.select(labels).asSequence()).firstNotNullOfOrNull { element ->
+            listOf("data-poster", "data-thumbnail", "data-thumb").firstNotNullOfOrNull {
+                Metadata.imageUrl(base, element.attr(it))
+            }
+        }
+    }
+
     override suspend fun page(request: PageRequest): Document {
         val localized = request.copy(headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE))
         val document = super.page(localized)
@@ -135,6 +145,11 @@ class BdsmPornProvider : RussianProvider(
         }
         return document.clone().apply {
             selectFirst(".video-header h1")?.children()?.remove()
+            for (card in select(spec.cards)) {
+                if (Metadata.poster(card, baseUri()) != null) continue
+                val poster = listingPoster(card, baseUri()) ?: continue
+                card.selectFirst(spec.link)?.appendElement("img")?.attr("src", poster)
+            }
             nextPage(this)?.let { (anchor, next) ->
                 anchor.attr("rel", "next").attr("href", next.toString())
             }
@@ -170,7 +185,12 @@ class BdsmPornProvider : RussianProvider(
         val detail = super.readMetadata(document)
         val description = document.selectFirst("meta[property=og:description]")?.attr("content").orEmpty()
         val summary = description.takeUnless { it.startsWith("Сочное видео с тегами", ignoreCase = true) }
-        return detail.copy(description = detail.description.ifBlank { Metadata.description(summary, detail.title) })
+        val player = document.selectFirst("video#player")
+        val poster = player?.let { Metadata.poster(it, document.baseUri()) }
+        return detail.copy(
+            poster = poster ?: detail.poster,
+            description = detail.description.ifBlank { Metadata.description(summary, detail.title) },
+        )
     }
 
     override suspend fun loadLinks(
@@ -178,26 +198,35 @@ class BdsmPornProvider : RussianProvider(
         isCasting: Boolean,
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit,
-    ): Boolean {
+    ): Boolean = coroutineScope {
         val document = page(PageRequest(data))
-        val pageHost = document.baseUri().toHttpUrl().host
-        val sources = document.select("video#player[src], video#player source[src]")
-            .mapNotNull { it.absUrl("src").toHttpUrlOrNull() }
-            .filter { it.host in setOf(pageHost, "bdsm-porn.cc", "ru.bdsm-porn.cc") && it.encodedPath.startsWith("/link_cs/") }
-            .distinct()
-        var emitted = false
-        for (source in sources) {
-            val url = source.toString()
-            val link = newExtractorLink(name, name, url, Playback.streamType(url)) {
-                referer = document.baseUri()
-                headers = Network.headers(referer) + ("Accept-Language" to Network.RUSSIAN_LANGUAGE)
+        val referer = document.baseUri()
+        val pageHost = referer.toHttpUrl().host
+        val publisherHosts = setOf(pageHost, "bdsm-porn.cc", "ru.bdsm-porn.cc")
+        val sources = document.select("video#player, video#player source").asSequence().mapNotNull { node ->
+            val type = node.attr("type").ifBlank { node.attr("data-type") }
+            val source = sequenceOf("src", "data-src").firstNotNullOfOrNull { attribute ->
+                node.absUrl(attribute).toHttpUrlOrNull()
+            } ?: return@mapNotNull null
+            if (source.host !in publisherHosts) return@mapNotNull null
+            val supported = source.encodedPath.startsWith("/link_cs/") ||
+                source.encodedPath.endsWith(".mp4", true) ||
+                source.encodedPath.endsWith(".m3u8", true) ||
+                type.startsWith("video/", true) || type.contains("mpegurl", true)
+            if (supported) source.toString() to type else null
+        }.distinctBy { it.first }.take(4).toList()
+
+        val links = sources.map { (url, type) ->
+            async {
+                val link = newExtractorLink(name, name, url, Playback.streamType(url, type)) {
+                    this.referer = referer
+                    headers = Network.headers(referer) + ("Accept-Language" to Network.RUSSIAN_LANGUAGE)
+                }
+                link.takeIf { Playback.checkDirectLink(it) == true }
             }
-            if (Playback.checkDirectLink(link) == true) {
-                callback(link)
-                emitted = true
-            }
-        }
-        return emitted || Playback.linksFromPage(name, mainUrl, data, document, emptyList(), subtitleCallback, callback)
+        }.awaitAll().filterNotNull()
+        links.forEach(callback)
+        links.isNotEmpty() || Playback.linksFromPage(name, mainUrl, referer, document, emptyList(), subtitleCallback, callback)
     }
 
 }
