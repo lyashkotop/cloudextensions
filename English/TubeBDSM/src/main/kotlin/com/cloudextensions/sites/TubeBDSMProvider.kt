@@ -52,7 +52,15 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
    api?.takeIf{URI(it.mainUrl).host.orEmpty().removePrefix("www.")==host}
   }
  }catch(_:Exception){null}catch(_:LinkageError){null}
- override fun readMetadata(document:org.jsoup.nodes.Document)=AggregatorPages.detail(document,spec)
+ private fun requirePublicVideo(document: Document) {
+  if (PlayerConfig.requiresPaidAccess(document)) {
+   throw ErrorLoadingException("FapHouse ограничил доступ к полной версии видео")
+  }
+ }
+ override fun readMetadata(document: Document): VideoDetail {
+  requirePublicVideo(document)
+  return AggregatorPages.detail(document, spec)
+ }
  override suspend fun load(url:String):LoadResponse {
   val page = super.page(russian(canonicalPartnerRequest(PageRequest(url))))
   var document = RequestLimits.optional(4200) { AbxxxMetadata.enrich(page, includeRelated = true) } ?: page
@@ -96,9 +104,7 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
  override suspend fun loadLinks(data:String,isCasting:Boolean,subtitleCallback:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean {
   val request = russian(canonicalPartnerRequest(PageRequest(data)))
   val document = super.page(request)
-  if (PlayerConfig.requiresPaidAccess(document)) {
-   throw ErrorLoadingException("FapHouse ограничил доступ к полной версии видео")
-  }
+  requirePublicVideo(document)
   if (URI(document.baseUri()).host?.removePrefix("www.") == "pawg.porn") {
    val stream = pawgStream(document) ?: return false
    callback(newExtractorLink(name, name, stream, ExtractorLinkType.M3U8) {
