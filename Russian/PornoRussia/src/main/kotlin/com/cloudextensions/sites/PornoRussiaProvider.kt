@@ -14,8 +14,9 @@ import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import java.util.Locale
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -89,26 +90,34 @@ class PornoRussiaProvider : RussianProvider(
         // The site's search form can return a server error with HTTP 200. Check the published
         // catalogue for real title matches and keep its cursors only when a match was found.
         val retries = mutableListOf<String>()
+        val matchedUrls = hashSetOf<String>()
         var reachable = false
+        val firstPage = paths == spec.sections.map { it.path }
         for (budget in listOf(2400L, 1500L)) {
-            val fetched = paths.map { path ->
-                async {
+            val replies = Channel<Pair<String, Document?>>(paths.size)
+            val jobs = paths.map { path ->
+                launch {
                     val url = mainUrl.toHttpUrl().newBuilder().encodedPath(path).build()
-                    path to RequestLimits.optional(budget) {
+                    val document = RequestLimits.optional(budget) {
                         super.page(request.copy(url = url.toString(), allowNotFound = true))
                     }
+                    replies.send(path to document)
                 }
-            }.awaitAll()
+            }
+            val received = mutableSetOf<String>()
             val following = mutableListOf<String>()
-            for ((path, document) in fetched) {
+            fun add(path: String, document: Document?) {
+                received += path
                 if (document == null) {
                     retries += path
-                    continue
+                    return
                 }
                 reachable = true
                 for (card in document.select(spec.cards)) {
                     val title = card.selectFirst(spec.titleSelector)?.text().orEmpty()
-                    if (words.all(normalize(title)::contains) && ContentPolicy.accepts(title)) {
+                    val url = card.absUrl("href")
+                    if (url.isNotEmpty() && words.all(normalize(title)::contains) &&
+                        ContentPolicy.accepts(title) && matchedUrls.add(url)) {
                         response.body().appendChild(card.clone())
                     }
                 }
@@ -120,8 +129,21 @@ class PornoRussiaProvider : RussianProvider(
                 }
                 if (next != null) following += next
             }
+            suspend fun acceptNext() {
+                val (path, document) = replies.receive()
+                add(path, document)
+            }
+            try {
+                while (received.size < paths.size && (!firstPage || matchedUrls.size < 4)) acceptNext()
+                if (received.size < paths.size) {
+                    withTimeoutOrNull(150L) { while (received.size < paths.size) acceptNext() }
+                    retries += paths.filterNot(received::contains)
+                }
+            } finally {
+                jobs.forEach { it.cancel() }
+            }
             paths = following
-            if (response.selectFirst(spec.cards) != null) {
+            if (matchedUrls.isNotEmpty()) {
                 val next = (paths + retries).distinct()
                 if (next.isNotEmpty()) response.body().appendElement("a").attr("rel", "next")
                     .attr("href", searchCursor(term, next).toString())

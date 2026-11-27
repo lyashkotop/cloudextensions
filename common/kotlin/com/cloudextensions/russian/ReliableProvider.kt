@@ -41,7 +41,7 @@ private const val RATING_REQUEST_TIMEOUT_MS = 6_500L
 private const val FAST_LISTING_RATING_BUDGET_MS = 500L
 private val slowFirstPageSources = setOf(
     "Vpoisk", "BoundHub", "ThisVid", "HcBDSMX", "XRares", "PornoRussia",
-    "SickR", "Huyamba", "ProstoPorno", "FreeMisogynyComics",
+    "SickR", "Huyamba", "ProstoPorno",
 )
 private const val FIRST_PAGE_TARGET_MS = 3_000L
 private const val FIRST_PAGE_MERGE_MS = 1_700L
@@ -726,7 +726,7 @@ class ReliableProvider(
             var firstPhotos: Job? = null
             fun prepareLeadingCards(response: SearchResponseList, isOriginal: Boolean) {
                 val items = response.items
-                if (page != 1 || ratingProfile == null || quickFirstPage && !isOriginal) return
+                if (page != 1 || ratingProfile == null || quickFirstPage && !requiresListingReview && !isOriginal) return
                 val earlyDeadline = minOf(listingDeadline - 2_000_000_000L, System.nanoTime() + 3_500_000_000L)
                 val visible = items.asSequence()
                     .filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
