@@ -84,36 +84,52 @@ class PornoRussiaProvider : RussianProvider(
     private suspend fun searchCatalogue(request: PageRequest, address: HttpUrl, term: String): Document = coroutineScope {
         val words = word.findAll(normalize(term)).map { it.value }.toList()
         val response = Document.createShell(request.url)
-        val paths = address.queryParameterValues(routeKey).filter { it != null && categoryStem(it) != null }.filterNotNull()
+        var paths = address.queryParameterValues(routeKey).filterNotNull().filter { categoryStem(it) != null }
         if (words.isEmpty() || paths.isEmpty()) return@coroutineScope response
-        // Visit different sections before following their pagination.
-        val current = paths.take(3)
-        val fetched = current.map { path ->
-            async {
-                val url = mainUrl.toHttpUrl().newBuilder().encodedPath(path).build()
-                RequestLimits.optional(2800) { super.page(request.copy(url = url.toString(), allowNotFound = true)) }
-            }
-        }.awaitAll()
-        if (fetched.all { it == null }) throw ErrorLoadingException("Порно Россия ТВ: каталог не ответил")
-        val following = fetched.mapIndexedNotNull { index, document ->
-            val path = current[index]
-            if (document == null) return@mapIndexedNotNull path
-            for (card in document.select(spec.cards)) {
-                val title = card.selectFirst(spec.titleSelector)?.text().orEmpty()
-                if (words.all(normalize(title)::contains) && ContentPolicy.accepts(title)) {
-                    response.body().appendChild(card.clone())
+        // The site's search form can return a server error with HTTP 200. Check the published
+        // catalogue for real title matches and keep its cursors only when a match was found.
+        val retries = mutableListOf<String>()
+        var reachable = false
+        for (budget in listOf(2400L, 1500L)) {
+            val fetched = paths.map { path ->
+                async {
+                    val url = mainUrl.toHttpUrl().newBuilder().encodedPath(path).build()
+                    path to RequestLimits.optional(budget) {
+                        super.page(request.copy(url = url.toString(), allowNotFound = true))
+                    }
                 }
-            }
-            val stem = categoryStem(path)
-            document.select("a.more[href]").firstNotNullOfOrNull { link ->
-                nextCatalogueUrl(link.absUrl("href"))?.encodedPath?.takeIf { next ->
-                    next != path && categoryStem(next) == stem && pageNumber(next) > pageNumber(path)
+            }.awaitAll()
+            val following = mutableListOf<String>()
+            for ((path, document) in fetched) {
+                if (document == null) {
+                    retries += path
+                    continue
                 }
+                reachable = true
+                for (card in document.select(spec.cards)) {
+                    val title = card.selectFirst(spec.titleSelector)?.text().orEmpty()
+                    if (words.all(normalize(title)::contains) && ContentPolicy.accepts(title)) {
+                        response.body().appendChild(card.clone())
+                    }
+                }
+                val stem = categoryStem(path)
+                val next = document.select("a.more[href]").firstNotNullOfOrNull { link ->
+                    nextCatalogueUrl(link.absUrl("href"))?.encodedPath?.takeIf { candidate ->
+                        categoryStem(candidate) == stem && pageNumber(candidate) > pageNumber(path)
+                    }
+                }
+                if (next != null) following += next
             }
+            paths = following
+            if (response.selectFirst(spec.cards) != null) {
+                val next = (paths + retries).distinct()
+                if (next.isNotEmpty()) response.body().appendElement("a").attr("rel", "next")
+                    .attr("href", searchCursor(term, next).toString())
+                break
+            }
+            if (paths.isEmpty()) break
         }
-        val next = (paths.drop(current.size) + following).distinct()
-        if (next.isNotEmpty()) response.body().appendElement("a").attr("rel", "next")
-            .attr("href", searchCursor(term, next).toString())
+        if (!reachable) throw ErrorLoadingException("Порно Россия ТВ: каталог не ответил")
         response
     }
 

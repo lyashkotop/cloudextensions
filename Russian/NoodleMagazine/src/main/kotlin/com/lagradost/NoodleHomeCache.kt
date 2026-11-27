@@ -1,7 +1,6 @@
 package com.lagradost
 
 import com.cloudextensions.russian.VideoCard
-import com.lagradost.cloudstream3.SearchResponse
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,18 +24,20 @@ internal class NoodleHomeCache(private val directory: File) {
             val cards = snapshot.getJSONArray("cards")
             val items = (0 until cards.length()).map { index ->
                 val card = cards.getJSONArray(index)
-                VideoCard(card.getString(0), card.getString(1), card.optString(2).ifBlank { null })
+                val tags = card.getJSONArray(3)
+                VideoCard(card.getString(0), card.getString(1), card.optString(2).ifBlank { null },
+                    tags = (0 until tags.length()).map(tags::getString))
             }
             Page(page, items).takeIf { items.isNotEmpty() }
         }.getOrNull()
     }
 
-    suspend fun write(section: String, page: Int, cards: List<SearchResponse>) = withContext(Dispatchers.IO) {
+    suspend fun write(section: String, page: Int, cards: List<VideoCard>) = withContext(Dispatchers.IO) {
         if (cards.isEmpty() || page !in 1..9) return@withContext
         runCatching {
             val items = JSONArray()
             cards.forEach { card ->
-                items.put(JSONArray().put(card.name).put(card.url).put(card.posterUrl.orEmpty()))
+                items.put(JSONArray().put(card.title).put(card.url).put(card.poster.orEmpty()).put(JSONArray(card.tags)))
             }
             val snapshot = JSONObject().put("section", section).put("page", page).put("cards", items)
             directory.mkdirs()

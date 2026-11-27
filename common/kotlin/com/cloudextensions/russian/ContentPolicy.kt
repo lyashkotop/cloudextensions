@@ -101,6 +101,7 @@ object ContentPolicy {
     private val strictSiteTags = mapOf(
         "BDSMStreak" to setOf("cbt", "femdom", "cbtfemdom"),
         "BDSMX" to setOf("femdom"),
+        "BoundHub" to setOf("gags"),
     )
     private val blockedDescription = Regex("""(?iu)(?<![\p{L}\p{N}])hentai(?![\p{L}\p{N}])""")
     fun accepts(title: String, tags: List<String> = emptyList(), description: String? = null, source: String? = null): Boolean {

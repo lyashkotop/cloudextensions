@@ -254,31 +254,46 @@ object Network {
         }
     }
 
+    private class PageClients(val base: OkHttpClient) {
+        private fun client(dispatcher: okhttp3.Dispatcher): OkHttpClient =
+            base.newBuilder().dispatcher(dispatcher).callTimeout(15, TimeUnit.SECONDS)
+                .connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).build()
+
+        val listing = client(base.dispatcher)
+        val detail by lazy { client(detailDispatcher) }
+        val catalogue by lazy { client(catalogueDispatcher) }
+    }
+    @Volatile private var pageClients: PageClients? = null
+
+    private fun pageClients(base: OkHttpClient): PageClients =
+        pageClients?.takeIf { it.base === base } ?: synchronized(this) {
+            pageClients?.takeIf { it.base === base } ?: PageClients(base).also { pageClients = it }
+        }
+
     private suspend fun execute(request: Request, allowNotFound: Boolean): Document {
-        val openingDetail = coroutineContext[OpeningDetail.Key] != null
-        val catalogue = coroutineContext[Catalogue.Key] != null
-        val client = app.baseClient.newBuilder().apply {
-            if (openingDetail) dispatcher(detailDispatcher)
-            else if (catalogue) dispatcher(catalogueDispatcher)
-        }.callTimeout(15, TimeUnit.SECONDS)
-            .connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).apply {
-                if (request.url.host == BDSMPORN_HOST && bdsmPornSession != null) {
-                    addNetworkInterceptor { chain ->
-                        val outgoing = chain.request()
-                        val session = bdsmPornSession
-                        if (session == null || !outgoing.url.isHttps || outgoing.url.host != BDSMPORN_HOST) {
-                            chain.proceed(outgoing)
-                        } else {
-                            val cookies = outgoing.header("Cookie").orEmpty().split(';').map(String::trim)
-                                .filter { it.isNotEmpty() && !it.startsWith("cf_clearance=") }
-                            val localized = outgoing.newBuilder()
-                                .header("Cookie", (cookies + session.clearance).joinToString("; "))
-                                .header("User-Agent", session.userAgent).build()
-                            chain.proceed(localized)
-                        }
-                    }
+        val clients = pageClients(app.baseClient)
+        val standard = when {
+            coroutineContext[OpeningDetail.Key] != null -> clients.detail
+            coroutineContext[Catalogue.Key] != null -> clients.catalogue
+            else -> clients.listing
+        }
+        val client = if (request.url.host != BDSMPORN_HOST || bdsmPornSession == null) standard
+        else standard.newBuilder().apply {
+            addNetworkInterceptor { chain ->
+                val outgoing = chain.request()
+                val session = bdsmPornSession
+                if (session == null || !outgoing.url.isHttps || outgoing.url.host != BDSMPORN_HOST) {
+                    chain.proceed(outgoing)
+                } else {
+                    val cookies = outgoing.header("Cookie").orEmpty().split(';').map(String::trim)
+                        .filter { it.isNotEmpty() && !it.startsWith("cf_clearance=") }
+                    val localized = outgoing.newBuilder()
+                        .header("Cookie", (cookies + session.clearance).joinToString("; "))
+                        .header("User-Agent", session.userAgent).build()
+                    chain.proceed(localized)
                 }
-            }.build()
+            }
+        }.build()
         return read(request, client) { response ->
             if (!response.isSuccessful && !(allowNotFound && response.code in setOf(404, 410))) {
                 throw HttpFailure(response.code, response.request.url.toString(), response.header("Retry-After"),

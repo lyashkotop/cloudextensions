@@ -2,18 +2,23 @@ package com.example.ebalka
 
 import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.ErrorLoadingException
+import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.MovieSearchResponse
+import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newSearchResponseList
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import org.jsoup.nodes.Element
 import org.jsoup.nodes.Document
 
 private const val DEFAULT_RUSSIAN_HOST = "29ebalka.ru.actor"
@@ -21,7 +26,7 @@ private const val DEFAULT_RUSSIAN_HOST = "29ebalka.ru.actor"
 class EbalkaProvider: RussianProvider(SiteSpec(
     id="Ebalka", title="Ebalka", origin="https://$DEFAULT_RUSSIAN_HOST",
     cards=".card_video", link="a[href]", titleSelector=".card__title", searchMode="get",
-    tagSelector=".video__tags-container a", descriptionSelector="", related="#list_videos_related_videos",
+    tagSelector=".video__tags-container a", descriptionSelector=".video__description", related="#list_videos_related_videos",
     detailTitleSelector="h1.video__title", titleLanguage="ru",
     sections=listOf(
         Section("Новинки","/latest-videos/"),
@@ -88,7 +93,7 @@ class EbalkaProvider: RussianProvider(SiteSpec(
         if (url.host != englishHost || !url.encodedPath.startsWith("/search/")) return super.page(request)
 
         val english = RequestLimits.optional(3500) { super.page(request) }
-        if (english != null && english.attr("data-response-code") != "404") return russianListing(english)
+        if (english != null && english.attr("data-response-code") != "404") return english
         val host = mainUrl.toHttpUrlOrNull()?.host?.takeIf(russianHost::matches) ?: DEFAULT_RUSSIAN_HOST
         return russianPage(request, url.newBuilder().host(host).build())
     }
@@ -146,31 +151,63 @@ class EbalkaProvider: RussianProvider(SiteSpec(
         return url.newBuilder().host(base.host).setPathSegment(0, "videos").query(null).build()
     }
 
-    private data class RussianCard(val url: String, val title: String)
-
-    private suspend fun russianCard(card: Element): RussianCard? {
-        val link = card.selectFirst(spec.link)?.absUrl("href")?.toHttpUrlOrNull() ?: return null
-        val url = russianVideoUrl(link) ?: return null
-        val document = russianPage(PageRequest(url.toString(), allowNotFound = true), url)
-        if (document.selectFirst("html[lang=ru]") == null) return null
-        val canonical = document.selectFirst("link[rel=canonical]")?.absUrl("href")?.toHttpUrlOrNull() ?: url
-        if (!russianHost.matches(canonical.host) || canonical.pathSegments.take(2) != url.pathSegments.take(2)) return null
-        val title = Metadata.detail(document, spec).title
-        return title.takeIf(russianText::containsMatchIn)?.let { RussianCard(canonical.toString(), it) }
+    override suspend fun search(query: String, page: Int): SearchResponseList {
+        val result = super.search(query, page)
+        return newSearchResponseList(localizeListing(result.items), result.hasNext)
     }
 
-    private suspend fun russianListing(document: Document): Document = coroutineScope {
-        if (catalogueHost == null) return@coroutineScope document
-        val localized = document.clone()
-        val cards = localized.select(spec.cards)
-        val resolved = cards.map { card -> async { RequestLimits.optional(8500) { russianCard(card) } } }.awaitAll()
-        for ((card, russian) in cards.zip(resolved)) {
-            if (russian == null) continue
-            card.selectFirst(spec.link)?.attr("href", russian.url)?.attr("title", russian.title)
-            card.selectFirst(spec.titleSelector)?.text(russian.title)
-            card.selectFirst("img")?.attr("alt", russian.title)?.attr("title", russian.title)
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        val result = super.getMainPage(page, request)
+        return newHomePageResponse(result.items.map { row -> row.copy(list = localizeListing(row.list)) }, result.hasNext)
+    }
+
+    private suspend fun localizeListing(cards: List<SearchResponse>): List<SearchResponse> {
+        val foreign = cards.filterIsInstance<MovieSearchResponse>().filterNot { russianText.containsMatchIn(it.name) }
+        if (foreign.isEmpty()) return cards
+        val batch = foreign.joinToString(" | ") { it.name.replace('|', '–') }
+        val translated = RequestLimits.optional(900) { Translation.text(batch, "ru") }
+            ?.split('|')?.map(String::trim)?.takeIf { it.size == foreign.size } ?: return cards
+        val titles = foreign.map { it.url }.zip(translated).toMap()
+        return cards.map { card ->
+            val title = titles[card.url]?.takeIf(russianText::containsMatchIn)
+            if (card is MovieSearchResponse && title != null) card.copy(name = title) else card
         }
-        localized
+    }
+
+    override fun readMetadata(document: Document): VideoDetail {
+        val detail = super.readMetadata(document)
+        if (detail.description.isNotBlank()) return detail
+        val description = document.selectFirst("meta[property=og:description]")?.attr("content")
+        return detail.copy(description = Metadata.description(description, detail.title))
+    }
+
+    override suspend fun enrichMetadata(document: Document, detail: VideoDetail): VideoDetail {
+        // Check the site's labels before translation, since translated labels can differ from filter keywords.
+        if (!ContentPolicy.accepts(detail.title, detail.tags, detail.description, spec.id)) {
+            throw ErrorLoadingException("Видео скрыто фильтром категорий")
+        }
+        val nativeTags = detail.tags.filter(russianText::containsMatchIn)
+        val foreignTags = detail.tags.filterNot(russianText::containsMatchIn)
+        return coroutineScope {
+            val title = async { russianMetadata(detail.title) }
+            val description = async { russianMetadata(detail.description) }
+            val tags = async {
+                // Translate the published tags together so opening a card doesn't send one request per tag.
+                russianMetadata(foreignTags.joinToString(" | "))
+                    ?.split('|')?.mapNotNull(Metadata::tag)?.filter(russianText::containsMatchIn).orEmpty()
+            }
+            detail.copy(
+                title = title.await() ?: detail.title,
+                description = description.await().orEmpty(),
+                tags = (nativeTags + tags.await()).distinct(),
+            )
+        }
+    }
+
+    private suspend fun russianMetadata(text: String): String? = when {
+        text.isBlank() -> null
+        russianText.containsMatchIn(text) -> text
+        else -> RequestLimits.optional(3600) { Translation.text(text, "ru") }
     }
 
     override suspend fun load(url: String): LoadResponse {

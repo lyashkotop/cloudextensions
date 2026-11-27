@@ -29,14 +29,22 @@ internal class RandomHome(private val identity: (SearchResponse) -> String) {
             if (number != 1) {
                 feed.pages[number]?.let { return@withLock it }
                 return@withLock fetch(number)?.let { response ->
-                    newHomePageResponse(response.items.map { it.copy(list = it.list.distinctBy(identity).shuffled()) }, response.hasNext)
-                        .also { feed.pages[number] = it }
+                    val rows = response.items.map { row ->
+                        val cards = row.list.distinctBy(identity)
+                        row.copy(list = if (alreadyRandom) cards else cards.shuffled())
+                    }
+                    newHomePageResponse(rows, response.hasNext).also { feed.pages[number] = it }
                 }
             }
 
             val first = fetch(1) ?: return@withLock null
+            if (alreadyRandom) {
+                feed.pages.clear()
+                return@withLock newHomePageResponse(first.items.map { it.copy(list = it.list.distinctBy(identity)) }, first.hasNext)
+                    .also { feed.pages[1] = it }
+            }
             val previous = feed.pages[1]?.items.orEmpty().associate { it.name to it.list.firstOrNull()?.let(identity) }
-            val second = if (first.hasNext && !alreadyRandom && lookAheadMillis > 0 && first.items.any { it.list.isNotEmpty() }) {
+            val second = if (first.hasNext && lookAheadMillis > 0 && first.items.any { it.list.isNotEmpty() }) {
                 RequestLimits.optional(lookAheadMillis) { fetch(2) }
                     ?.takeIf { next -> next.items.map { it.name } == first.items.map { it.name } }
             } else null

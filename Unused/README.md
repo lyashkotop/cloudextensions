@@ -15,7 +15,7 @@
 - [UKDevilz](UKDevilz/)
 - Whoreshub
 
-Дополнительно отключены: JavGG, Javangel, Javdoe, SuperJav. Из японских оставлены только MissAV и JavGuru.
+Дополнительно отключены: JavGG, Javangel, Javdoe, SuperJav. MissAV и JavGuru также перемещены сюда.
 
 Отключены также YouJizz и PunishBang по просьбе владельца.
 

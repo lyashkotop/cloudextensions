@@ -9,6 +9,7 @@ import org.json.JSONTokener
 private var checks=0
 private fun verify(value:Boolean,message:String){checks++;check(value){message}}
 fun main(args:Array<String>) {
+    testSearchPaging()
     verify(!ContentPolicy.accepts("Example SCAT video") &&
         !ContentPolicy.accepts("Example video", listOf("scat")) &&
         ContentPolicy.accepts("Scattered clouds"), "scat matches a complete word in titles and tags")
@@ -25,6 +26,10 @@ fun main(args:Array<String>) {
         ContentPolicy.accepts("Lesbians", listOf("Видео HD"), source = "XHamster"), "xHamster applies its tag rule with the existing exception")
     verify(!ContentPolicy.accepts("A sample", listOf("PIERCED-COCK")) &&
         ContentPolicy.accepts("Pierced cock in a title"), "pierced cock is blocked in tags only")
+    verify(!ContentPolicy.accepts("Sample", listOf("#Gags"), source = "BoundHub") &&
+        ContentPolicy.accepts("Gags", source = "BoundHub") &&
+        ContentPolicy.accepts("Sample", listOf("Gags"), source = "TubeSafari"),
+        "BoundHub gags block applies only to its tags")
     for (tag in listOf("#CBT", "#femdom", "#cbtfemdom")) {
         verify(!ContentPolicy.accepts("Lesbians", listOf(tag), source = "BDSMStreak"),
             "BDSMStreak rejects the explicitly blocked tag $tag before exceptions")

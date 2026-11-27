@@ -67,14 +67,17 @@ internal object PosterRequests {
 
     private fun isImage(response: Response): Boolean {
         val mime = response.header("Content-Type").orEmpty()
-        if (mime.startsWith("image/", ignoreCase = true)) return true
-        if (mime.isNotBlank() && !mime.startsWith("application/octet-stream", true)) return false
+        if (mime.isNotBlank() && !mime.startsWith("image/", true) &&
+            !mime.startsWith("application/octet-stream", true)
+        ) return false
         val source = response.body?.source() ?: return false
         source.request(16)
         val prefix = source.buffer.readByteString(minOf(16L, source.buffer.size))
         val hex = prefix.hex()
         val text = prefix.utf8()
         return hex.startsWith("ffd8ff") || hex.startsWith("89504e470d0a1a0a") || text.startsWith("GIF8") ||
-            (text.startsWith("RIFF") && text.drop(8).startsWith("WEBP")) || hex.drop(8).startsWith("66747970617669")
+            (text.startsWith("RIFF") && text.drop(8).startsWith("WEBP")) ||
+            text.startsWith("BM") || hex.startsWith("49492a00") || hex.startsWith("4d4d002a") ||
+            text.drop(4).take(8) in setOf("ftypavif", "ftypavis", "ftypheic", "ftypmif1")
     }
 }

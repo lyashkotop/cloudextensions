@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import okhttp3.HttpUrl
@@ -27,6 +28,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+
+private const val SEARCH_BATCH_SIZE = 20
 
 class BdsmPornProvider : RussianProvider(
     SiteSpec(
@@ -69,27 +72,26 @@ class BdsmPornProvider : RussianProvider(
         return listing
     }
 
-    override suspend fun search(query: String, page: Int): SearchResponseList {
+    override suspend fun search(query: String, page: Int): SearchResponseList = coroutineScope {
         val term = Metadata.clean(query).lowercase(Locale.ROOT)
         val words = titleWords(term)
-        if (page < 1 || words.isEmpty()) return newSearchResponseList(emptyList(), false)
+        if (page < 1 || words.isEmpty()) return@coroutineScope newSearchResponseList(emptyList(), false)
 
-        val original = RequestLimits.optional(2200) { super.search(query, page) }
-        if (original != null && original.items.size >= 4) return original
-        // A short search response can omit title matches that are still present in the catalogue.
-
-        val catalogues = coroutineScope {
-            spec.sections.map { section ->
-                async {
-                    savedSections[section.path to page]
-                        ?.takeIf { System.nanoTime() - it.timestamp < 300_000_000_000L }?.response
-                        ?: RequestLimits.optional(3500) {
-                            getMainPage(page, MainPageRequest(section.name, section.path, sequentialMainPage))
-                        }
-                }
+        val native = async { RequestLimits.optional(2600) { super.search(query, page) } }
+        val sections = async {
+            // When native search is slow or sparse, fetch sections without waiting for its timeout.
+            val quick = withTimeoutOrNull(400) { native.await() }
+            if (quick != null && quick.items.size >= SEARCH_BATCH_SIZE) emptyList() else spec.sections.map { section ->
+                async { searchSection(section, page) }
             }.awaitAll().filterNotNull()
         }
-        if (catalogues.isEmpty()) return original
+        val original = native.await()
+        if (original != null && original.items.size >= SEARCH_BATCH_SIZE) {
+            sections.cancel()
+            return@coroutineScope original
+        }
+        val catalogues = sections.await()
+        if (catalogues.isEmpty()) return@coroutineScope original
             ?: throw ErrorLoadingException("BDSM-Porn.cc: поиск и каталог не ответили")
         val matches = catalogues.flatMap { listing -> listing.items.flatMap { it.list } }
             .filter { card ->
@@ -100,7 +102,24 @@ class BdsmPornProvider : RussianProvider(
                 }
             }
         val combined = (original?.items.orEmpty() + matches).distinctBy { Metadata.catalogueKey(spec.id, it.url) }
-        return newSearchResponseList(combined, original?.hasNext == true || catalogues.any { it.hasNext })
+        val moreMatches = (combined.isNotEmpty() || page > 1) && catalogues.any { it.hasNext }
+        newSearchResponseList(combined, original?.hasNext == true || moreMatches)
+    }
+
+    private suspend fun searchSection(section: Section, page: Int): HomePageResponse? {
+        fun cached(number: Int) = savedSections[section.path to number]
+            ?.takeIf { System.nanoTime() - it.timestamp < 300_000_000_000L }?.response
+        return cached(page) ?: RequestLimits.optional(2300) {
+            val request = MainPageRequest(section.name, section.path, sequentialMainPage)
+            if (page in 2..4 && cached(page - 1) == null) {
+                // A full native result can skip the section fetch that discovers its next cursor.
+                for (number in 1 until page) {
+                    val previous = cached(number) ?: getMainPage(number, request)
+                    if (!previous.hasNext) return@optional previous.copy(items = emptyList())
+                }
+            }
+            getMainPage(page, request)
+        }
     }
 
     private fun titleWords(value: String): Set<String> =

@@ -34,10 +34,11 @@ def proxy_options():
     return options
 
 
-def probe(module, libraries, classes, sample_count):
+def probe(module, libraries, classes, sample_count, query=None, search_only=False):
     command = [
         'java', *proxy_options(), '-cp', os.pathsep.join(map(str, [*libraries, classes])),
-        'com.cloudextensions.probes.SiteHealthProbeKt', module['entryClass'], QUERIES[module['language']], str(sample_count),
+        'com.cloudextensions.probes.SiteHealthProbeKt', module['entryClass'], query or QUERIES[module['language']], str(sample_count),
+        *(['search-only'] if search_only else []),
     ]
     status = 'probe_error'
     try:
@@ -58,12 +59,36 @@ def probe(module, libraries, classes, sample_count):
     report = {'provider': module['id'], 'status': status, 'checks': checks,
               'samples': [{'number': number, 'checks': samples[number]} for number in sorted(samples)]}
     completed = [sample['video']['status'] for sample in samples.values() if 'video' in sample]
+    if search_only:
+        search = checks.get('search', {})
+        repeat = checks.get('repeat_search', {})
+        covers = sum(sample['checks'].get('listing_cover', {}).get('status') == 'ok' for sample in report['samples'])
+        print(module['id'], search.get('status', status), f"cards={search.get('count', 0)}",
+              f"photos={covers}", f"first_ms={search.get('ms', '-')}", f"repeat_ms={repeat.get('ms', '-')}",
+              f"next={checks.get('next_page', {}).get('status', '-')}",
+              f"empty={checks.get('empty_search', {}).get('status', '-')}", flush=True)
+        return report
     print(module['id'], ' '.join(f'{name}={row["status"]}' for name, row in checks.items()) or status,
           'video samples:', ','.join(completed) or 'none', flush=True)
     return report
 
 
 def summary(report):
+    if report.get('searchOnly'):
+        lines = ['## CloudStream search check', '',
+                 '| Source | Search | First page | Search time (ms) | Covers | Page 2 | Empty query |',
+                 '| --- | --- | --- | --- | --- | --- | --- |']
+        for site in report['providers']:
+            checks = site['checks']
+            search = checks.get('search', {})
+            covers = [sample['checks'].get('listing_cover') for sample in site['samples']]
+            lines.append('| ' + ' | '.join([
+                site['provider'], format_status(search) if search else site['status'],
+                str(search.get('count', '—')), str(search.get('ms', '—')),
+                f"{sum(cover is not None and cover['status'] == 'ok' for cover in covers)}/{len(covers)}",
+                format_status(checks.get('next_page')), format_status(checks.get('empty_search')),
+            ]) + ' |')
+        return '\n'.join(lines) + '\n'
     lines = [
         '## CloudStream source check', '',
         'JVM SDK probes check HTTP responses and file signatures. A sample requiring Android WebView is marked accordingly.',
@@ -97,6 +122,8 @@ def main():
     parser.add_argument('--provider', action='append', help='Check a specific internal ID; may be repeated')
     parser.add_argument('--samples', type=int, choices=range(1, 11), default=2, metavar='1–10',
                         help='Number of distinct cards to check per source (default: 2)')
+    parser.add_argument('--query', help='Use a specific query for every selected provider')
+    parser.add_argument('--search-only', action='store_true', help='Check search, first three covers and previous search regressions')
     args = parser.parse_args()
     available = modules()
     selection = set(args.provider) if args.provider else FOCUSED if args.selection == 'focused' else set()
@@ -127,7 +154,7 @@ def main():
             checks = []
             for compiled in as_completed(compiles):
                 module = compiles[compiled]
-                checks.append(network.submit(probe, module, [harness, *libraries, common], compiled.result(), args.samples))
+                checks.append(network.submit(probe, module, [harness, *libraries, common], compiled.result(), args.samples, args.query, args.search_only))
             for checked in as_completed(checks):
                 site = checked.result()
                 results[site['provider']] = site
@@ -135,6 +162,8 @@ def main():
     report = {
         'checkedAt': datetime.now(timezone.utc).isoformat(),
         'sampleLimit': args.samples,
+        'query': args.query,
+        'searchOnly': args.search_only,
         'providers': [results[module['id']] for module in selected],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)

@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeoutOrNull
@@ -28,7 +29,9 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
     constructor() : this(ImagePrefetch.cacheDirectory())
 
     private val descriptionFooter = Regex("""(?iu)(?:^|\s+)watch\s+sex\s+video\b.*?\bonline[.!…]?\s*$""")
-    private val homeCache = cacheDirectory?.let { NoodleHomeCache(File(it, "noodle-home-v1")) }
+    private val homeCache = cacheDirectory?.let { NoodleHomeCache(File(it, "noodle-home-v2")) }
+    private val homeDetailPermits = Semaphore(4)
+    private val homemade = "домашнее/сливы/настоящее"
     override val preferredTitleLanguage = "ru"
     override val reuseConfirmedPosters = true
     override val fastHomeCovers = true
@@ -42,7 +45,7 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
     override val mainPage = mainPageOf(
         "разделась" to "Разделась",
         "bdsm" to "БДСМ",
-        "homemade" to "Домашнее",
+        homemade to "Домашнее",
         "рабыня" to "Рабыня",
         "spanking" to "Порка",
         "унижение" to "Унижение",
@@ -50,8 +53,8 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
         "студентки" to "Студентки",
     )
     private val spec get()=SiteSpec("NoodleMagazine",name,mainUrl,"#list_videos div.item","a[href]","div.i_info div.title",emptyList(),tagSelector="#videoTagsBar a.vtag",descriptionSelector=".l_info .description",titleLanguage=preferredTitleLanguage)
-    private val homeOrigin = "https://noodlemagazine.com"
-    private val homeMirror = "https://hot.tyler-brown.com"
+    private val homeOrigin = "https://hot.tyler-brown.com"
+    private val homeMirror = "https://noodlemagazine.com"
     @Volatile private var preferredHomeOrigin = homeOrigin
     private val catalogueHosts = setOf("noodlemagazine.com", "tyler-brown.com", "hot.tyler-brown.com")
     private val homePages = NoodleCatalogue()
@@ -70,7 +73,7 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
                 refreshPermits.withPermit {
                     val next = (1..9).filter { it != shown }.random()
                     val cards = RequestLimits.optional(8000) { homeCards(section, next) }
-                    if (!cards.isNullOrEmpty()) cache.write(section, next, cards)
+                    if (!cards.isNullOrEmpty()) cache.write(section, next, reviewHomeCards(cards, 2000))
                 }
             } finally {
                 refreshing.remove(section)
@@ -101,7 +104,7 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
             if (cached != null) {
                 homeOrders[section.data] = listOf(cached.number) + (1..9).filter { it != cached.number }.shuffled()
                 prepareNextVisit(section.data, cached.number)
-                return@page cached.cards.map(::response)
+                return@page cached.cards.filter(::allowsHomeCard).map(::response)
             }
             val order = homeOrders.compute(section.data) { _, previous ->
                 if (page != 1 && previous != null) previous
@@ -110,26 +113,68 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
                 }
             }!!
             val sourcePage = order.getOrNull(page - 1) ?: page
-            if (page != 1) return@page homeCards(section.data, sourcePage)
+            if (page != 1) return@page homeCards(section.data, sourcePage).map(::response)
             val videos = if (sourcePage == 1) {
                 homeCards(section.data, sourcePage)
             } else {
                 RequestLimits.optional(8000) { homeCards(section.data, sourcePage) }.orEmpty()
             }
-            if (videos.isNotEmpty() || sourcePage == 1) {
-                homeCache?.write(section.data, sourcePage, videos)
-                if (videos.isNotEmpty()) prepareNextVisit(section.data, sourcePage)
-                videos
-            } else {
-                // Recover when a random page has moved or is slow to respond.
-                homeOrders[section.data] = listOf(1) + (2..9).shuffled()
-                homeCards(section.data, 1).also { homeCache?.write(section.data, 1, it) }
-            }
+            // Recover when a random page has moved or is slow to respond.
+            val shownPage = if (videos.isEmpty() && sourcePage != 1) 1 else sourcePage
+            if (shownPage != sourcePage) homeOrders[section.data] = listOf(1) + (2..9).shuffled()
+            val listed = if (shownPage == sourcePage) videos else homeCards(section.data, shownPage)
+            val reviewed = reviewHomeCards(listed, 1000)
+            homeCache?.write(section.data, shownPage, reviewed)
+            if (reviewed.isNotEmpty()) prepareNextVisit(section.data, shownPage)
+            reviewed.map(::response)
         }
         return newHomePageResponse(section.name,cards,cards.isNotEmpty())
     }
 
-    private suspend fun homeCards(category: String, page: Int): List<SearchResponse> = coroutineScope {
+    private fun allowsHomeCard(card: VideoCard): Boolean =
+        ContentPolicy.accepts(card.title, card.tags, source = "NoodleMagazine")
+
+    private suspend fun reviewHomeCards(cards: List<VideoCard>, budget: Long): List<VideoCard> = coroutineScope {
+        if (cards.isEmpty()) return@coroutineScope cards
+        val batch = cards.take(10).map { card ->
+            async {
+                val page = RequestLimits.optional(budget) {
+                    homeDetailPermits.withPermit { document(PageRequest(card.url, allowNotFound = true)) }
+                } ?: return@async card to false
+                if (page.attr("data-response-code") in setOf("404", "410")) return@async null
+                val detail = Metadata.detail(page, spec)
+                if (detail.title.isBlank()) return@async card to false
+                val tags = (card.tags + detail.tags).distinct()
+                if (!ContentPolicy.accepts(detail.title, tags, detail.description, source = "NoodleMagazine")) {
+                    null
+                } else card.copy(title = detail.title, poster = card.poster ?: detail.poster, tags = tags) to true
+            }
+        }.awaitAll().filterNotNull()
+        // Prioritize reviewed cards while keeping cards whose detail pages timed out.
+        val (reviewed, unchecked) = batch.partition { it.second }
+        (reviewed + unchecked).map { it.first } + cards.drop(10)
+    }
+
+    private suspend fun homeCards(category: String, page: Int): List<VideoCard> =
+        if (category == homemade) groupedHomeCards(page) else homeCategoryCards(category, page).shuffled()
+
+    private suspend fun groupedHomeCards(page: Int, home: Boolean = true): List<VideoCard> = coroutineScope {
+        val sections = homemade.split('/')
+        val feeds = sections.map { term ->
+            async {
+                RequestLimits.optional(if (home) 3500 else 6500) {
+                    if (home) homeCategoryCards(term, page) else categoryCards(term, page)
+                }
+            }
+        }.awaitAll()
+        if (feeds.all { it == null }) throw ErrorLoadingException("Noodle Magazine: каталог не ответил для раздела «Домашнее»")
+        // Round robin gives each of the three catalogues space at the start of the row.
+        val shuffled = feeds.map { it.orEmpty().shuffled() }
+        (0 until shuffled.maxOf { it.size }).flatMap { index -> shuffled.mapNotNull { it.getOrNull(index) } }
+            .distinctBy { it.url.toHttpUrlOrNull()?.encodedPath ?: it.url }
+    }
+
+    private suspend fun homeCategoryCards(category: String, page: Int): List<VideoCard> = coroutineScope {
         suspend fun fetch(origin: String) =
             RequestLimits.optional(7000) { categoryCards(category, page, origin, home = true) }
 
@@ -137,27 +182,27 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
         val alternate = if (preferred == homeOrigin) homeMirror else homeOrigin
         val primary = async { fetch(preferred) }
         val mirror = async {
-            // Hedge a stalled request, or try the mirror immediately after an empty response or error.
+            // Hedge a stalled request or try the mirror after a transport failure.
             val cards = withTimeoutOrNull(700) { primary.await() }
-            if (cards.isNullOrEmpty()) fetch(alternate) else null
+            if (cards == null) fetch(alternate) else null
         }
         val (first, remaining, origin) = select {
             primary.onAwait { Triple(it, mirror, preferred) }
             mirror.onAwait { Triple(it, primary, alternate) }
         }
-        if (!first.isNullOrEmpty()) {
+        if (first != null) {
             preferredHomeOrigin = origin
             remaining.cancel()
             return@coroutineScope first
         }
         val second = remaining.await()
-        second?.takeIf { it.isNotEmpty() }?.also { preferredHomeOrigin = if (origin == preferred) alternate else preferred } ?: first ?: second
+        second?.also { preferredHomeOrigin = if (origin == preferred) alternate else preferred }
             ?: throw ErrorLoadingException("Noodle Magazine: каталог не ответил для раздела «$category»")
     }
 
     private suspend fun categoryCards(
         category: String, page: Int, origin: String = mainUrl, home: Boolean = false,
-    ): List<SearchResponse> {
+    ): List<VideoCard> {
         val request = if (category.startsWith("/")) {
             val separator = if (category.contains('?')) "&" else "?"
             PageRequest("$origin$category${separator}p=${page - 1}", allowNotFound = true)
@@ -171,12 +216,12 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
             ) throw ErrorLoadingException("Noodle Magazine: сайт перенаправил на другую страницу")
         }
         if (Metadata.emptySearch(pageDocument, request)) return emptyList()
-        return Metadata.cards(pageDocument, spec, applyContentFilter = !home).map(::response)
+        return Metadata.cards(pageDocument, spec)
     }
 
     override suspend fun searchCategoryPage(category: String, page: Int): SearchResponseList {
-        val cards = categoryCards(category, page)
-        return newSearchResponseList(cards, cards.isNotEmpty())
+        val cards = if (category == homemade) groupedHomeCards(page, home = false) else categoryCards(category, page)
+        return newSearchResponseList(cards.map(::response), cards.isNotEmpty())
     }
     override suspend fun search(query:String):List<SearchResponse> = search(query,1).items
     override suspend fun quickSearch(query:String):List<SearchResponse> = search(query,1).items

@@ -121,6 +121,44 @@ private fun bytes(
 
 private fun cardFields(cards: List<SearchResponse>) = mapOf("count" to cards.size, "covers" to cards.count { !it.posterUrl.isNullOrBlank() })
 
+private suspend fun smokeSearch(api: MainAPI, query: String) {
+    val first = stage("search", 23_000, { cardFields(it.items) + ("hasNext" to it.hasNext) }) {
+        api.search(query, 1)?.takeIf { it.items.isNotEmpty() } ?: throw CheckFailure("empty")
+    }
+    if (first != null) {
+        stage("repeat_search", 23_000, { cardFields(it.items) }) {
+            api.search(query, 1)?.takeIf { it.items.isNotEmpty() } ?: throw CheckFailure("empty")
+        }
+        first.items.take(3).mapIndexed { index, card ->
+            index to card
+        }.let { leading ->
+            coroutineScope {
+                leading.map { (index, card) ->
+                    async(Dispatchers.IO) {
+                        stage("listing_cover", 6000, sample = index + 1) {
+                            val image = card.posterUrl?.takeIf(String::isNotBlank) ?: throw CheckFailure("missing")
+                            if (image.startsWith("file:")) {
+                                if (!java.io.File(java.net.URI(image)).isFile) throw CheckFailure("missing")
+                            } else bytes(image, card.posterHeaders.orEmpty(), media = false)
+                        }
+                    }
+                }.awaitAll()
+            }
+        }
+        if (first.hasNext) stage("next_page", 23_000, { cardFields(it) }) {
+            val seen = first.items.mapTo(hashSetOf()) { it.url }
+            val next = api.search(query, 2)?.items.orEmpty()
+            if (next.isEmpty()) throw CheckFailure("empty")
+            if (next.any { it.url in seen }) throw CheckFailure("repeated_page")
+            next
+        }
+    }
+    stage("empty_search", 23_000) {
+        val result = api.search("qxzv947pkn", 1)
+        if (!result?.items.isNullOrEmpty() || result?.hasNext == true) throw CheckFailure("unexpected_results")
+    }
+}
+
 fun main(args: Array<String>) {
     runBlocking {
         val (entry, query) = args
@@ -130,6 +168,10 @@ fun main(args: Array<String>) {
             plugin.load(Context())
             APIHolder.allProviders.single()
         } ?: return@runBlocking
+        if (args.getOrNull(3) == "search-only") {
+            smokeSearch(api, query)
+            return@runBlocking
+        }
         val firstSection = api.mainPage.firstOrNull()
         val home = if (firstSection == null) {
             report("home", "not_applicable")

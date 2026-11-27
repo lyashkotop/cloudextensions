@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.lagradost.cloudstream3.SearchResponse
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +25,11 @@ object ImagePrefetch {
     private val pendingBackground = Semaphore(12)
     private data class Poster(val url: String, val headers: Map<String, String>)
 
-    private val scheduled = BoundedMap<Poster, Long>(256)
+    private class Pending(val started: Long) {
+        val decoded = CompletableDeferred<Boolean>()
+    }
+
+    private val scheduled = BoundedMap<Poster, Pending>(256)
     private val waitingBackground = mutableSetOf<Poster>()
     private val coil by lazy {
         val singleton = try { coilClass("coil3.SingletonImageLoader") } catch (_: ClassNotFoundException) { null }
@@ -50,22 +55,28 @@ object ImagePrefetch {
         if (!url.isNullOrBlank()) warm(ctx, Poster(url, headers.toMap()), priority = true)
     }
 
-    private fun warm(ctx: Context, poster: Poster, priority: Boolean) {
+    /** Reuses an early request if it is already decoding the same poster. */
+    internal suspend fun await(url: String, headers: Map<String, String>): Boolean? {
+        val ctx = context ?: return null
+        return warm(ctx, Poster(url, headers.toMap()), priority = true)?.await()
+    }
+
+    private fun warm(ctx: Context, poster: Poster, priority: Boolean): Deferred<Boolean>? {
         val queue = if (priority) pendingPriority else pendingBackground
         val workers = if (priority) priorityPermits else backgroundPermits
-        val started = System.nanoTime()
+        val pending = Pending(System.nanoTime())
         synchronized(scheduled) {
-            val recent = scheduled[poster]?.let { started - it < 300_000_000_000L } == true
-            if (recent && !(priority && poster in waitingBackground)) return
-            if (!queue.tryAcquire()) return
+            val previous = scheduled[poster]?.takeIf { pending.started - it.started < 120_000_000_000L }
+            if (previous != null && !(priority && poster in waitingBackground)) return previous.decoded
+            if (!queue.tryAcquire()) return previous?.decoded
             if (priority) waitingBackground.remove(poster) else waitingBackground.add(poster)
-            scheduled[poster] = started
+            scheduled[poster] = pending
         }
         scope.launch {
             try {
                 val loaded = workers.withPermit {
                     synchronized(scheduled) {
-                        if (scheduled[poster] != started) return@launch
+                        if (scheduled[poster] !== pending) return@launch
                         waitingBackground.remove(poster)
                     }
                     withTimeoutOrNull(5000) {
@@ -78,24 +89,27 @@ object ImagePrefetch {
                         }
                     }
                 }
-                if (loaded == true) PosterRequests.decoded(poster.url, poster.headers) else forget(poster, started)
+                if (loaded == true) {
+                    PosterRequests.decoded(poster.url, poster.headers)
+                    pending.decoded.complete(true)
+                }
             } catch (e: CancellationException) {
-                forget(poster, started)
                 throw e
             } catch (e: Exception) {
-                forget(poster, started)
                 warn(e.javaClass.simpleName)
             } catch (e: LinkageError) {
-                forget(poster, started)
                 warn(e.javaClass.simpleName)
             } finally {
+                synchronized(scheduled) {
+                    if (pending.decoded.complete(false) && scheduled[poster] === pending) {
+                        waitingBackground.remove(poster)
+                        scheduled.remove(poster)
+                    }
+                }
                 queue.release()
             }
         }
-    }
-
-    private fun forget(poster: Poster, started: Long) = synchronized(scheduled) {
-        if (scheduled[poster] == started) scheduled.remove(poster)
+        return pending.decoded
     }
 
     private fun warn(reason: String) {

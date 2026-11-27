@@ -16,6 +16,13 @@ on:
         description: Cards to check per provider (1–10)
         type: number
         default: 2
+      query:
+        description: Search phrase for all selected providers
+        type: string
+      search_only:
+        description: Check search, pagination and the first three covers
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -45,7 +52,13 @@ jobs:
         env:
           SELECTION: ${{ inputs.selection || 'focused' }}
           SAMPLES: ${{ inputs.samples || 2 }}
-        run: python scripts/check_sites.py --selection "$SELECTION" --samples "$SAMPLES"
+          QUERY: ${{ inputs.query }}
+          SEARCH_ONLY: ${{ inputs.search_only || false }}
+        run: |
+          options=()
+          if [[ -n "$QUERY" ]]; then options+=(--query "$QUERY"); fi
+          if [[ "$SEARCH_ONLY" == "true" ]]; then options+=(--search-only); fi
+          python scripts/check_sites.py --selection "$SELECTION" --samples "$SAMPLES" "${options[@]}"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: cloudstream-site-health
