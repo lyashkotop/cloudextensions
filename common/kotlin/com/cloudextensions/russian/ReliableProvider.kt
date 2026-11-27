@@ -39,7 +39,7 @@ private const val REQUIRED_SEARCH_REVIEW_BUDGET_MS = 6_000L
 private const val LISTING_TIMEOUT_MS = 22_000L
 private val slowFirstPageSources = setOf(
     "Vpoisk", "BoundHub", "ThisVid", "HcBDSMX", "XRares", "PornoRussia",
-    "SickR", "Huyamba", "ProstoPorno",
+    "SickR", "Huyamba", "ProstoPorno", "Strip2",
 )
 private const val FIRST_PAGE_TARGET_MS = 3_000L
 private const val FIRST_PAGE_MERGE_MS = 1_700L
@@ -372,7 +372,8 @@ class ReliableProvider(
         val deadline = System.nanoTime() + LISTING_TIMEOUT_MS * 1_000_000L
         val fastHome = (source as? NoodlePosterSource)?.fastHomeCovers == true
         val fastReview = providerId == "TubeSafari" || providerId == "HurtSex"
-        val result = randomHome.page(page, request, providerId == "NoodleMagazine", if (fastReview) 0 else HOME_LOOKAHEAD_MS) { number ->
+        val lookAhead = if (fastReview || providerId == "Strip2") 0L else HOME_LOOKAHEAD_MS
+        val result = randomHome.page(page, request, providerId == "NoodleMagazine", lookAhead) { number ->
             if (fastReview) Network.catalogue { source.getMainPage(number, request) }
             else source.getMainPage(number, request)
         } ?: return@required newHomePageResponse(emptyList(), false)
@@ -441,10 +442,10 @@ class ReliableProvider(
         else Metadata.streakReuploadKey(card.url) ?: Metadata.catalogueKey(providerId, card.url)
 
     private fun listingKeys(card: SearchResponse): Set<String> =
-        if (providerId == "TubeBDSM") Metadata.catalogueKeys(providerId, card.url) else setOf(searchKey(card))
+        if (providerId == "TubeBDSM" || providerId == "HcBDSMX") Metadata.catalogueKeys(providerId, card.url) else setOf(searchKey(card))
 
     private fun distinctListings(cards: List<SearchResponse>): List<SearchResponse> {
-        if (providerId != "TubeBDSM") return cards.distinctBy(::searchKey)
+        if (providerId != "TubeBDSM" && providerId != "HcBDSMX") return cards.distinctBy(::searchKey)
         val seen = hashSetOf<String>()
         return cards.filter { card ->
             val keys = listingKeys(card)

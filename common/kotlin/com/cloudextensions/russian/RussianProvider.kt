@@ -117,10 +117,15 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
                 val route = if (number == 1) taxonomyUrl?.let { PageRequest(it) } ?: searchRequest(term) else state.next
                 if (route == null) return@withLock newSearchResponseList(emptyList(), false)
                 val result = fetchSearchPage(route, taxonomyUrl != null)
-                val fingerprint = result.cards.map { Metadata.catalogueKey(spec.id, it.url) }.toSet()
+                val fingerprint = result.cards.flatMap { Metadata.catalogueKeys(spec.id, it.url) }.toSet()
                 val repeats = fingerprint.isNotEmpty() && !state.fingerprints.add(fingerprint)
                 state.next = result.next.takeUnless { repeats }
-                val fresh = if (repeats) emptyList() else result.cards.filter { state.seen.add(Metadata.catalogueKey(spec.id, it.url)) }
+                val fresh = if (repeats) emptyList() else result.cards.filter { card ->
+                    val keys = Metadata.catalogueKeys(spec.id, card.url)
+                    val duplicate = keys.any(state.seen::contains)
+                    state.seen.addAll(keys)
+                    !duplicate
+                }
                 state.pages[number] = newSearchResponseList(fresh.map(::response), state.next != null)
             }
             state.pages.getValue(page)

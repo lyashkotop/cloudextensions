@@ -29,6 +29,8 @@ object Metadata {
     private val tubeClipKeys = Collections.synchronizedMap(BoundedMap<String, String>(4096))
     private val hcListingKeys = Collections.synchronizedMap(BoundedMap<String, String>(1024))
     private val tubeErrorPrefix = Regex("""(?iu)^(?:видео недоступно|video (?:is )?unavailable)(?:[\s:!.–—-]+|$)""")
+    private val hcPosterKeys = Collections.synchronizedMap(BoundedMap<String, String>(1024))
+    private val hcSourcePoster = Regex("""^/media/videos/tmb/(\d+)/[^/]+$""")
     private val hcClock = Regex("""(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}""")
     private val tubeClock = Regex("""(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}""")
     private val tubePublicId = Regex("[A-Za-z0-9]{6,32}")
@@ -42,8 +44,11 @@ object Metadata {
 
     internal fun catalogueKeys(source: String?, url: String): Set<String> {
         val key = catalogueKey(source, url)
-        val clip = if (source == "TubeBDSM") tubeClipKeys[url] else null
-        return if (clip == null) setOf(key) else setOf(key, clip)
+        return when (source) {
+            "TubeBDSM" -> setOfNotNull(key, tubeClipKeys[url])
+            "HcBDSMX" -> setOfNotNull(key, videoKey(url), hcPosterKeys[videoKey(url)])
+            else -> setOf(key)
+        }
     }
 
     private val tubeVideoPath = Regex("""^/videos?/(\d+)(?:/|$)""")
@@ -213,7 +218,7 @@ object Metadata {
     }
     fun cards(page: Element, spec: SiteSpec, applyContentFilter: Boolean = true): List<VideoCard> {
         val result = LinkedHashMap<String,VideoCard>()
-        val tubeIdentities = hashSetOf<String>()
+        val listingIdentities = hashSetOf<String>()
         for (card in page.select(spec.cards)) {
             if(spec.id=="ThisVid" && card.selectFirst(".private,.icon-private,.svg-icon-private,img[src*=bg_private_video]")!=null)continue
             val link = if (card.tagName() == "a" && card.hasAttr("href")) card else card.selectFirst(spec.link) ?: continue
@@ -255,11 +260,6 @@ object Metadata {
                 else -> duration
             }
             if (fullDuration.isNotBlank()) durations[videoKey(url)] = fullDuration
-            if (spec.id == "HcBDSMX" && fullDuration.isNotBlank() && !isTruncatedTitle(label) &&
-                titleWord.findAll(label).take(3).count() == 3
-            ) {
-                hcListingKeys.putIfAbsent(videoKey(url), "hcbdsm:clip:$fullDuration:${clean(visible.ifBlank { label }).lowercase(Locale.ROOT)}")
-            }
             if (tube) rememberTubeKey(card, url, label, fullDuration)
             if (spec.id == "BDSMStreak") {
                 val exactDuration = timing(card.selectFirst(".duration-pill")?.text())
@@ -269,11 +269,12 @@ object Metadata {
                 }
             }
             val picture=poster(link,page.baseUri()) ?: poster(card,page.baseUri());if(picture!=null)rememberPoster(url,picture)
+            if (spec.id == "HcBDSMX") rememberHcKeys(url, visible.ifBlank { label }, fullDuration, picture)
             val key = catalogueKey(spec.id, url)
-            if (tube) {
+            if (tube || spec.id == "HcBDSMX") {
                 val identities = catalogueKeys(spec.id, url)
-                val duplicate = identities.any(tubeIdentities::contains)
-                tubeIdentities.addAll(identities)
+                val duplicate = identities.any(listingIdentities::contains)
+                listingIdentities.addAll(identities)
                 if (duplicate) continue
             }
             if (key !in result) {
@@ -282,6 +283,21 @@ object Metadata {
         }
         return result.values.toList()
     }
+    private fun rememberHcKeys(url: String, title: String, duration: String, poster: String?) {
+        val id = videoKey(url)
+        if (duration.isNotBlank() && !isTruncatedTitle(title)) {
+            val words = titleWord.findAll(title.lowercase(Locale.ROOT)).map { it.value }.toList()
+            if (words.size >= 3) {
+                hcListingKeys.putIfAbsent(id, "hcbdsm:clip:$duration:${words.joinToString(" ")}")
+            }
+        }
+        val image = poster?.toHttpUrlOrNull() ?: return
+        val host = image.host
+        if (host != "bdsmstreak.com" && !host.endsWith(".bdsmstreak.com")) return
+        val sourceId = hcSourcePoster.matchEntire(image.encodedPath)?.groupValues?.get(1) ?: return
+        hcPosterKeys.putIfAbsent(id, "hcbdsm:source:$sourceId")
+    }
+
     fun emptySearch(page: Document, request: PageRequest): Boolean {
         val current=java.net.URI(page.baseUri())
         // ThisVid renders trending blocks when no search matches. Those are never search results.

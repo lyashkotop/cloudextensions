@@ -62,13 +62,14 @@ fun main(args:Array<String>) {
     verify(EmbeddedPlayers.decodeAb("garbage")==null,"invalid encoded strings never become media URLs")
     val hcSpec = SiteSpec("HcBDSMX", "hcBDSM", "https://hcbdsm.com", ".clip", "a", "h3", emptyList())
     val hcReuploads = Jsoup.parse("""
-        <a class=clip href="/video/201/"><h3>An Original Sample Title</h3><span>06:42</span></a>
-        <a class=clip href="/video/202/"><h3>An Original Sample Title</h3><span>06:42</span></a>
+        <a class=clip href="/video/201/"><h3>An Original Sample Title</h3><span>06:42</span><img src="https://v3.bdsmstreak.com/media/videos/tmb/123/default.jpg"></a>
+        <a class=clip href="/video/202/"><h3>An Original - Sample Title!</h3><span>06:42</span></a>
         <a class=clip href="/video/203/"><h3>An Original Sample Title</h3><span>06:43</span></a>
+        <a class=clip href="/video/204/"><h3>A Retitled Sample</h3><img src="https://v3.bdsmstreak.com/media/videos/tmb/123/1.jpg?size=320"></a>
         """, "https://hcbdsm.com/latest-updates/")
     verify(Metadata.cards(hcReuploads, hcSpec).map { it.url } == listOf(
         "https://hcbdsm.com/video/201/", "https://hcbdsm.com/video/203/",
-    ), "hcBDSM removes identical reuploads and keeps videos of a different duration")
+    ), "hcBDSM removes reuploads by normalized title and exact duration or original poster ID")
     verify(Metadata.catalogueKey("HcBDSMX", "https://hcbdsm.com/video/202/alias") ==
         Metadata.catalogueKey("HcBDSMX", "https://hcbdsm.com/video/201/"),
         "hcBDSM retains the reupload identity across URL aliases")
