@@ -117,8 +117,14 @@ object Playback {
     ): Boolean = resolveLinks(name, origin, pageUrl, subtitles, callback, false, staticPlayerHost)
     suspend fun confirmedLinks(name:String,origin:String,pageUrl:String,subtitles:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = resolveLinks(name,origin,pageUrl,subtitles,callback,true)
 
-    /** Reject only when the single supported static player declares files that all return 404/410. */
-    suspend fun rejectMissingStaticMedia(page: Document, playerHost: String) = coroutineScope {
+    /** Check identified static players before offering their catalogue cards. */
+    suspend fun rejectMissingStaticMedia(
+        page: Document, playerHost: String, requireConfirmation: Boolean = false,
+    ) = coroutineScope {
+        fun unverified() {
+            if (requireConfirmation) throw ErrorLoadingException("Не удалось подтвердить файл видео")
+        }
+
         val players = page.select("iframe[src], iframe[data-src]")
             .filter { it.closest(".ad,.ads,.advertisement") == null }
             .mapNotNull { absolute(page.baseUri(), it.attr("data-src").ifBlank { it.attr("src") }) }
@@ -126,13 +132,16 @@ object Playback {
         if (sources(page).isNotEmpty()) return@coroutineScope
         val url = players.singleOrNull()?.takeIf { java.net.URI(it).host?.removePrefix("www.") == playerHost }
             ?: return@coroutineScope
-        val player = RequestLimits.optional(1100) { Network.page(PageRequest(url), page.baseUri()) }
-            ?: return@coroutineScope
-        if (java.net.URI(player.baseUri()).host?.removePrefix("www.") != playerHost) return@coroutineScope
+        val player = RequestLimits.optional(if (requireConfirmation) 1400 else 1100) {
+            Network.page(PageRequest(url), page.baseUri())
+        }
+        if (player == null || java.net.URI(player.baseUri()).host?.removePrefix("www.") != playerHost) {
+            return@coroutineScope unverified()
+        }
         val declared = sources(player)
-        if (declared.isEmpty() || declared.size > 4) return@coroutineScope
+        if (declared.isEmpty() || declared.size > 4) return@coroutineScope unverified()
         val referer = player.baseUri()
-        val statuses = withTimeoutOrNull(1200) {
+        val statuses = withTimeoutOrNull(if (requireConfirmation) 1600 else 1200) {
             declared.map { source ->
                 async { MediaRequests.probe(source.url, referer, Network.headers(referer))?.status }
             }.awaitAll()
@@ -140,6 +149,7 @@ object Playback {
         if (statuses != null && statuses.all { it == 404 || it == 410 }) {
             throw ErrorLoadingException("Видео удалено или недоступно")
         }
+        if (statuses.orEmpty().none { it != null && it in 200..299 }) unverified()
     }
 
     /** True for media, false for a confirmed failure, null when the request timed out. */

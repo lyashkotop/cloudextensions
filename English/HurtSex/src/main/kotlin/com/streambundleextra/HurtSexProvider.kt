@@ -18,7 +18,7 @@ class HurtSexProvider: RussianProvider(SiteSpec(
     override val requiresListingReview = true
 
     override suspend fun reviewMetadata(document: Document, detail: VideoDetail): VideoDetail {
-        Playback.rejectMissingStaticMedia(document, "nonkporno.com")
+        Playback.rejectMissingStaticMedia(document, "nonkporno.com", requireConfirmation = true)
         return detail
     }
 

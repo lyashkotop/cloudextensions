@@ -52,7 +52,8 @@ class RoughXXXTubeProvider : RussianProvider(
         if (requestedVideo != null) {
             val actualVideo = videoPath.matchEntire(actual.encodedPath)?.groupValues?.get(1)
             return actualVideo == requestedVideo && (document.attr("data-response-code") in setOf("404", "410") ||
-                document.selectFirst(".content > h1, video#my-player source[src]") != null)
+                (document.selectFirst(".content > h1") != null &&
+                    document.selectFirst("video#my-player[src], video#my-player source[src]") != null))
         }
         val path = expected.encodedPath.trimEnd('/')
         if (path.isEmpty()) return actual.encodedPath.trimEnd('/') == "/ru"
@@ -70,21 +71,25 @@ class RoughXXXTubeProvider : RussianProvider(
         )
         fun unavailable(document: Document) = document.attr("data-response-code") in setOf("404", "410")
 
+        if (video) {
+            val primary = RequestLimits.optional(1_350) { super.page(localized) }
+            if (primary != null && matchesPage(primary, request.url) && !unavailable(primary)) return primary
+            val alternatePath = if (path.startsWith("/ru/")) path.replaceFirst("/ru/", "/en/") else path.replaceFirst("/en/", "/ru/")
+            val alternate = localized.copy(url = localized.url.replace(path, alternatePath))
+            val fallback = RequestLimits.optional(1_750) { super.page(alternate) }
+            if (fallback != null && matchesPage(fallback, request.url) && !unavailable(fallback)) return fallback
+            if (primary != null && fallback != null && unavailable(primary) && unavailable(fallback) &&
+                matchesPage(primary, request.url) && matchesPage(fallback, request.url)) {
+                if (request.allowNotFound) return primary
+                throw ErrorLoadingException("Видео удалено или недоступно")
+            }
+            throw ErrorLoadingException("RoughXXXTube: не удалось подтвердить страницу видео")
+        }
+
         var original = super.page(localized)
         if (!matchesPage(original, request.url)) {
             delay(120)
             original = super.page(localized.copy(headers = localized.headers + ("Cache-Control" to "no-cache")))
-        }
-        if (video && (unavailable(original) || !matchesPage(original, request.url))) {
-            val otherLanguage = if (path.startsWith("/ru/")) "en" else "ru"
-            val alternative = localized.copy(url = localized.url.replace(path, "/$otherLanguage/video/" + path.substringAfter("/video/")))
-            val fallback = RequestLimits.optional(2200) { super.page(alternative) }
-            if (fallback != null && matchesPage(fallback, request.url) && !unavailable(fallback)) return fallback
-            if (unavailable(original)) {
-                if (request.allowNotFound) return original
-                throw ErrorLoadingException("Видео удалено или недоступно")
-            }
-            throw ErrorLoadingException("RoughXXXTube: сайт не вернул страницу видео")
         }
         if (!matchesPage(original, request.url)) throw ErrorLoadingException("RoughXXXTube: сайт не вернул запрошенную страницу")
         val document = original.clone()
