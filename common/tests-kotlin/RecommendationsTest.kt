@@ -7,6 +7,7 @@ import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 
 internal fun testRecommendations() = runBlocking {
     val base = "https://recommendations.example"
@@ -30,4 +31,18 @@ internal fun testRecommendations() = runBlocking {
     repeat(2) {
         check(api.load("$base/open").recommendations.orEmpty().map { it.url } == listOf("$base/good"))
     }
+
+    val listedPoster = "$base/poster.jpg"
+    val slowPoster = object : MainAPI(), PosterSource {
+        override suspend fun load(url: String) = newMovieLoadResponse("Sample", url, TvType.NSFW, url) {
+            posterUrl = listedPoster
+        }
+
+        override suspend fun resolvePoster(url: String, poster: String?, headers: Map<String, String>): String {
+            delay(3_000)
+            return "$base/replacement.jpg"
+        }
+    }
+    val fastCard = withTimeout(2_000) { ReliableProvider(slowPoster).load("$base/item") }
+    check(fastCard.posterUrl == listedPoster)
 }

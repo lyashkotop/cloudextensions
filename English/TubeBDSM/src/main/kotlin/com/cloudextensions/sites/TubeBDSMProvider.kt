@@ -76,7 +76,7 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
    if(result.recommendations.isNullOrEmpty())result.recommendations=extra.recommendations
   }
   if (result.recommendations.isNullOrEmpty()) {
-   result.recommendations = relatedBySearch(result, url, document.baseUri())
+   result.recommendations = RequestLimits.optional(950) { relatedBySearch(result, url, document.baseUri()) }.orEmpty()
   }
   val fromListing=URI(url).host==URI(mainUrl).host && listingPoster!=null && result.posterUrl==listingPoster
   if(result is MovieLoadResponse)result.posterHeaders=Network.imageHeaders(result.posterUrl,if(fromListing)mainUrl else document.baseUri())

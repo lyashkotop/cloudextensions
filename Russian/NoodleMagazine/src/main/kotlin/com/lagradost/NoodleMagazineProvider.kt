@@ -242,7 +242,7 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
         if(!ContentPolicy.accepts(detail.title,detail.tags))throw ErrorLoadingException("Video hidden by category filter")
         var related=NoodleCatalogue.distinct(Metadata.cards(page,spec.copy(cards="div.item")).map(::response), url)
         if(related.isEmpty())detail.tags.firstOrNull{ContentPolicy.accepts(it)}?.let{tag->
-            try{related=NoodleCatalogue.distinct(RequestLimits.optional { results(tag, 1) }.orEmpty(), url)}catch(e:CancellationException){throw e}catch(_:Exception){}
+            try{related=NoodleCatalogue.distinct(RequestLimits.optional(950) { results(tag, 1) }.orEmpty(), url)}catch(e:CancellationException){throw e}catch(_:Exception){}
         }
         return newMovieLoadResponse(detail.title,url,TvType.NSFW,url){
             score = VideoScores.detail("NoodleMagazine",url,page)

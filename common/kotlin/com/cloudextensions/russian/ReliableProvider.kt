@@ -49,6 +49,7 @@ private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
 private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex", "PornVideos", "TubeSafari")
 private const val LISTING_COMPLETION_RESERVE_MS = 500L
 private const val HOME_LOOKAHEAD_MS = 600L
+private const val RECOMMENDATION_REVIEW_MS = 950L
 
 /** UI request bounds and one real preview shared by the search and detail response. */
 class ReliableProvider(
@@ -146,12 +147,12 @@ class ReliableProvider(
     }
 
     private val queuedHomePosters = ConcurrentHashMap.newKeySet<String>()
+    private val detailPrefetch = CoroutineScope(SupervisorJob() + Dispatchers.IO + Network.Background)
     private val pendingHomePosters by lazy {
         Channel<MovieSearchResponse>(48).also { queue ->
-            val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + Network.Background)
             repeat(2) {
-                scope.launch {
-                    val provider = source as? NoodlePosterSource ?: return@launch
+                detailPrefetch.launch {
+                    val provider = source as? PosterSource ?: return@launch
                     for (card in queue) {
                         try {
                             val headers = card.posterHeaders.orEmpty()
@@ -172,6 +173,10 @@ class ReliableProvider(
 
     private fun queueHomePoster(card: MovieSearchResponse) {
         if (source !is NoodlePosterSource) return
+        queuePoster(card)
+    }
+
+    private fun queuePoster(card: MovieSearchResponse) {
         val key = videoKey(card.url)
         if (queuedHomePosters.add(key) && pendingHomePosters.trySend(card).isFailure) {
             queuedHomePosters.remove(key)
@@ -478,7 +483,9 @@ class ReliableProvider(
                         val reviewDeadline = deadline - 6_000_000_000L
                         when (ratingProfile) {
                             "TubeSafari", "HurtSex" ->
-                                reviewedCards(visible.take(24), reviewDeadline, returnAfter = 6, home = true)
+                                withContext(Network.CacheDetail) {
+                                    reviewedCards(visible.take(24), reviewDeadline, returnAfter = 6, home = true)
+                                }
                             "PornVideos", "RoughXXXTube" ->
                                 reviewedCards(visible.take(20), reviewDeadline, returnAfter = 6)
                             else -> reviewedCards(visible, reviewDeadline)
@@ -885,6 +892,22 @@ class ReliableProvider(
         }
     }
 
+    private val recommendationPrefetch = Semaphore(1)
+
+    private fun prefetchRecommendations(cards: List<SearchResponse>) {
+        if (cards.isEmpty() || !recommendationPrefetch.tryAcquire()) return
+        detailPrefetch.launch {
+            try {
+                val deadline = System.nanoTime() + 4_500_000_000L
+                cards.take(6).forEach { card ->
+                    if (remainingMillis(deadline) > 0) review(card, deadline)
+                }
+            } finally {
+                recommendationPrefetch.release()
+            }
+        }
+    }
+
     private suspend fun loadCard(url: String): LoadResponse = coroutineScope {
         val saved = savedReview(url, DETAIL_MAX_AGE_NANOS)?.detail as? MovieLoadResponse
         val result = saved?.copy(trailers = saved.trailers.toMutableList(), syncData = saved.syncData.toMutableMap()) ?:
@@ -903,38 +926,44 @@ class ReliableProvider(
         val initialRecommendations = result.recommendations.orEmpty()
         val recommendations = async {
             val current = Metadata.catalogueKeys(ratingProfile, url)
-            val visible = distinctListings(cards(initialRecommendations, expandTitles = false)
+            val visible = distinctListings(cards(initialRecommendations, expandTitles = false, warmPosters = false)
                 .filterNot { listingKeys(it).any(current::contains) })
+            var pending = emptyList<SearchResponse>()
             val checked = if (!ContentPolicy.enabled) visible else {
-                val deadline = System.nanoTime() + 1_600_000_000L
+                val budget = if (ratingProfile == "XRares") 1600L else RECOMMENDATION_REVIEW_MS
+                val deadline = System.nanoTime() + budget * 1_000_000L
                 val candidates = visible.filter { savedReview(it.url) == null }.take(10)
                 val verified = withContext(Network.CacheDetail) { reviewedCards(candidates, deadline) }.associateBy(::searchKey)
+                pending = candidates.filter { savedReview(it.url) == null }
                 visible.mapNotNull { card ->
                     verified[searchKey(card)] ?: card.takeIf { savedReview(it.url)?.allowed == true }
                 }
             }
-            if (ratingProfile == "NoodleMagazine" && source is NoodlePosterSource) {
-                checked.filterIsInstance<MovieSearchResponse>().filter { it.posterUrl.isNullOrBlank() }.forEach(::queueHomePoster)
-                checked
-            } else if (ratingProfile == "UKDevilz") {
-                prepareListing(checked, System.nanoTime() + 2_000_000_000L, missingPostersOnly = true)
-            } else withResolvedPosters(checked, missingOnly = true)
+            if (source is PosterSource) checked.filterIsInstance<MovieSearchResponse>()
+                .filter { it.posterUrl.isNullOrBlank() }.take(3).forEach(::queuePoster)
+            checked.map(::cachedScore) to pending
         }
         if(result is MovieLoadResponse) {
             val headers = Network.imageHeaders(result.posterUrl, url) + result.posterHeaders.orEmpty()
             val provider = source as? PosterSource
-            val poster = if (ratingProfile == "NoodleMagazine" && provider is NoodlePosterSource && !result.posterUrl.isNullOrBlank()) {
-                val existing = result.posterUrl
-                if (existing!!.startsWith("file:") && runCatching { File(URI(existing)).isFile }.getOrDefault(false) ||
-                    PosterRequests.confirmed(existing, headers)) existing
-                else resolvePoster(provider, url, existing, headers, timeoutMs = 300)
-                    ?: existing.also {
-                        queueHomePoster(newMovieSearchResponse(result.name, url, TvType.NSFW) {
-                            posterUrl = existing
-                            posterHeaders = headers
-                        })
-                    }
-            } else provider?.let { resolvePoster(it, url, result.posterUrl, headers) }
+            val existing = result.posterUrl
+            val ready = existing != null && (PosterRequests.confirmed(existing, headers) ||
+                existing.startsWith("file:") && runCatching { File(URI(existing)).isFile }.getOrDefault(false))
+            val poster = if (provider == null || ready) existing else {
+                val budget = when {
+                    existing.isNullOrBlank() || PosterRequests.knownUnavailable(existing, headers) -> 1600L
+                    provider is NoodlePosterSource -> 300L
+                    else -> 900L
+                }
+                resolvePoster(provider, url, existing, headers, timeoutMs = budget)?.takeUnless {
+                    PosterRequests.knownUnavailable(it, headers)
+                } ?: existing.also {
+                    queuePoster(newMovieSearchResponse(result.name, url, TvType.NSFW) {
+                        posterUrl = existing
+                        posterHeaders = headers
+                    })
+                }
+            }
             result.posterHeaders = if (poster != null && poster != result.posterUrl) {
                 Metadata.rememberPoster(url, poster)
                 result.posterUrl = poster
@@ -949,7 +978,9 @@ class ReliableProvider(
         }
         ratingProfile?.let { VideoScores.rememberDetail(it, url, result.score) }
         result.tags = tags.mapNotNull(Metadata::tag).distinctBy { it.lowercase() }
-        result.recommendations = recommendations.await()
+        val (verified, pending) = recommendations.await()
+        result.recommendations = verified
+        prefetchRecommendations(pending)
         ImagePrefetch.warm(result.recommendations.orEmpty())
         result
     }

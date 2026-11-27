@@ -32,7 +32,7 @@ object AbxxxMetadata {
             }
         }
         if (!includeRelated) return result
-        RequestLimits.optional(2000) {
+        RequestLimits.optional(850) {
             val related=Network.page(PageRequest("$origin/api/json/videos_related2/432000/20/$bucket/$id.all.1.json"),page.baseUri()).wholeText()
             val videos=JSONObject(related).optJSONArray("videos") ?: return@optional
             val box=result.body().appendElement("div").addClass("RelatedVideos")

@@ -195,7 +195,7 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         if(!ContentPolicy.accepts(detail.title,detail.tags + Metadata.cardTags(url),detail.description, spec.id))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         val posterHeaders = Network.imageHeaders(detail.poster, mainUrl.trimEnd('/') + "/")
         if (this !is PosterSource) ImagePrefetch.warm(detail.poster, posterHeaders)
-        val recommendations=RequestLimits.optional { related(document,detail,url) }.orEmpty()
+        val recommendations=RequestLimits.optional(950) { related(document,detail,url) }.orEmpty()
         return newMovieLoadResponse(detail.title,url,TvType.NSFW,url) {
             posterUrl=detail.poster
             this.posterHeaders=posterHeaders
