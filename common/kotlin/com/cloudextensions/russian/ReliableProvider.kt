@@ -49,7 +49,8 @@ private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
 private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex", "PornVideos", "TubeSafari")
 private const val LISTING_COMPLETION_RESERVE_MS = 500L
 private const val HOME_LOOKAHEAD_MS = 600L
-private const val RECOMMENDATION_REVIEW_MS = 950L
+private const val RECOMMENDATION_REVIEW_MS = 450L
+private val cardPrefetchSlots = Semaphore(2)
 
 /** UI request bounds and one real preview shared by the search and detail response. */
 class ReliableProvider(
@@ -498,6 +499,7 @@ class ReliableProvider(
         val listed = rows.flatMap { it.list }
         ImagePrefetch.warm(listed.drop(3))
         val visibleRows = if (ratingProfile == "TubeSafari") rows.filter { it.list.isNotEmpty() } else rows
+        prefetchCards(listed)
         newHomePageResponse(visibleRows, result.hasNext)
     }
     override suspend fun search(query:String):List<SearchResponse> = search(query,1).items
@@ -745,6 +747,7 @@ class ReliableProvider(
                 val visible = if (page == 1 && fresh.size != saved.items.size) {
                     SearchPosters.prepare(fresh, listingDeadline, ::repairSearchPoster)
                 } else fresh.also { ImagePrefetch.warm(it, priority = true) }
+                prefetchCards(visible)
                 return@withLock newSearchResponseList(visible, saved.hasNext)
             }
             // CloudStream normally calls consecutive pages. Independently requested pages retain
@@ -868,6 +871,7 @@ class ReliableProvider(
                 }
             }
             firstPhotos?.cancel()
+            prefetchCards(prepared)
             val response = newSearchResponseList(prepared, pending != null || canFetch)
             if (page == 1) {
                 history.reuseFirstUntil = if (prepared.size >= SEARCH_PAGE_MINIMUM && prepared.take(SEARCH_POSTER_COUNT).all { !it.posterUrl.isNullOrBlank() })
@@ -878,9 +882,60 @@ class ReliableProvider(
             response
         }
     }
+    private val cardBatch = Semaphore(1)
+    private data class CardKey(val url: String, val filtered: Boolean)
+    private data class OpenedCard(val time: Long, val detail: MovieLoadResponse, val pending: List<SearchResponse>)
+    private val opened = java.util.Collections.synchronizedMap(BoundedMap<CardKey, OpenedCard>(12))
+    private val preparing = ConcurrentHashMap<CardKey, CompletableDeferred<Unit>>()
+
+    private fun snapshot(card: MovieLoadResponse) =
+        card.copy(trailers = card.trailers.toMutableList(), syncData = card.syncData.toMutableMap())
+
+    private fun cachedCard(key: CardKey): MovieLoadResponse? {
+        val (time, card, pending) = opened[key] ?: return null
+        if (System.nanoTime() - time > 20_000_000_000L || !isListable(key.url) ||
+            !accepts(card.name, card.tags.orEmpty() + Metadata.cardTags(key.url), card.plot)) return null
+        return snapshot(card).also { fresh ->
+            val newlyVerified = pending.filter { savedReview(it.url)?.allowed == true }
+            fresh.recommendations = distinctListings(card.recommendations.orEmpty() + newlyVerified).filter {
+                isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url))
+            }
+        }
+    }
+
+    private fun prefetchCards(cards: List<SearchResponse>) {
+        if (ratingProfile == null || cards.isEmpty() || !cardBatch.tryAcquire()) return
+        if (!cardPrefetchSlots.tryAcquire()) {
+            cardBatch.release()
+            return
+        }
+        detailPrefetch.launch {
+            try {
+                for (card in cards.take(3)) {
+                    val key = CardKey(card.url, ContentPolicy.enabled)
+                    if (cachedCard(key) == null && isListable(card.url)) {
+                        val ready = CompletableDeferred<Unit>()
+                        preparing[key] = ready
+                        try {
+                            RequestLimits.optional(3500) { loadCard(key, background = true) }
+                        } finally {
+                            ready.complete(Unit)
+                            preparing.remove(key, ready)
+                        }
+                    }
+                }
+            } finally {
+                cardPrefetchSlots.release()
+                cardBatch.release()
+            }
+        }
+    }
+
     override suspend fun load(url: String): LoadResponse = RequestLimits.required("Карточка") {
         try {
-            loadCard(url)
+            val key = CardKey(url, ContentPolicy.enabled)
+            preparing[key]?.let { withTimeoutOrNull(120) { it.await() } }
+            cachedCard(key) ?: loadCard(key, background = false)
         } catch (e: ErrorLoadingException) {
             if (excludedDetails.containsMatchIn(e.message.orEmpty())) {
                 reviews[videoKey(url)] = System.nanoTime() to Review(false, null)
@@ -908,10 +963,11 @@ class ReliableProvider(
         }
     }
 
-    private suspend fun loadCard(url: String): LoadResponse = coroutineScope {
+    private suspend fun loadCard(key: CardKey, background: Boolean): LoadResponse = coroutineScope {
+        val url = key.url
         val saved = savedReview(url, DETAIL_MAX_AGE_NANOS)?.detail as? MovieLoadResponse
         val result = saved?.copy(trailers = saved.trailers.toMutableList(), syncData = saved.syncData.toMutableMap()) ?:
-            withContext(Network.OpeningDetail + Network.CacheDetail) { source.load(url) }
+            withContext(if (background) Network.CacheDetail else Network.OpeningDetail + Network.CacheDetail) { source.load(url) }
             ?: throw ErrorLoadingException("Источник не вернул карточку")
         val listedTags = Metadata.cardTags(url)
         val tagsSource = (source as? DetailTagSource) ?: (source as? AdaptedProvider)?.detailTagSource
@@ -980,6 +1036,9 @@ class ReliableProvider(
         result.tags = tags.mapNotNull(Metadata::tag).distinctBy { it.lowercase() }
         val (verified, pending) = recommendations.await()
         result.recommendations = verified
+        if (result is MovieLoadResponse && key.filtered == ContentPolicy.enabled) {
+            opened[key] = OpenedCard(System.nanoTime(), snapshot(result), pending)
+        }
         prefetchRecommendations(pending)
         ImagePrefetch.warm(result.recommendations.orEmpty())
         result
