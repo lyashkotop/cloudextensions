@@ -2,11 +2,14 @@ package com.cloudextensions.sites
 
 import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.PageRequest
+import com.cloudextensions.russian.Playback
 import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.RussianProvider
 import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
 import com.lagradost.cloudstream3.ErrorLoadingException
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.utils.ExtractorLink
 import kotlinx.coroutines.delay
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -30,6 +33,8 @@ class RoughXXXTubeProvider : RussianProvider(
         ),
     ),
 ) {
+    override val requiresListingReview = true
+
     private val videoPath = Regex("""/(?:ru|en)/video/(\d+)/?""")
     private val searchPage = Regex("""(/ru/search/[A-Za-z0-9_+-]+/popular/)([0-9]+)/""")
 
@@ -57,25 +62,31 @@ class RoughXXXTubeProvider : RussianProvider(
     }
 
     override suspend fun page(request: PageRequest): Document {
-        val localized = request.copy(headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE))
+        val path = request.url.toHttpUrlOrNull()?.encodedPath.orEmpty()
+        val video = videoPath.matches(path)
+        val localized = request.copy(
+            headers = request.headers + ("Accept-Language" to Network.RUSSIAN_LANGUAGE),
+            allowNotFound = request.allowNotFound || video,
+        )
+        fun unavailable(document: Document) = document.attr("data-response-code") in setOf("404", "410")
+
         var original = super.page(localized)
         if (!matchesPage(original, request.url)) {
             delay(120)
             original = super.page(localized.copy(headers = localized.headers + ("Cache-Control" to "no-cache")))
-            if (!matchesPage(original, request.url)) {
-                val path = request.url.toHttpUrlOrNull()?.encodedPath.orEmpty()
-                if (videoPath.matches(path)) {
-                    val otherLanguage = if (path.startsWith("/ru/")) "en" else "ru"
-                    val alternative = localized.copy(url = localized.url.replace(path, "/$otherLanguage/video/" + path.substringAfter("/video/")),
-                        allowNotFound = true)
-                    val fallback = RequestLimits.optional(2200) { super.page(alternative) }
-                    if (fallback != null && matchesPage(fallback, request.url) &&
-                        fallback.attr("data-response-code") !in setOf("404", "410")) return fallback
-                    throw ErrorLoadingException("RoughXXXTube: сайт не вернул страницу видео")
-                }
-                throw ErrorLoadingException("RoughXXXTube: сайт не вернул запрошенную страницу")
-            }
         }
+        if (video && (unavailable(original) || !matchesPage(original, request.url))) {
+            val otherLanguage = if (path.startsWith("/ru/")) "en" else "ru"
+            val alternative = localized.copy(url = localized.url.replace(path, "/$otherLanguage/video/" + path.substringAfter("/video/")))
+            val fallback = RequestLimits.optional(2200) { super.page(alternative) }
+            if (fallback != null && matchesPage(fallback, request.url) && !unavailable(fallback)) return fallback
+            if (unavailable(original)) {
+                if (request.allowNotFound) return original
+                throw ErrorLoadingException("Видео удалено или недоступно")
+            }
+            throw ErrorLoadingException("RoughXXXTube: сайт не вернул страницу видео")
+        }
+        if (!matchesPage(original, request.url)) throw ErrorLoadingException("RoughXXXTube: сайт не вернул запрошенную страницу")
         val document = original.clone()
         val next = document.selectFirst(".more > a[href]")
         if (next != null) {
@@ -92,4 +103,12 @@ class RoughXXXTubeProvider : RussianProvider(
         }
         return document
     }
+
+    override suspend fun loadLinks(
+        data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,
+    ): Boolean {
+        val document = page(PageRequest(data))
+        return Playback.linksFromPage(name, mainUrl, document.baseUri(), document, emptyList(), subtitleCallback, callback)
+    }
+
 }

@@ -2,6 +2,7 @@ package com.streambundleextra
 import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import org.jsoup.nodes.Document
 class HurtSexProvider: RussianProvider(SiteSpec(
  id="HurtSex",
  title="HurtSex",
@@ -14,6 +15,12 @@ class HurtSexProvider: RussianProvider(SiteSpec(
  sections=listOf(Section("Latest","/"))
 )) {
     override var lang = "en"
+    override val requiresListingReview = true
+
+    override suspend fun reviewMetadata(document: Document, detail: VideoDetail): VideoDetail {
+        Playback.rejectMissingStaticMedia(document, "nonkporno.com")
+        return detail
+    }
 
     override suspend fun searchRequest(term: String): PageRequest =
         PageRequest(mainUrl.trimEnd('/') + "/search", data = mapOf("q" to term))

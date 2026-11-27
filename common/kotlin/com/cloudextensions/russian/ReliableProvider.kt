@@ -46,7 +46,7 @@ private val slowFirstPageSources = setOf(
 private const val FIRST_PAGE_TARGET_MS = 3_000L
 private const val FIRST_PAGE_MERGE_MS = 1_700L
 private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
-private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex", "TubeSafari")
+private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex", "PornVideos", "TubeSafari")
 private const val LISTING_COMPLETION_RESERVE_MS = 500L
 private const val HOME_LOOKAHEAD_MS = 600L
 
@@ -461,8 +461,16 @@ class ReliableProvider(
                     }
                     val visible = cards(row.list, expandTitles = !requiresListingReview)
                     val checked = if (requiresListingReview) {
-                        val candidates = if (ratingProfile == "TubeSafari") visible.take(6) else visible
-                        reviewedCards(candidates, deadline - 6_000_000_000L)
+                        val reviewDeadline = deadline - 6_000_000_000L
+                        when (ratingProfile) {
+                            "TubeSafari" -> {
+                                val first = reviewedCards(visible.take(6), reviewDeadline)
+                                first.ifEmpty { reviewedCards(visible.drop(6).take(12), reviewDeadline, returnAfter = 3) }
+                            }
+                            "HurtSex", "PornVideos", "RoughXXXTube" ->
+                                reviewedCards(visible.take(20), reviewDeadline, returnAfter = 6)
+                            else -> reviewedCards(visible, reviewDeadline)
+                        }
                     } else visible
                     row.copy(list = prepareListing(checked, deadline, home = true))
                 }

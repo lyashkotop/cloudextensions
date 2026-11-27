@@ -117,6 +117,31 @@ object Playback {
     ): Boolean = resolveLinks(name, origin, pageUrl, subtitles, callback, false, staticPlayerHost)
     suspend fun confirmedLinks(name:String,origin:String,pageUrl:String,subtitles:(SubtitleFile)->Unit,callback:(ExtractorLink)->Unit):Boolean = resolveLinks(name,origin,pageUrl,subtitles,callback,true)
 
+    /** Reject only when the single supported static player declares files that all return 404/410. */
+    suspend fun rejectMissingStaticMedia(page: Document, playerHost: String) = coroutineScope {
+        val players = page.select("iframe[src], iframe[data-src]")
+            .filter { it.closest(".ad,.ads,.advertisement") == null }
+            .mapNotNull { absolute(page.baseUri(), it.attr("data-src").ifBlank { it.attr("src") }) }
+            .filterNot(advertisement::containsMatchIn).distinct()
+        if (sources(page).isNotEmpty()) return@coroutineScope
+        val url = players.singleOrNull()?.takeIf { java.net.URI(it).host?.removePrefix("www.") == playerHost }
+            ?: return@coroutineScope
+        val player = RequestLimits.optional(1100) { Network.page(PageRequest(url), page.baseUri()) }
+            ?: return@coroutineScope
+        if (java.net.URI(player.baseUri()).host?.removePrefix("www.") != playerHost) return@coroutineScope
+        val declared = sources(player)
+        if (declared.isEmpty() || declared.size > 4) return@coroutineScope
+        val referer = player.baseUri()
+        val statuses = withTimeoutOrNull(1200) {
+            declared.map { source ->
+                async { MediaRequests.probe(source.url, referer, Network.headers(referer))?.status }
+            }.awaitAll()
+        }
+        if (statuses != null && statuses.all { it == 404 || it == 410 }) {
+            throw ErrorLoadingException("Видео удалено или недоступно")
+        }
+    }
+
     /** True for media, false for a confirmed failure, null when the request timed out. */
     suspend fun checkDirectLink(link: ExtractorLink): Boolean? =
         MediaRequests.probe(link.url, link.referer, link.headers)?.let { it.status in 200..299 }
