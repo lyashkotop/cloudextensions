@@ -1,5 +1,6 @@
 package com.streambundleextra
 import com.cloudextensions.russian.*
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 class PunishWorldProvider: RussianProvider(SiteSpec(
@@ -14,6 +15,9 @@ class PunishWorldProvider: RussianProvider(SiteSpec(
  sections=listOf(Section("Latest","/"), Section("Most viewed","/?filter=most-viewed"))
 )) {
     override var lang = "en"
+
+    override suspend fun searchRequest(term: String): PageRequest =
+        PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/").addQueryParameter("s", term).build().toString())
 
     override suspend fun loadLinks(
         data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit,

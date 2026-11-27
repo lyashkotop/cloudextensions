@@ -1,5 +1,6 @@
 package com.streambundleextra
 import com.cloudextensions.russian.*
+import okhttp3.HttpUrl.Companion.toHttpUrl
 class PervertiumProvider: RussianProvider(SiteSpec(
  id="Pervertium",
  title="Pervertium",
@@ -8,4 +9,9 @@ class PervertiumProvider: RussianProvider(SiteSpec(
  link="a[href]",
  titleSelector=".title",
  sections=listOf(Section("Latest","/"),Section("Popular","/most-popular/"))
-)){override var lang="en"}
+)) {
+    override var lang = "en"
+
+    override suspend fun searchRequest(term: String): PageRequest =
+        PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search/").addQueryParameter("q", term).build().toString())
+}

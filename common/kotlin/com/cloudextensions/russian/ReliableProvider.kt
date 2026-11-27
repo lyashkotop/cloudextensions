@@ -38,10 +38,6 @@ private const val REQUIRED_SEARCH_REVIEW_BUDGET_MS = 6_000L
 private const val LISTING_TIMEOUT_MS = 22_000L
 private const val RATING_REQUEST_TIMEOUT_MS = 6_500L
 private const val FAST_LISTING_RATING_BUDGET_MS = 500L
-private val prioritizedSearchSources = setOf(
-    "EPorner", "Strip2", "XHamster", "TubeSafari", "Domashka",
-    "BDSMStreak", "Ebalka", "NoodleMagazine", "TubeBDSM", "Semyana",
-)
 private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
 private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex", "TubeSafari")
 private const val LISTING_COMPLETION_RESERVE_MS = 500L
@@ -233,7 +229,7 @@ class ReliableProvider(
     }
     private data class Review(val allowed:Boolean,val detail:LoadResponse?,val title:String?=detail?.name)
     private val reviews=java.util.Collections.synchronizedMap(BoundedMap<String,Pair<Long,Review>>(128))
-    private val reviewPermits = Semaphore(if (ratingProfile in prioritizedSearchSources && requiresListingReview) 6 else 4)
+    private val reviewPermits = Semaphore(if (requiresListingReview) 6 else 4)
     private fun savedReview(url: String, maxAgeNanos: Long = 300_000_000_000L): Review? =
         reviews[videoKey(url)]?.takeIf { System.nanoTime() - it.first < maxAgeNanos }?.second
     private fun remainingMillis(deadline: Long) = (deadline - System.nanoTime()) / 1_000_000
@@ -333,7 +329,7 @@ class ReliableProvider(
             else {
                 // Share detail checks across languages and return the verified cards in site order.
                 val queue = if (reviewRank.isEmpty()) normalized else normalized.sortedBy { reviewRank[searchKey(it)] ?: Int.MAX_VALUE }
-                val target = if (firstPage && ratingProfile in prioritizedSearchSources) 6 else Int.MAX_VALUE
+                val target = if (firstPage && ratingProfile != null) 6 else Int.MAX_VALUE
                 val accepted = reviewedCards(queue, deadline, early, returnAfter = target).associateBy(::searchKey)
                 normalized.mapNotNull { accepted[searchKey(it)] }
             }
@@ -689,7 +685,7 @@ class ReliableProvider(
             val searchScope = CoroutineScope(coroutineContext)
             var firstPhotos: Job? = null
             fun prepareLeadingCards(items: List<SearchResponse>) {
-                if (page != 1 || ratingProfile !in prioritizedSearchSources) return
+                if (page != 1 || ratingProfile == null) return
                 val earlyDeadline = minOf(listingDeadline - 2_000_000_000L, System.nanoTime() + 3_500_000_000L)
                 val visible = items.asSequence()
                     .filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }

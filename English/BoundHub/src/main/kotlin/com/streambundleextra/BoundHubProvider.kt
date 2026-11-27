@@ -1,5 +1,6 @@
 package com.streambundleextra
 import com.cloudextensions.russian.*
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import org.jsoup.nodes.Document
@@ -9,6 +10,9 @@ class BoundHubProvider: RussianProvider(SiteSpec(
  searchContainer="#list_videos_videos_list_search_result"
 )) {
     override var lang = "en"
+
+    override suspend fun searchRequest(term: String): PageRequest =
+        PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search/").addQueryParameter("q", term).build().toString())
     override val includeTaxonomyResults = false
 
     override fun readMetadata(document: Document): VideoDetail {

@@ -15,6 +15,9 @@ class HurtSexProvider: RussianProvider(SiteSpec(
 )) {
     override var lang = "en"
 
+    override suspend fun searchRequest(term: String): PageRequest =
+        PageRequest(mainUrl.trimEnd('/') + "/search", data = mapOf("q" to term))
+
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
