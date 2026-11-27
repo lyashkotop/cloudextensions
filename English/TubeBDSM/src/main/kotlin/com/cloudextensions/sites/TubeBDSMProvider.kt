@@ -12,6 +12,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Interceptor
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.net.URI
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.jsoup.nodes.Document
 class TubeBDSMProvider: RussianProvider(SiteSpec(
  id="TubeBDSM",title="TubeBDSM",origin="https://www.tubebdsm.com",cards=".card.sub:has(img)",link="a.item-link[href]",titleSelector=".item-title,.title,h2,h3",titleLanguage="ru",searchMode="get",
@@ -19,6 +20,10 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
  sections=listOf(Section("New videos","/new"),Section("Popular videos","/popular"),Section("Top rated videos","/rating"))
 )){
  override var lang="en"
+ override suspend fun searchRequest(term: String): PageRequest =
+     PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search/")
+         .addQueryParameter("q", term).build().toString())
+
  override fun isSearchResult(document: Document, route: PageRequest): Boolean {
   val actual = document.baseUri().toHttpUrlOrNull() ?: return false
   if (!actual.encodedPath.split('/').contains("search")) return false

@@ -3,6 +3,7 @@ package com.cloudextensions.sites
 import com.cloudextensions.russian.*
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.jsoup.nodes.Document
 class BDSMStreakProvider: RussianProvider(SiteSpec(
  id="BDSMStreak",title="BDSM Streak",origin="https://bdsmstreak.com",
@@ -13,6 +14,10 @@ class BDSMStreakProvider: RussianProvider(SiteSpec(
 )) {
     override var lang = "en"
     override val requiresListingReview = true
+
+    override suspend fun searchRequest(term: String): PageRequest =
+        PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search")
+            .addQueryParameter("q", term).build().toString())
 
     override fun readMetadata(document: Document): VideoDetail {
         val detail = super.readMetadata(document)

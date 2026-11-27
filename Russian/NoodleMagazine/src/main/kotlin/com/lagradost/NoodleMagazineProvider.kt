@@ -25,7 +25,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import org.jsoup.nodes.Document
 
-class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,NoodlePosterSource {
+class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,NoodlePosterSource,SearchMetadataSource {
     constructor() : this(ImagePrefetch.cacheDirectory())
 
     private val descriptionFooter = Regex("""(?iu)(?:^|\s+)watch\s+sex\s+video\b.*?\bonline[.!…]?\s*$""")
@@ -233,7 +233,8 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
     }
     override suspend fun posterPage(url: String): Document = document(PageRequest(url))
 
-    override suspend fun fullTitle(url:String):String? = Metadata.detail(document(PageRequest(url)),spec).title
+    override suspend fun searchMetadata(url: String): VideoDetail = Metadata.detail(document(PageRequest(url)), spec)
+    override suspend fun fullTitle(url:String):String? = searchMetadata(url).title
     override suspend fun load(url:String):LoadResponse {
         val page=document(PageRequest(url));val detail=Metadata.detail(page,spec)
         rememberNoodlePosters(url, page)

@@ -73,7 +73,9 @@ class DomashkaProvider : RussianProvider(
                 else null
             }
         val titles = cards.map { it.second }.distinct()
-        val translated = RequestLimits.optional(4500) {
+        if (titles.isEmpty()) return document
+        val budget = if (address.encodedPath == "/search/") 1000L else 4500L
+        val translated = RequestLimits.optional(budget) {
             coroutineScope {
                 titles.chunked(8).map { batch ->
                     async {

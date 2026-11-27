@@ -20,6 +20,11 @@ internal object SearchPosters {
     private const val COVER_BUDGET_MS = 1_650L
     private const val DECODE_BUDGET_MS = 550L
 
+    suspend fun precheck(items: List<SearchResponse>) = coroutineScope {
+        items.take(VISIBLE).map { card -> async { verify(card, decode = false) } }.awaitAll()
+        Unit
+    }
+
     suspend fun prepare(
         items: List<SearchResponse>,
         deadline: Long,

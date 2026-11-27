@@ -9,7 +9,10 @@ import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newSearchResponseList
 import java.io.File
 import java.io.IOException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 private class SearchCatalogue(private val poster: String) : MainAPI() {
     override var lang = "ru"
@@ -33,7 +36,7 @@ private class SearchCatalogue(private val poster: String) : MainAPI() {
     override suspend fun load(url: String) = newMovieLoadResponse("Video ${url.substringAfterLast('/')}", url, TvType.NSFW, url)
 }
 
-private class StrictCatalogue(private val poster: String) : MainAPI(), SearchPolicy {
+private class StrictCatalogue(private val poster: String, private val slowTail: Boolean = false) : MainAPI(), SearchPolicy {
     override var lang = "ru"
     override var mainUrl = "https://strict.example"
     override val requiresListingReview = true
@@ -46,8 +49,33 @@ private class StrictCatalogue(private val poster: String) : MainAPI(), SearchPol
 
     override suspend fun load(url: String): LoadResponse {
         val id = url.substringAfterLast('/')
-        if (id == "8" && attempts++ == 0) throw IOException("Temporary unavailable details")
+        if (slowTail && id.toInt() > 7) delay(600)
+        if (!slowTail && id == "8" && attempts++ == 0) throw IOException("Temporary unavailable details")
         return newMovieLoadResponse("Video $id", url, TvType.NSFW, url)
+    }
+}
+
+private class OverlappingCatalogue(private val poster: String) : MainAPI(), SearchPolicy {
+    override var lang = "ru"
+    override var mainUrl = "https://overlap.example"
+    override val requiresListingReview = true
+    private val primaryReviewed = CompletableDeferred<Unit>()
+
+    override suspend fun search(query: String, page: Int): SearchResponseList {
+        val id = if (query == "подруга") "primary" else {
+            if (withTimeoutOrNull(1_000) { primaryReviewed.await() } == null) {
+                return newSearchResponseList(emptyList(), false)
+            }
+            "translated"
+        }
+        return newSearchResponseList(listOf(newMovieSearchResponse("Video $id", "$mainUrl/$id", TvType.NSFW) {
+            posterUrl = poster
+        }), false)
+    }
+
+    override suspend fun load(url: String): LoadResponse {
+        if (url.endsWith("/primary")) primaryReviewed.complete(Unit)
+        return newMovieLoadResponse("Verified video", url, TvType.NSFW, url)
     }
 }
 
@@ -83,6 +111,13 @@ internal fun testSearchPaging() {
             check(source.requests.drop(previous).toSet() == setOf("подруга" to 1, "girlfriend" to 1))
             check(plugin.search("absent", 1).let { it.items.isEmpty() && !it.hasNext })
 
+            val overlap = ReliableProvider(OverlappingCatalogue(poster.toURI().toString()), "EPorner")
+            check(overlap.search("подруга", 1).items.map { it.url.substringAfterLast('/') } == listOf("primary", "translated"))
+            val fastStrict = ReliableProvider(StrictCatalogue(poster.toURI().toString(), slowTail = true), "EPorner")
+            val fastFirst = fastStrict.search("123", 1)
+            check(fastFirst.ids() == (1..7).toList() && fastFirst.hasNext)
+            val fastSecond = fastStrict.search("123", 2)
+            check(fastSecond.ids().toSet() == (8..24).toSet() && !fastSecond.hasNext)
             val strict = ReliableProvider(StrictCatalogue(poster.toURI().toString()))
             val strictFirst = strict.search("123", 1)
             check(strictFirst.ids() == (1..20).filter { it != 8 } && strictFirst.hasNext)

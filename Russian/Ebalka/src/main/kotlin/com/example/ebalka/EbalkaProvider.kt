@@ -113,30 +113,41 @@ class EbalkaProvider: RussianProvider(SiteSpec(
             document.selectFirst("h1.video__title") != null
     }
 
-    private suspend fun russianPage(request: PageRequest, url: HttpUrl): Document {
+    private suspend fun russianPage(request: PageRequest, url: HttpUrl): Document = coroutineScope {
         val path = url.encodedPath.trimEnd('/')
         val video = videoId(url)
         val hosts = (listOfNotNull(catalogueHost, url.host) + mirrors).distinct()
-        var missing: Document? = null
-        for (host in hosts) {
-            val document = requestMirror(request, url, host) ?: continue
-            val actual = document.baseUri().toHttpUrlOrNull() ?: continue
-            if (!russianHost.matches(actual.host)) continue
-            if (video != null) {
-                if (!isRequestedVideo(document, video)) continue
-            } else {
-                if (actual.encodedPath.trimEnd('/') != path ||
-                    actual.queryParameter("q") != url.queryParameter("q")) continue
-                if (document.attr("data-response-code") in setOf("404", "410") && request.allowNotFound) {
-                    missing = document
-                    continue
-                }
-                if (document.selectFirst("html[lang=ru]") == null) continue
-                catalogueHost = actual.host
+        val replies = Channel<Document?>(hosts.size)
+        val requests = hosts.mapIndexed { index, host ->
+            launch {
+                if (index > 0) delay(index * 180L)
+                replies.send(requestMirror(request, url, host))
             }
-            return document
         }
-        return missing ?: throw ErrorLoadingException("Ebalka: русские зеркала сейчас не ответили на запрос.")
+        try {
+            var missing: Document? = null
+            repeat(hosts.size) {
+                val document = replies.receive() ?: return@repeat
+                val actual = document.baseUri().toHttpUrlOrNull() ?: return@repeat
+                if (!russianHost.matches(actual.host)) return@repeat
+                if (video != null) {
+                    if (!isRequestedVideo(document, video)) return@repeat
+                } else {
+                    if (actual.encodedPath.trimEnd('/') != path ||
+                        actual.queryParameter("q") != url.queryParameter("q")) return@repeat
+                    if (document.attr("data-response-code") in setOf("404", "410") && request.allowNotFound) {
+                        missing = document
+                        return@repeat
+                    }
+                    if (document.selectFirst("html[lang=ru]") == null) return@repeat
+                    catalogueHost = actual.host
+                }
+                return@coroutineScope document
+            }
+            missing ?: throw ErrorLoadingException("Ebalka: русские зеркала сейчас не ответили на запрос.")
+        } finally {
+            requests.forEach { it.cancel() }
+        }
     }
 
     private fun videoId(url: HttpUrl): String? =

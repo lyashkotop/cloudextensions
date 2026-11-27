@@ -1,6 +1,7 @@
 package com.example.websites
 
 import com.cloudextensions.russian.*
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.jsoup.nodes.Document
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -33,6 +34,10 @@ class SemyanaProvider: RussianProvider(SiteSpec(
         Section("Big asses","/cat/big-asses/"),
     )
 )) {
+    override suspend fun searchRequest(term: String): PageRequest =
+        PageRequest(mainUrl.toHttpUrl().newBuilder().encodedPath("/search/")
+            .addQueryParameter("q", term).build().toString())
+
     override suspend fun page(request: PageRequest): Document {
         val current = request.url.toHttpUrlOrNull()
         val legacyHosts = setOf("w.semyana.com", "semyana.club", "dev.semyana.club")
