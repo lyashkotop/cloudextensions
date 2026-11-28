@@ -28,6 +28,7 @@ object Translation {
         setOf("лесби", "лесбиянки", "lesbian", "lesbians"),
         setOf("милф", "milf", "milfs"),
         setOf("групповое", "групповой секс", "group sex"),
+        setOf("унижение", "humiliation", "унижения", "унижают", "humiliated"),
     )
     private val genreQualifiers = Regex("""(?iu)^(?:порно|видео|porn|videos?) +| +(?:порно|видео|porn|videos?)$""")
 

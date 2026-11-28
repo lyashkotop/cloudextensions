@@ -17,7 +17,8 @@ import org.jsoup.nodes.Document
 class TubeBDSMProvider: RussianProvider(SiteSpec(
  id="TubeBDSM",title="TubeBDSM",origin="https://www.tubebdsm.com",cards=".card.sub:has(img)",link="a.item-link[href]",titleSelector=".item-title,.title,h2,h3",titleLanguage="ru",searchMode="get",
  searchContainer="#content .content-block:has(> .cards-container)",
- sections=listOf(Section("New videos","/new"),Section("Popular videos","/popular"),Section("Top rated videos","/rating"))
+ sections=listOf(Section("New videos","/new"),Section("Popular videos","/popular"),Section("Top rated videos","/rating")),
+ searchSections=listOf(Section("Унижение", "/ru/category/humiliation")),
 )){
  override var lang="en"
  override val requiresListingReview = true

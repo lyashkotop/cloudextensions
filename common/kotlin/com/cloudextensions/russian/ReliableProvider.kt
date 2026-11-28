@@ -244,18 +244,21 @@ class ReliableProvider(
         } }.awaitAll()
     }
     private data class Review(val allowed:Boolean,val detail:LoadResponse?,val title:String?=detail?.name)
-    private val reviews=java.util.Collections.synchronizedMap(BoundedMap<String,Pair<Long,Review>>(128))
-    private val homeReviews=java.util.Collections.synchronizedMap(BoundedMap<String,Pair<Long,Review>>(128))
-    private val reviewPermits = Semaphore(if (requiresListingReview) 6 else 4)
+    private val reviews=java.util.Collections.synchronizedMap(BoundedMap<CardKey,Pair<Long,Review>>(128))
+    private val homeReviews=java.util.Collections.synchronizedMap(BoundedMap<CardKey,Pair<Long,Review>>(128))
+    private val reviewPermits = Semaphore(6)
     private fun savedReview(url: String, maxAgeNanos: Long = 300_000_000_000L): Review? =
-        reviews[videoKey(url)]?.takeIf { System.nanoTime() - it.first < maxAgeNanos }?.second
+        savedReview(CardKey(videoKey(url), ContentPolicy.enabled), maxAgeNanos)
+
+    private fun savedReview(key: CardKey, maxAgeNanos: Long): Review? =
+        reviews[key]?.takeIf { System.nanoTime() - it.first < maxAgeNanos }?.second
     private fun remainingMillis(deadline: Long) = (deadline - System.nanoTime()) / 1_000_000
 
     private suspend fun review(
         card: SearchResponse, deadline: Long, maxAgeNanos: Long = 300_000_000_000L, home: Boolean = false,
     ): Review? {
-        val key = videoKey(card.url)
-        fun cached() = savedReview(card.url, maxAgeNanos) ?: if (home) {
+        val key = CardKey(videoKey(card.url), ContentPolicy.enabled)
+        fun cached() = savedReview(key, maxAgeNanos) ?: if (home) {
             homeReviews[key]?.takeIf { System.nanoTime() - it.first < maxAgeNanos }?.second
         } else null
         cached()?.let { return it }
@@ -271,7 +274,9 @@ class ReliableProvider(
                                 else reader.searchMetadata(card.url)
                             Review(accepts(meta.title, meta.tags + Metadata.cardTags(card.url), meta.description), null, meta.title)
                         } else {
-                            val detail = source.load(card.url) ?: return@optional null
+                            val detail = withContext(CardRecommendations(detailPrefetch, recommendationFetchPermits)) {
+                                source.load(card.url)
+                            } ?: return@optional null
                             Review(accepts(detail.name, detail.tags.orEmpty() + Metadata.cardTags(card.url), detail.plot), detail)
                         }
                     } catch (e: ErrorLoadingException) {
@@ -279,7 +284,7 @@ class ReliableProvider(
                     }
                 }
             }
-        } ?: return null
+        }?.takeIf { key.filtered == ContentPolicy.enabled } ?: return null
         // A homepage check can approve local metadata when its partner does not answer.
         val cache = if (home && result.allowed) homeReviews else reviews
         cache[key] = System.nanoTime() to result
@@ -325,33 +330,14 @@ class ReliableProvider(
         }
     }
 
-    private suspend fun previewSearch(
-        items: List<SearchResponse>, deadline: Long, early: Map<String, Deferred<Review?>>,
-    ): List<SearchResponse> {
-        val accepted = mutableListOf<SearchResponse>()
-        var cursor = 0
-        while (accepted.size < SEARCH_REVIEW_LIMIT && cursor < items.size && remainingMillis(deadline) > 0) {
-            val end = minOf(items.size, cursor + SEARCH_REVIEW_LIMIT - accepted.size)
-            val candidates = items.subList(cursor, end)
-            val checked = reviewedCards(candidates, deadline, early)
-            if (remainingMillis(deadline) <= 0) {
-                // A slow secondary metadata request cannot erase otherwise valid listing results.
-                val byKey = checked.associateBy(::searchKey)
-                accepted += candidates.mapNotNull { byKey[searchKey(it)] ?: it.takeIf { isListable(it.url) } }
-            } else accepted += checked
-            cursor = end
-        }
-        return accepted + items.drop(cursor).filter { isListable(it.url) }
-    }
-
     private suspend fun prepareSearch(
         items: List<SearchResponse>, deadline: Long, reviewRank: Map<String, Int>, early: Map<String, Deferred<Review?>>,
-        firstPage: Boolean,
+        firstPage: Boolean, mustReview: Boolean,
     ): List<SearchResponse> = coroutineScope {
         val normalized = items.filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }.map { normalizeCard(it) }
         ImagePrefetch.warm(normalized, priority = true)
         val reviewed = withContext(Network.CacheDetail) {
-            if (!requiresListingReview) previewSearch(normalized, deadline, early)
+            if (!mustReview) normalized
             else {
                 // Share detail checks across languages and return the verified cards in site order.
                 val queue = if (reviewRank.isEmpty()) normalized else normalized.sortedBy { reviewRank[searchKey(it)] ?: Int.MAX_VALUE }
@@ -443,7 +429,7 @@ class ReliableProvider(
         val taxonomyEnds = mutableMapOf<String, Int>()
         val aliasEnds = mutableMapOf<String, Int>()
     }
-    private val searchHistory = BoundedMap<String, SearchHistory>(32)
+    private val searchHistory = BoundedMap<Pair<String, Boolean>, SearchHistory>(32)
 
     private fun searchKey(card: SearchResponse): String =
         if (source is NoodlePosterSource && (source as? SearchPolicy)?.translateQueries == true) NoodleCatalogue.identity(card.url)
@@ -650,21 +636,27 @@ class ReliableProvider(
         val listingDeadline = started + LISTING_TIMEOUT_MS * 1_000_000L
         val firstPageTarget = started + FIRST_PAGE_TARGET_MS * 1_000_000L
         val quickFirstPage = page == 1 && providerId in slowFirstPageSources
+        val filtered = ContentPolicy.enabled
+        val mustReview = filtered || requiresListingReview
+        val historyKey = query to filtered
         if (page < 1 || !ContentPolicy.accepts(query)) return@required newSearchResponseList(emptyList(), false)
         val history = synchronized(searchHistory) {
-            val previous = searchHistory[query]
+            val previous = searchHistory[historyKey]
             if (previous != null && (page != 1 || System.nanoTime() < previous.reuseFirstUntil)) previous
-            else SearchHistory().also { searchHistory[query] = it }
+            else SearchHistory().also { searchHistory[historyKey] = it }
         }
         history.mutex.withLock {
             history.pages[page]?.let {
                 val saved = it.response
-                val fresh = saved.items.filter { card -> isListable(card.url) }.map(::cachedSearchPoster)
+                val fresh = saved.items.filter { card ->
+                    isListable(card.url) && accepts(card.name, Metadata.cardTags(card.url))
+                }.map(::cachedSearchPoster)
                 val visible = if (page == 1 && fresh.size != saved.items.size) {
                     SearchPosters.prepare(fresh, listingDeadline, ::repairSearchPoster)
                 } else fresh.also { ImagePrefetch.warm(it, priority = true) }
                 prefetchCards(visible)
-                return@withLock newSearchResponseList(visible, saved.hasNext)
+                return@withLock if (filtered == ContentPolicy.enabled) newSearchResponseList(visible, saved.hasNext)
+                else newSearchResponseList(emptyList(), false)
             }
             // CloudStream normally calls consecutive pages. Independently requested pages retain
             // the provider's existing numeric cursor behavior.
@@ -677,7 +669,7 @@ class ReliableProvider(
                 .flatMap { listingKeys(it).asSequence() }.toMutableSet()
             val cards = mutableListOf<SearchResponse>()
             val genre = lang in listOf("ru", "en") && Translation.searchAliases(query).isNotEmpty()
-            val expandSparse = requiresListingReview || genre || providerId in setOf("PornoRussia", "BdsmPorn")
+            val expandSparse = mustReview || genre || providerId in setOf("PornoRussia", "BdsmPorn")
             val allowSparseFollowUp = page == 1 && providerId == "BdsmPorn"
             var limit = if (page == 1 && !expandSparse) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
             var deadline: Long? = null
@@ -689,7 +681,7 @@ class ReliableProvider(
             var firstPhotos: Job? = null
             fun prepareLeadingCards(response: SearchResponseList, isOriginal: Boolean) {
                 val items = response.items
-                if (page != 1 || providerId == null || quickFirstPage && !requiresListingReview && !isOriginal) return
+                if (!mustReview || page != 1 || providerId == null || quickFirstPage && !requiresListingReview && !isOriginal) return
                 val earlyDeadline = minOf(listingDeadline - 2_000_000_000L, System.nanoTime() + 3_500_000_000L)
                 val visible = items.asSequence()
                     .filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
@@ -738,7 +730,7 @@ class ReliableProvider(
                     limit--
                     candidates = SearchCandidates(distinctListings(result.items), history.reviewRank)
                 }
-                val budget = if (requiresListingReview) REQUIRED_SEARCH_REVIEW_BUDGET_MS else SEARCH_REVIEW_BUDGET_MS
+                val budget = if (mustReview) REQUIRED_SEARCH_REVIEW_BUDGET_MS else SEARCH_REVIEW_BUDGET_MS
                 val reviewDeadline = followUp?.let { minOf(it, System.nanoTime() + budget * 1_000_000L) } ?: deadline ?: minOf(
                     listingDeadline - 2_000_000_000L,
                     System.nanoTime() + budget * 1_000_000L,
@@ -751,10 +743,10 @@ class ReliableProvider(
                 val fastDeadline = if (useFastBudget && batch.size >= SEARCH_PAGE_MINIMUM) {
                     minOf(reviewDeadline, maxOf(System.nanoTime() + 250_000_000L, firstPageTarget - 400_000_000L))
                 } else reviewDeadline
-                var checked = prepareSearch(batch, fastDeadline, candidates.reviewRank, early, firstPage = page == 1)
+                var checked = prepareSearch(batch, fastDeadline, candidates.reviewRank, early, page == 1, mustReview)
                 if (checked.isEmpty() && fastDeadline < reviewDeadline) {
                     useFastBudget = false
-                    checked = prepareSearch(batch, reviewDeadline, candidates.reviewRank, early, firstPage = true)
+                    checked = prepareSearch(batch, reviewDeadline, candidates.reviewRank, early, page == 1, mustReview)
                 }
                 if (checked.isEmpty() && !completeBatch) {
                     useFastBudget = false
@@ -764,7 +756,7 @@ class ReliableProvider(
                 }
                 // Retry unconfirmed strict candidates once, after cards that have not been checked yet.
                 val checkedKeys = checked.mapTo(hashSetOf(), ::searchKey)
-                val retry = if (requiresListingReview) batch.filter {
+                val retry = if (mustReview) batch.filter {
                     val key = searchKey(it)
                     key !in checkedKeys && key !in candidates.retried && savedReview(it.url)?.allowed != false
                 } else emptyList()
@@ -789,6 +781,7 @@ class ReliableProvider(
             val prepared = if (page == 1) SearchPosters.prepare(cards, coverDeadline, ::repairSearchPoster, ::queueHomePoster)
                 else cards.also { ImagePrefetch.warm(it, priority = true) }
             firstPhotos?.cancel()
+            if (filtered != ContentPolicy.enabled) return@withLock newSearchResponseList(emptyList(), false)
             val response = newSearchResponseList(prepared, pending != null || canFetch)
             if (page == 1) {
                 history.reuseFirstUntil = if (prepared.size >= SEARCH_PAGE_MINIMUM && prepared.take(SEARCH_POSTER_COUNT).all { !it.posterUrl.isNullOrBlank() })
@@ -855,8 +848,8 @@ class ReliableProvider(
     }
 
     override suspend fun load(url: String): LoadResponse = RequestLimits.required("Карточка") {
+        val key = CardKey(url, ContentPolicy.enabled)
         try {
-            val key = CardKey(url, ContentPolicy.enabled)
             cachedCard(key)?.let { return@required it }
             val prefetch = preparing[key] ?: return@required loadCard(key, background = false)
             supervisorScope {
@@ -870,7 +863,7 @@ class ReliableProvider(
             }
         } catch (e: ErrorLoadingException) {
             if (excludedDetails.containsMatchIn(e.message.orEmpty())) {
-                reviews[videoKey(url)] = System.nanoTime() to Review(false, null)
+                reviews[CardKey(videoKey(url), key.filtered)] = System.nanoTime() to Review(false, null)
             }
             if (providerId == "TubeSafari" && e.message == "Видео удалено или недоступно") {
                 removedVideos[videoKey(url)] = System.nanoTime()

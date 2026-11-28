@@ -85,6 +85,7 @@ class PornoRussiaProvider : RussianProvider(
 
     private suspend fun searchCatalogue(request: PageRequest, address: HttpUrl, term: String): Document = coroutineScope {
         val words = word.findAll(normalize(term)).map { it.value }.toList()
+        val humiliation = words.singleOrNull() == "унижение"
         val response = Document.createShell(request.url)
         var paths = address.queryParameterValues(routeKey).filterNotNull().filter { categoryStem(it) != null }
         if (words.isEmpty() || paths.isEmpty()) return@coroutineScope response
@@ -117,7 +118,11 @@ class PornoRussiaProvider : RussianProvider(
                 for (card in document.select(spec.cards)) {
                     val title = card.selectFirst(spec.titleSelector)?.text().orEmpty()
                     val url = card.absUrl("href")
-                    if (url.isNotEmpty() && words.all(normalize(title)::contains) &&
+                    val label = normalize(title)
+                    val matches = if (humiliation) {
+                        word.findAll(label).any { it.value.startsWith("униж") || it.value.startsWith("униз") }
+                    } else words.all(label::contains)
+                    if (url.isNotEmpty() && matches &&
                         ContentPolicy.accepts(title) && matchedUrls.add(url)) {
                         response.body().appendChild(card.clone())
                     }

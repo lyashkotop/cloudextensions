@@ -127,6 +127,26 @@ private class SparseCatalogue(private val poster: String) : MainAPI() {
         newMovieLoadResponse("Verified video", url, TvType.NSFW, url)
 }
 
+private class FilteredSearchCatalogue(private val poster: String) : MainAPI() {
+    override var mainUrl = "https://filtered-search.example"
+
+    override suspend fun search(query: String, page: Int): SearchResponseList = newSearchResponseList(
+        if (page == 1) (1..12).map { id ->
+            newMovieSearchResponse("Example $id", "$mainUrl/$id", TvType.NSFW) { posterUrl = poster }
+        } else emptyList(), false,
+    )
+
+    override suspend fun load(url: String): LoadResponse {
+        val id = url.substringAfterLast('/').toInt()
+        if (id == 10) throw IOException("Tags temporarily unavailable")
+        return newMovieLoadResponse("Example $id", url, TvType.NSFW, url) {
+            if (id == 8) tags = listOf("pee")
+            if (id == 9) plot = "A hentai title in the description"
+            if (id == 11) tags = listOf("femdom", "lesbian")
+        }
+    }
+}
+
 internal fun testSearchPaging() {
     val poster = File.createTempFile("search-poster", ".png")
     try {
@@ -185,6 +205,17 @@ internal fun testSearchPaging() {
             val strictSecond = strict.search("123", 2)
             check(strictSecond.ids() == (21..24).toList() + 8 && !strictSecond.hasNext) {
                 "Expected deferred card after new results, got ${strictSecond.ids()} (hasNext=${strictSecond.hasNext})"
+            }
+
+            val filtered = ReliableProvider(FilteredSearchCatalogue(poster.toURI().toString()))
+            try {
+                ContentPolicy.enabled = false
+                check(filtered.search("123", 1).ids() == (1..12).toList())
+                ContentPolicy.enabled = true
+                check(filtered.search("123", 1).ids() == (1..7).toList() + listOf(11, 12))
+                check(filtered.search("123", 2).items.isEmpty())
+            } finally {
+                ContentPolicy.enabled = true
             }
         }
     } finally {

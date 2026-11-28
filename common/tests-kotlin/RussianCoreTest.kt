@@ -274,6 +274,8 @@ fun main(args:Array<String>) {
     verify(Translation.searchAliases("homemade camera repair").isEmpty(), "non-genre phrases do not expand")
     verify(Translation.searchAliases("анальное порно") == setOf("анал", "анальный секс", "anal", "anal sex"), "anal category forms expand in both languages")
     verify(Translation.searchAliases("BDSM") == setOf("бдсм", "bdsm"), "BDSM retains its two native spellings")
+    verify(Translation.searchAliases("унижение") == setOf("унижение", "humiliation", "унижения", "унижают", "humiliated"),
+        "humiliation search uses the published Russian search forms and English variants")
     verify(Translation.parse("[[[\"two words\",\"два слова\",null,null,1]],null,\"ru\"]","en")=="two words","translation parsing")
     verify(Translation.parseCompact("[[\"молодая женщина\",\"en\"]]","ru")=="молодая женщина","Chrome auto-detected English response")
     verify(Translation.parseCompact("[[\"young woman\",\"ru\"]]","en")=="young woman","Chrome auto-detected Russian response")
