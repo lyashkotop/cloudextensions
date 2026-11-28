@@ -1,8 +1,8 @@
 {
-  "version": 281,
-  "sourceCommit": "b65a877c701607e68f9237ecb703ae767364f77a",
+  "version": 282,
+  "sourceCommit": "db807a27fc278f076e2c75372b611b551fbe4539",
   "packageLayout": "versioned",
-  "plugins": 34,
+  "plugins": 33,
   "rebuilt": [
     "BdsmPorn",
     "Domashka",
@@ -24,7 +24,6 @@
     "BoundHub",
     "DarknessPorn",
     "EPorner",
-    "FreeMisogynyComics",
     "HcBDSMX",
     "HeavyR",
     "HurtSex",
@@ -39,7 +38,7 @@
     "Xnxx",
     "XRares"
   ],
-  "dexClasses": 12705,
-  "entryRegistrationsValidated": 34,
-  "kotlinProviders": 34
+  "dexClasses": 12336,
+  "entryRegistrationsValidated": 33,
+  "kotlinProviders": 33
 }
