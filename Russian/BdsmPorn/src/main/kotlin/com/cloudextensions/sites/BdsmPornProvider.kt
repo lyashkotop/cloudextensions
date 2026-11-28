@@ -93,7 +93,7 @@ class BdsmPornProvider : RussianProvider(
         val catalogues = sections.await()
         if (catalogues.isEmpty()) return@coroutineScope original
             ?: throw ErrorLoadingException("BDSM-Porn.cc: поиск и каталог не ответили")
-        val matches = catalogues.flatMap { listing -> listing.items.flatMap { it.list } }
+        fun matching(listings: List<HomePageResponse>) = listings.flatMap { listing -> listing.items.flatMap { it.list } }
             .filter { card ->
                 when (term) {
                     "парень", "guy" -> guyTitle.containsMatchIn(card.name)
@@ -101,8 +101,18 @@ class BdsmPornProvider : RussianProvider(
                     else -> titleWords(card.name).containsAll(words)
                 }
             }
+        var matches = matching(catalogues)
+        var hasNext = catalogues.any { it.hasNext }
+        if (page == 1 && original == null && matches.isEmpty() && term in setOf("guy", "парень")) {
+            val paged = spec.sections.filter { section ->
+                catalogues.any { it.hasNext && it.items.any { row -> row.name == section.name } }
+            }
+            val second = paged.map { section -> async { searchSection(section, 2) } }.awaitAll().filterNotNull()
+            matches = matching(second)
+            hasNext = second.any { it.hasNext }
+        }
         val combined = (original?.items.orEmpty() + matches).distinctBy { Metadata.catalogueKey(spec.id, it.url) }
-        val moreMatches = (combined.isNotEmpty() || page > 1) && catalogues.any { it.hasNext }
+        val moreMatches = (combined.isNotEmpty() || page > 1) && hasNext
         newSearchResponseList(combined, original?.hasNext == true || moreMatches)
     }
 
