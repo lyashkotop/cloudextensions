@@ -72,7 +72,7 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
   val result=loadDocument(url, document)
   val target=native(document.baseUri())
   val needsDetails = result.tags.isNullOrEmpty() || result.plot.isNullOrBlank() ||
-   result.duration == null || result.recommendations.isNullOrEmpty()
+   result.duration == null
   val extra=if(target==null || !needsDetails)null else try{withTimeoutOrNull(2300){target.load(document.baseUri())}}
    catch(e:CancellationException){throw e}catch(e:ErrorLoadingException){if(Regex("(?iu)скрыто фильтром|hidden by category filter|приватн|private video").containsMatchIn(e.message.orEmpty()))throw e else null}catch(_:Exception){null}
    catch(_:LinkageError){null}
@@ -83,7 +83,7 @@ class TubeBDSMProvider: RussianProvider(SiteSpec(
    if(result.recommendations.isNullOrEmpty())result.recommendations=extra.recommendations
   }
   if (result.recommendations.isNullOrEmpty()) {
-   result.recommendations = RequestLimits.optional(950) { relatedBySearch(result, url, document.baseUri()) }.orEmpty()
+   result.recommendations = cardRecommendations(950) { relatedBySearch(result, url, document.baseUri()) }
   }
   val fromListing=URI(url).host==URI(mainUrl).host && listingPoster!=null && result.posterUrl==listingPoster
   if(result is MovieLoadResponse)result.posterHeaders=Network.imageHeaders(result.posterUrl,if(fromListing)mainUrl else document.baseUri())

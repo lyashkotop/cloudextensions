@@ -4,7 +4,6 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import java.net.URI
 import java.util.Collections
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -35,6 +34,14 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         var next: PageRequest? = null
     }
     private data class SearchPage(val cards: List<VideoCard>, val next: PageRequest?)
+    private val parsedMetadata = Collections.synchronizedMap(java.util.WeakHashMap<Document, VideoDetail>())
+    private val verifiedMetadata = Collections.synchronizedMap(java.util.WeakHashMap<Document, Pair<Boolean, VideoDetail>>())
+
+    private fun parsedDetail(document: Document): VideoDetail =
+        parsedMetadata[document] ?: readMetadata(document).also { parsedMetadata[document] = it }
+
+    protected fun verifiedDetail(document: Document): VideoDetail? =
+        verifiedMetadata[document]?.takeIf { it.first == ContentPolicy.enabled }?.second
 
     protected open suspend fun page(request: PageRequest): Document {
         val document=Network.page(request,"${mainUrl.trimEnd('/')}/")
@@ -164,12 +171,13 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
     internal suspend fun homeMetadata(url: String): VideoDetail = searchMetadata(url, includeOriginal = true, home = true)
 
     private suspend fun searchMetadata(url: String, includeOriginal: Boolean, home: Boolean = false): VideoDetail {
+        val filtered = ContentPolicy.enabled
         val document=page(PageRequest(url, allowNotFound = requiresListingReview))
         if (document.attr("data-response-code") in setOf("404", "410")) {
             throw ErrorLoadingException("Видео удалено или недоступно")
         }
         if(spec.id=="ThisVid" && document.selectFirst(".box ul.description")==null)throw ErrorLoadingException("Не удалось проверить категории ThisVid")
-        val base = readMetadata(document)
+        val base = parsedDetail(document)
         val meta = when {
             home -> reviewHomeMetadata(document, base)
             includeOriginal -> reviewMetadata(document, base)
@@ -178,13 +186,14 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         val heading=document.selectFirst("h1")?.text().orEmpty()
         if(!ContentPolicy.accepts(heading,meta.tags + Metadata.cardTags(url),meta.description, spec.id))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         if(meta.title.isBlank())throw ErrorLoadingException("Название не получено")
+        if (includeOriginal && !home && filtered == ContentPolicy.enabled) verifiedMetadata[document] = filtered to meta
         return meta
     }
     protected open suspend fun enrichMetadata(document: Document, detail: VideoDetail): VideoDetail = detail
     override suspend fun load(url: String): LoadResponse = loadDocument(url, page(PageRequest(url)))
 
     protected suspend fun loadDocument(url: String, document: Document): LoadResponse {
-        val detail=enrichMetadata(document, readMetadata(document))
+        val detail=enrichMetadata(document, parsedDetail(document))
         if(detail.title.isBlank())throw ErrorLoadingException("На странице нет названия видео")
         if(!ContentPolicy.accepts(detail.title,detail.tags + Metadata.cardTags(url),detail.description, spec.id))throw ErrorLoadingException("Видео скрыто фильтром категорий")
         val posterHeaders = Network.imageHeaders(detail.poster, mainUrl.trimEnd('/') + "/")
@@ -205,18 +214,20 @@ open class RussianProvider(val spec: SiteSpec): MainAPI(),SearchPolicy,SearchMet
         val result=LinkedHashMap<String,VideoCard>()
         fun add(cards: List<VideoCard>) { for(card in cards)if (Metadata.catalogueKey(spec.id, card.url) != Metadata.catalogueKey(spec.id, url)) result.putIfAbsent(Metadata.catalogueKey(spec.id, card.url), card) }
         for(container in document.select(spec.related))add(Metadata.cards(container,spec))
-        if(result.isEmpty()) {
-            val endpoint=document.selectFirst("#related-videos[hx-get]")?.attr("hx-get")?.let { absolute(document.baseUri(),it) }
-            if(endpoint!=null && URI(endpoint).host==URI(document.baseUri()).host) {
-                try { add(Metadata.cards(page(PageRequest(endpoint)),spec)) }catch(e:CancellationException){throw e}catch(_:Exception){}
+        if (result.isNotEmpty()) return result.values.map(::response)
+        val endpoint = document.selectFirst("#related-videos[hx-get]")?.attr("hx-get")
+            ?.let { absolute(document.baseUri(), it) }
+            ?.takeIf { URI(it).host == URI(document.baseUri()).host }
+        val tag = detail.tags.firstOrNull { ContentPolicy.accepts(it) }
+        if (endpoint == null && tag == null) return emptyList()
+        return cardRecommendations(950) {
+            if (endpoint != null) {
+                RequestLimits.optional(950) { Metadata.cards(page(PageRequest(endpoint)), spec) }?.let(::add)
             }
+            // A real source search for a declared tag is the fallback.
+            if (result.isEmpty() && tag != null) add(fetchSearchPage(searchRequest(tag)).cards)
+            result.values.map(::response)
         }
-        if(result.isEmpty()) {
-            // A real source search for one declared tag is the fallback. Never use unrelated trending cards.
-            val tag=detail.tags.firstOrNull { ContentPolicy.accepts(it) }
-            if(tag!=null)try { add(fetchSearchPage(searchRequest(tag)).cards) }catch(e:CancellationException){throw e}catch(_:Exception){}
-        }
-        return result.values.map(::response)
     }
     override suspend fun loadLinks(data: String,isCasting: Boolean,subtitleCallback: (SubtitleFile)->Unit,callback: (ExtractorLink)->Unit): Boolean = Playback.links(name,mainUrl,data,subtitleCallback,callback)
 }

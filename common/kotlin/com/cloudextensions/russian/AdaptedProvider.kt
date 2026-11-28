@@ -70,7 +70,9 @@ class AdaptedProvider(private val source: MainAPI): MainAPI() {
         result.plot=result.plot.orEmpty().replaceFirst(Regex("\\AДлительность:[^\\r\\n]*(?:\\r?\\n)*"),"")
         result.recommendations=normalize(result.recommendations.orEmpty()).filter{videoKey(it.url)!=videoKey(url)}
         if(result.recommendations.isNullOrEmpty())result.tags?.firstOrNull{ContentPolicy.accepts(it)}?.let{tag->
-            try{result.recommendations=normalize(RequestLimits.optional(950) { source.search(tag,1) }?.items.orEmpty()).filter{videoKey(it.url)!=videoKey(url)}}catch(e:CancellationException){throw e}catch(_:Exception){}
+            result.recommendations = cardRecommendations(950) {
+                normalize(source.search(tag, 1)?.items.orEmpty()).filter { videoKey(it.url) != videoKey(url) }
+            }
         }
         return result
     }

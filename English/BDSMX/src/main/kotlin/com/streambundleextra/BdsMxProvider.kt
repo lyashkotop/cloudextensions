@@ -77,8 +77,8 @@ class BdsMxProvider : MainAPI(), SearchPolicy, SearchMetadataSource {
 
     override suspend fun load(url: String): LoadResponse {
         val detail = searchMetadata(url)
-        val related = RequestLimits.optional(950) {
-            detail.tags.firstOrNull()?.let { catalogue(it, 1).items.filter { card -> card.url != url } }
+        val related = detail.tags.firstOrNull()?.let { tag ->
+            cardRecommendations(950) { catalogue(tag, 1).items.filter { card -> card.url != url } }
         }.orEmpty()
         return newMovieLoadResponse(Metadata.title(url, listOf(detail.title), fromDetail = true), url, TvType.NSFW, url) {
             posterUrl = detail.poster

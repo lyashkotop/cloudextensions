@@ -7,7 +7,6 @@ import com.lagradost.cloudstream3.utils.*
 import java.io.File
 import java.net.URLEncoder
 import java.util.concurrent.ConcurrentHashMap
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -242,7 +241,7 @@ class NoodleMagazineProvider(cacheDirectory: File?): MainAPI(),SearchPolicy,Nood
         if(!ContentPolicy.accepts(detail.title,detail.tags))throw ErrorLoadingException("Video hidden by category filter")
         var related=NoodleCatalogue.distinct(Metadata.cards(page,spec.copy(cards="div.item")).map(::response), url)
         if(related.isEmpty())detail.tags.firstOrNull{ContentPolicy.accepts(it)}?.let{tag->
-            try{related=NoodleCatalogue.distinct(RequestLimits.optional(950) { results(tag, 1) }.orEmpty(), url)}catch(e:CancellationException){throw e}catch(_:Exception){}
+            related = cardRecommendations(950) { NoodleCatalogue.distinct(results(tag, 1), url) }
         }
         return newMovieLoadResponse(detail.title,url,TvType.NSFW,url){
             posterUrl=detail.poster;posterHeaders=Network.headers(referer(url));plot=Metadata.plot(detail).replaceFirst(descriptionFooter, "").trimEnd();tags=detail.tags;recommendations=related

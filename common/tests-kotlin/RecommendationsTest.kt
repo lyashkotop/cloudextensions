@@ -6,6 +6,7 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
@@ -45,4 +46,31 @@ internal fun testRecommendations() = runBlocking {
     }
     val fastCard = withTimeout(2_000) { ReliableProvider(slowPoster).load("$base/item") }
     check(fastCard.posterUrl == listedPoster)
+
+    val allowRecommendations = CompletableDeferred<Unit>()
+    val deferredSource = object : MainAPI() {
+        override suspend fun load(url: String): LoadResponse {
+            val related = if (url.endsWith("/open")) cardRecommendations(3_000) {
+                allowRecommendations.await()
+                listOf("good", "blocked").map { newMovieSearchResponse("Related", "$base/$it", TvType.NSFW) }
+            } else emptyList()
+            return newMovieLoadResponse("Sample", url, TvType.NSFW, url) {
+                recommendations = related
+                if (url.endsWith("/blocked")) tags = listOf("asmr")
+            }
+        }
+    }
+    val deferred = ReliableProvider(deferredSource)
+    check(withTimeout(1_000) { deferred.load("$base/open") }.recommendations.isNullOrEmpty())
+    allowRecommendations.complete(Unit)
+    withTimeout(2_000) {
+        while (true) {
+            val recommendations = deferred.load("$base/open").recommendations.orEmpty().map { it.url }
+            if (recommendations.isNotEmpty()) {
+                check(recommendations == listOf("$base/good"))
+                break
+            }
+            delay(10)
+        }
+    }
 }

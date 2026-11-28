@@ -15,6 +15,8 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitAll
@@ -791,20 +793,26 @@ class ReliableProvider(
     }
     private val cardBatch = Semaphore(1)
     private data class CardKey(val url: String, val filtered: Boolean)
-    private data class OpenedCard(val time: Long, val detail: MovieLoadResponse, val pending: List<SearchResponse>)
+    private data class OpenedCard(
+        val time: Long, val detail: MovieLoadResponse, val pending: List<SearchResponse>,
+        val late: Deferred<List<SearchResponse>>?,
+    )
     private val opened = java.util.Collections.synchronizedMap(BoundedMap<CardKey, OpenedCard>(12))
     private val preparing = ConcurrentHashMap<CardKey, CompletableDeferred<Unit>>()
+    private val recommendationFetchPermits = Semaphore(1)
 
     private fun snapshot(card: MovieLoadResponse) =
         card.copy(trailers = card.trailers.toMutableList(), syncData = card.syncData.toMutableMap())
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun cachedCard(key: CardKey): MovieLoadResponse? {
-        val (time, card, pending) = opened[key] ?: return null
+        val (time, card, pending, late) = opened[key] ?: return null
         if (System.nanoTime() - time > 20_000_000_000L || !isListable(key.url) ||
             !accepts(card.name, card.tags.orEmpty() + Metadata.cardTags(key.url), card.plot)) return null
         return snapshot(card).also { fresh ->
             val newlyVerified = pending.filter { savedReview(it.url)?.allowed == true }
-            fresh.recommendations = distinctListings(card.recommendations.orEmpty() + newlyVerified).filter {
+            val extra = if (late?.isCompleted == true && !late.isCancelled) late.getCompleted() else emptyList()
+            fresh.recommendations = distinctListings(card.recommendations.orEmpty() + newlyVerified + extra).filter {
                 isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url))
             }
         }
@@ -842,8 +850,16 @@ class ReliableProvider(
         try {
             val key = CardKey(url, ContentPolicy.enabled)
             cachedCard(key)?.let { return@required it }
-            preparing[key]?.let { withTimeoutOrNull(120) { it.await() } }
-            cachedCard(key) ?: loadCard(key, background = false)
+            val prefetch = preparing[key] ?: return@required loadCard(key, background = false)
+            supervisorScope {
+                val foreground = async { loadCard(key, background = false) }
+                select {
+                    prefetch.onAwait {
+                        cachedCard(key)?.also { foreground.cancel() } ?: foreground.await()
+                    }
+                    foreground.onAwait { it }
+                }
+            }
         } catch (e: ErrorLoadingException) {
             if (excludedDetails.containsMatchIn(e.message.orEmpty())) {
                 reviews[videoKey(url)] = System.nanoTime() to Review(false, null)
@@ -871,11 +887,30 @@ class ReliableProvider(
         }
     }
 
+    private suspend fun recommendationCandidates(url: String, items: List<SearchResponse>): List<SearchResponse> {
+        val current = Metadata.catalogueKeys(providerId, url)
+        return distinctListings(cards(items, expandTitles = false, warmPosters = false)
+            .filterNot { listingKeys(it).any(current::contains) })
+    }
+
+    private fun checkLateRecommendations(
+        key: CardKey, fetch: Deferred<List<SearchResponse>>,
+    ): Deferred<List<SearchResponse>> = detailPrefetch.async {
+        RequestLimits.optional(5_000) {
+            val items = recommendationCandidates(key.url, fetch.await())
+            if (key.filtered != ContentPolicy.enabled) emptyList()
+            else if (!key.filtered) items
+            else reviewedCards(items.take(10), System.nanoTime() + 4_500_000_000L)
+        }.orEmpty()
+    }
+
     private suspend fun loadCard(key: CardKey, background: Boolean): LoadResponse = coroutineScope {
         val url = key.url
+        val related = CardRecommendations(detailPrefetch, recommendationFetchPermits)
         val saved = savedReview(url, DETAIL_MAX_AGE_NANOS)?.detail as? MovieLoadResponse
+        val network = if (background) Network.CacheDetail else Network.OpeningDetail + Network.CacheDetail
         val result = saved?.copy(trailers = saved.trailers.toMutableList(), syncData = saved.syncData.toMutableMap()) ?:
-            withContext(if (background) Network.CacheDetail else Network.OpeningDetail + Network.CacheDetail) { source.load(url) }
+            withContext(network + related) { source.load(url) }
             ?: throw ErrorLoadingException("Источник не вернул карточку")
         val listedTags = Metadata.cardTags(url)
         val tagsSource = (source as? DetailTagSource) ?: (source as? AdaptedProvider)?.detailTagSource
@@ -889,12 +924,10 @@ class ReliableProvider(
         result.posterUrl=Metadata.choosePoster(url,result.posterUrl)
         val initialRecommendations = result.recommendations.orEmpty()
         val recommendations = async {
-            val current = Metadata.catalogueKeys(providerId, url)
-            val visible = distinctListings(cards(initialRecommendations, expandTitles = false, warmPosters = false)
-                .filterNot { listingKeys(it).any(current::contains) })
+            val visible = recommendationCandidates(url, initialRecommendations)
             var pending = emptyList<SearchResponse>()
             val checked = if (!ContentPolicy.enabled) visible else {
-                val budget = if (providerId == "XRares") 1600L else RECOMMENDATION_REVIEW_MS
+                val budget = if (background) RECOMMENDATION_REVIEW_MS else 120L
                 val deadline = System.nanoTime() + budget * 1_000_000L
                 val candidates = visible.filter { savedReview(it.url) == null }.take(10)
                 val verified = withContext(Network.CacheDetail) { reviewedCards(candidates, deadline) }.associateBy(::searchKey)
@@ -944,7 +977,8 @@ class ReliableProvider(
         val (verified, pending) = recommendations.await()
         result.recommendations = verified
         if (result is MovieLoadResponse && key.filtered == ContentPolicy.enabled) {
-            opened[key] = OpenedCard(System.nanoTime(), snapshot(result), pending)
+            val late = related.start()?.let { checkLateRecommendations(key, it) }
+            opened[key] = OpenedCard(System.nanoTime(), snapshot(result), pending, late)
         }
         prefetchRecommendations(pending)
         ImagePrefetch.warm(result.recommendations.orEmpty())

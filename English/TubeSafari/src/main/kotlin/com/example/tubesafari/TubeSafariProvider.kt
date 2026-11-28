@@ -22,7 +22,7 @@ class TubeSafariProvider: RussianProvider(SiteSpec(
    .addPathSegment(Metadata.clean(term).replace(' ', '-')).build().toString())
 
  override suspend fun enrichMetadata(document: Document, detail: VideoDetail): VideoDetail =
-  DetailEnrichment.verifyOriginal(document, spec, detail, budget = 3_500, allowUnverified = true)
+  verifiedDetail(document) ?: DetailEnrichment.verifyOriginal(document, spec, detail, budget = 3_500, allowUnverified = true)
  override suspend fun reviewMetadata(document: Document, detail: VideoDetail): VideoDetail =
   DetailEnrichment.verifyOriginal(document, spec, detail, budget = 2_500)
  override suspend fun reviewHomeMetadata(document: Document, detail: VideoDetail): VideoDetail =

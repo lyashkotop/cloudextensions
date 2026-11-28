@@ -9,6 +9,7 @@ import com.cloudextensions.russian.Network
 import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.applyVideoDuration
+import com.cloudextensions.russian.cardRecommendations
 
 import com.lagradost.api.Log
 import org.jsoup.nodes.Element
@@ -97,7 +98,7 @@ class XRares : MainAPI() {
 
         val vidId = document.selectFirst("a[href*=related_videos][id]")?.attr("id")?.substringAfterLast("_") ?: ""
 
-        val recommendations = relatedVideos(url, vidId, tags)
+        val recommendations = cardRecommendations(4_700) { relatedVideos(url, vidId, tags) }
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
             applyVideoDuration(seconds)
