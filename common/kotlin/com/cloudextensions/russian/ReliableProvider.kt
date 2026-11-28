@@ -38,6 +38,7 @@ private const val SEARCH_POSTER_COUNT = 3
 private const val MAX_UPSTREAM_PAGES_PER_EXPANSION = 4
 private const val SEARCH_REVIEW_BUDGET_MS = 1_600L
 private const val REQUIRED_SEARCH_REVIEW_BUDGET_MS = 6_000L
+private const val BDSM_SPARSE_SEARCH_BUDGET_MS = 4_400L
 private const val LISTING_TIMEOUT_MS = 22_000L
 private val slowFirstPageSources = setOf(
     "Vpoisk", "BoundHub", "ThisVid", "HcBDSMX", "XRares", "PornoRussia",
@@ -683,8 +684,10 @@ class ReliableProvider(
             val cards = mutableListOf<SearchResponse>()
             val genre = lang in listOf("ru", "en") && Translation.searchAliases(query).isNotEmpty()
             val expandSparse = requiresListingReview || genre || providerId in setOf("PornoRussia", "BdsmPorn")
+            val allowSparseFollowUp = page == 1 && providerId == "BdsmPorn"
             var limit = if (page == 1 && !expandSparse) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
             var deadline: Long? = null
+            var sparseDeadline: Long? = null
             var completeBatch = true
             var useFastBudget = quickFirstPage
             val early = ConcurrentHashMap<String, Deferred<Review?>>()
@@ -714,6 +717,13 @@ class ReliableProvider(
 
 
             while (cards.size < SEARCH_PAGE_SIZE) {
+                val fillingSparsePage = allowSparseFollowUp && cards.size in 1 until SEARCH_PAGE_MINIMUM
+                val followUp = if (fillingSparsePage) {
+                    sparseDeadline ?: minOf(
+                        listingDeadline - 2_000_000_000L,
+                        System.nanoTime() + BDSM_SPARSE_SEARCH_BUDGET_MS * 1_000_000L,
+                    ).also { sparseDeadline = it }
+                } else null
                 val candidates: SearchCandidates
                 if (pending != null) candidates = pending else {
                     if (!canFetch || limit == 0) break
@@ -721,9 +731,10 @@ class ReliableProvider(
                     val first = if (useFastBudget && nextSourcePage == 1 && deadline == null) {
                         firstSearchBatch(query, history, ::prepareLeadingCards)
                     } else null
-                    val result = first?.response ?: if (deadline == null) {
+                    val fetchDeadline = followUp ?: deadline
+                    val result = first?.response ?: if (fetchDeadline == null) {
                         combinedSearch(query, nextSourcePage, history, ::prepareLeadingCards)
-                    } else RequestLimits.optional(remainingMillis(deadline)) {
+                    } else RequestLimits.optional(remainingMillis(fetchDeadline)) {
                         combinedSearch(query, nextSourcePage, history, ::prepareLeadingCards)
                     }
                     if (result == null) break
@@ -734,7 +745,7 @@ class ReliableProvider(
                     candidates = SearchCandidates(distinctListings(result.items), history.reviewRank)
                 }
                 val budget = if (requiresListingReview) REQUIRED_SEARCH_REVIEW_BUDGET_MS else SEARCH_REVIEW_BUDGET_MS
-                val reviewDeadline = deadline ?: minOf(
+                val reviewDeadline = followUp?.let { minOf(it, System.nanoTime() + budget * 1_000_000L) } ?: deadline ?: minOf(
                     listingDeadline - 2_000_000_000L,
                     System.nanoTime() + budget * 1_000_000L,
                 ).also { deadline = it }
@@ -770,7 +781,10 @@ class ReliableProvider(
                 }
                 cards += checked
                 checked.forEach { seen.addAll(listingKeys(it)) }
-                if (!completeBatch || cards.size >= SEARCH_PAGE_MINIMUM || remainingMillis(reviewDeadline) <= 0 ||
+                val canFillSparsePage = allowSparseFollowUp && cards.size in 1 until SEARCH_PAGE_MINIMUM &&
+                    (pending != null || canFetch) && sparseDeadline?.let { remainingMillis(it) > 0 } != false
+                if (!completeBatch || cards.size >= SEARCH_PAGE_MINIMUM ||
+                    !canFillSparsePage && remainingMillis(reviewDeadline) <= 0 ||
                     unchecked.isEmpty() && retry.isNotEmpty()) break
             }
 

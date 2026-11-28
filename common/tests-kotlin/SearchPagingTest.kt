@@ -102,6 +102,30 @@ private class SlowTranslationCatalogue(private val poster: String) : MainAPI() {
         newMovieLoadResponse("Verified video", url, TvType.NSFW, url)
 }
 
+private class SparseCatalogue(private val poster: String) : MainAPI() {
+    override var lang = "ru"
+    override var mainUrl = "https://sparse.example"
+
+    override suspend fun search(query: String, page: Int): SearchResponseList {
+        val ids = when {
+            query != "обучение" -> IntRange.EMPTY
+            page == 1 -> 1..1
+            page == 2 -> {
+                delay(1_850)
+                1..12
+            }
+            page == 3 -> 12..24
+            else -> IntRange.EMPTY
+        }
+        return newSearchResponseList(ids.map { id ->
+            newMovieSearchResponse("Example $id", "$mainUrl/video/$id", TvType.NSFW) { posterUrl = poster }
+        }, !ids.isEmpty() && page < 3)
+    }
+
+    override suspend fun load(url: String): LoadResponse =
+        newMovieLoadResponse("Verified video", url, TvType.NSFW, url)
+}
+
 internal fun testSearchPaging() {
     val poster = File.createTempFile("search-poster", ".png")
     try {
@@ -139,6 +163,13 @@ internal fun testSearchPaging() {
             check(fast.ids() == (1..5).toList() && fast.hasNext)
             val deferred = slowCompanion.search("подруга", 2)
             check(deferred.ids() == (6..9).toList() && !deferred.hasNext)
+
+            val sparse = ReliableProvider(SparseCatalogue(poster.toURI().toString()), "BdsmPorn")
+            val expanded = sparse.search("обучение", 1)
+            check(expanded.ids() == (1..12).toList() && expanded.hasNext)
+            val continuation = sparse.search("обучение", 2)
+            check(continuation.ids() == (13..24).toList() && !continuation.hasNext)
+            check(sparse.search("qxzv947pkn", 1).let { it.items.isEmpty() && !it.hasNext })
             val overlap = ReliableProvider(OverlappingCatalogue(poster.toURI().toString()), "EPorner")
             check(overlap.search("подруга", 1).items.map { it.url.substringAfterLast('/') } == listOf("primary", "translated"))
             val fastStrict = ReliableProvider(StrictCatalogue(poster.toURI().toString(), slowTail = true), "EPorner")
