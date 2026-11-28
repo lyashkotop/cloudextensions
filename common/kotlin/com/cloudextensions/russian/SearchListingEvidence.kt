@@ -32,6 +32,7 @@ object SearchListingEvidence {
     private val bdsmPornSlave = Regex("""рабын(?:я|и|ю|ей|ь|ям|ями|ях)|slaves?""")
     private val bdsmPornRussian = Regex("""русск(?:ая|ую|ой|ие|их|ий|ое|ого|им|ими|ом)|russian""")
     private val bdsmPornHumiliation = Regex("""униж\p{L}+|униз\p{L}+|humiliat\p{L}+""")
+    private val bdsmPornSlut = Regex("""шлюх(?:а|и|у|е|ой|ою|ам|ами|ах)?|sluts?|whores?""")
 
     fun bdsmPornTitleMatcher(query: String): (String) -> Boolean {
         val term = Metadata.clean(query).lowercase(Locale.ROOT)
@@ -41,6 +42,7 @@ object SearchListingEvidence {
             term in setOf("рабыня", "рабыни", "slave", "slaves") -> bdsmPornSlave
             term in setOf("русская", "русские", "russian") -> bdsmPornRussian
             "унижение" in aliases -> bdsmPornHumiliation
+            term in Translation.bdsmPornSlutForms -> bdsmPornSlut
             else -> null
         }
         val phrases = (listOf(term) + aliases).map { text -> word.findAll(text).map { it.value }.toList() }

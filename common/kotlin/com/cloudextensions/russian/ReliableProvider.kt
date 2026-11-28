@@ -474,7 +474,7 @@ class ReliableProvider(
             Batch(null, e)
         }
         val russianOnly = (source as? SearchPolicy)?.russianTitlesOnly == true
-        val forms = aliases.ifEmpty { Translation.searchForms(query) }
+        val forms = aliases.ifEmpty { Translation.searchForms(query, providerId) }
             .filterNot { russianOnly && Translation.target(it) == "ru" }
         val skipTranslation = russianOnly && Translation.target(query) == "en"
         if (forms.isEmpty() && skipTranslation) {

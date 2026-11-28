@@ -44,10 +44,12 @@ object Translation {
         return searchGroups.firstOrNull { canonical in it }.orEmpty()
     }
     private val russianSlaveForms = setOf("русская рабыня", "russian slave", "russian slaves", "русские рабыни")
+    internal val bdsmPornSlutForms = setOf("шлюха", "шлюхи", "slut", "whore")
 
-    internal fun searchForms(query: String): Set<String> {
+    internal fun searchForms(query: String, providerId: String? = null): Set<String> {
         val term = Metadata.clean(query).lowercase(Locale.ROOT)
         if (term == "русская") return setOf("russian")
+        if (providerId == "BdsmPorn" && term in bdsmPornSlutForms) return bdsmPornSlutForms
         return russianSlaveForms.takeIf { term in it }.orEmpty()
     }
 
