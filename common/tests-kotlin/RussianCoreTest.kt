@@ -73,6 +73,13 @@ fun main(args:Array<String>) {
     verify(Metadata.catalogueKey("HcBDSMX", "https://hcbdsm.com/video/202/alias") ==
         Metadata.catalogueKey("HcBDSMX", "https://hcbdsm.com/video/201/"),
         "hcBDSM retains the reupload identity across URL aliases")
+    val hcRenamed = Jsoup.parse("""
+        <a class=clip href="/video/19299/"><h3>A Young Russian Girl</h3><span>22:29</span><img src="https://v3.bdsmstreak.com/media/videos/tmb/11984/default.jpg"></a>
+        <a class=clip href="/video/24130/"><h3>Russian Homemade No. 5</h3><span>22:29</span><img src="https://v3.bdsmstreak.com/media/videos/tmb/14220/default.jpg"></a>
+        <a class=clip href="/video/24131/"><h3>A Different Russian Video</h3><span>22:29</span><img src="https://v3.bdsmstreak.com/media/videos/tmb/14221/default.jpg"></a>
+        """, "https://hcbdsm.com/search/russian/")
+    verify(Metadata.cards(hcRenamed, hcSpec).map { it.url.substringBeforeLast('/').substringAfterLast('/') } ==
+        listOf("19299", "24131"), "hcBDSM drops confirmed renamed reuploads while preserving unrelated results of the same duration")
     val pervertiumAliases = Jsoup.parse(
         "<a class=card href='/videos/123/old/?ref=feed' title='First Video'></a>" +
             "<a class=card href='https://pervertium.com/videos/123/new/' title='Duplicate Video'></a>" +

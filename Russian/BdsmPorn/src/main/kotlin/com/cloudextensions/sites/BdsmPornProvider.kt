@@ -59,6 +59,7 @@ class BdsmPornProvider : RussianProvider(
 
     private val guyTitle = Regex("""(?iu)(?<![\p{L}\p{N}])(?:пар(?:ень|ня|ню|нем|не|ни|ней|ням|нями|нях)|guys?)(?![\p{L}\p{N}])""")
     private val slaveTitle = Regex("""(?iu)(?<![\p{L}\p{N}])(?:рабын(?:я|и|ю|ей|ь|ям|ями|ях)|slaves?)(?![\p{L}\p{N}])""")
+    private val russianTitle = Regex("""(?iu)\b(?:русск(?:ая|ую|ой|ие|их|ий|ое|ого|им|ими|ом)|russian)\b""")
     private val titleWord = Regex("""[\p{L}\p{N}]+""")
 
     private data class SavedSection(val timestamp: Long, val response: HomePageResponse)
@@ -77,7 +78,21 @@ class BdsmPornProvider : RussianProvider(
         val words = titleWords(term)
         if (page < 1 || words.isEmpty()) return@coroutineScope newSearchResponseList(emptyList(), false)
 
-        val native = async { RequestLimits.optional(2600) { super.search(query, page) } }
+        val russian = term == "русская"
+        val native = async {
+            val alternate = if (russian) async { RequestLimits.optional(2600) { super.search("русские", page) } } else null
+            val original = RequestLimits.optional(2600) { super.search(query, page) }
+            if (original != null && original.items.size >= SEARCH_BATCH_SIZE) {
+                alternate?.cancel()
+                original
+            } else {
+                val results = listOfNotNull(original, alternate?.await())
+                if (results.size < 2) results.firstOrNull() else newSearchResponseList(
+                    results.flatMap { it.items }.distinctBy { Metadata.catalogueKey(spec.id, it.url) },
+                    results.any { it.hasNext },
+                )
+            }
+        }
         val sections = async {
             // When native search is slow or sparse, fetch sections without waiting for its timeout.
             val quick = withTimeoutOrNull(400) { native.await() }
@@ -98,12 +113,15 @@ class BdsmPornProvider : RussianProvider(
                 when (term) {
                     "парень", "guy" -> guyTitle.containsMatchIn(card.name)
                     "рабыня", "рабыни", "slave", "slaves" -> slaveTitle.containsMatchIn(card.name)
+                    "русская" -> russianTitle.containsMatchIn(card.name)
                     else -> titleWords(card.name).containsAll(words)
                 }
             }
         var matches = matching(catalogues)
         var hasNext = catalogues.any { it.hasNext }
-        if (page == 1 && original == null && matches.isEmpty() && term in setOf("guy", "парень")) {
+        val checkNextCategoryPage = russian && original?.items.isNullOrEmpty() ||
+            original == null && term in setOf("guy", "парень")
+        if (page == 1 && matches.isEmpty() && checkNextCategoryPage) {
             val paged = spec.sections.filter { section ->
                 catalogues.any { it.hasNext && it.items.any { row -> row.name == section.name } }
             }
@@ -213,17 +231,17 @@ class BdsmPornProvider : RussianProvider(
         val referer = document.baseUri()
         val pageHost = referer.toHttpUrl().host
         val publisherHosts = setOf(pageHost, "bdsm-porn.cc", "ru.bdsm-porn.cc")
-        val sources = document.select("video#player, video#player source").asSequence().mapNotNull { node ->
+        val sources = document.select("video#player, video#player source").asSequence().flatMap { node ->
             val type = node.attr("type").ifBlank { node.attr("data-type") }
-            val source = sequenceOf("src", "data-src").firstNotNullOfOrNull { attribute ->
-                node.absUrl(attribute).toHttpUrlOrNull()
-            } ?: return@mapNotNull null
-            if (source.host !in publisherHosts) return@mapNotNull null
-            val supported = source.encodedPath.startsWith("/link_cs/") ||
-                source.encodedPath.endsWith(".mp4", true) ||
-                source.encodedPath.endsWith(".m3u8", true) ||
-                type.startsWith("video/", true) || type.contains("mpegurl", true)
-            if (supported) source.toString() to type else null
+            sequenceOf("src", "data-src").mapNotNull { attribute ->
+                val source = node.absUrl(attribute).toHttpUrlOrNull() ?: return@mapNotNull null
+                val mediaPath = source.encodedPath.endsWith(".mp4", true) || source.encodedPath.endsWith(".m3u8", true)
+                val mediaType = type.startsWith("video/", true) || type.contains("mpegurl", true)
+                val supported = if (source.host in publisherHosts) {
+                    mediaPath || mediaType || source.encodedPath.startsWith("/link_cs/")
+                } else source.isHttps && (mediaPath || mediaType)
+                if (supported) source.toString() to type else null
+            }
         }.distinctBy { it.first }.take(4).toList()
 
         val links = sources.map { (url, type) ->

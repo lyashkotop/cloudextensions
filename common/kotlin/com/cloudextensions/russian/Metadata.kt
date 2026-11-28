@@ -31,6 +31,16 @@ object Metadata {
     private val tubeErrorPrefix = Regex("""(?iu)^(?:видео недоступно|video (?:is )?unavailable)(?:[\s:!.–—-]+|$)""")
     private val hcPosterKeys = Collections.synchronizedMap(BoundedMap<String, String>(1024))
     private val hcSourcePoster = Regex("""^/media/videos/tmb/(\d+)/[^/]+$""")
+    // Confirmed reuploads with a matching runtime and thumbnail frame but different original IDs.
+    private val hcSourceAliases = mapOf(
+        "14220" to "11984",
+        "14479" to "12337",
+        "15337" to "12337",
+        "30746" to "24103",
+        "10253" to "6656",
+        "32350" to "32115",
+        "15635" to "13260",
+    )
     private val hcClock = Regex("""(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}""")
     private val tubeClock = Regex("""(?:[0-9]+:)?[0-9]{1,2}:[0-9]{2}""")
     private val tubePublicId = Regex("[A-Za-z0-9]{6,32}")
@@ -295,7 +305,7 @@ object Metadata {
         val host = image.host
         if (host != "bdsmstreak.com" && !host.endsWith(".bdsmstreak.com")) return
         val sourceId = hcSourcePoster.matchEntire(image.encodedPath)?.groupValues?.get(1) ?: return
-        hcPosterKeys.putIfAbsent(id, "hcbdsm:source:$sourceId")
+        hcPosterKeys.putIfAbsent(id, "hcbdsm:source:${hcSourceAliases[sourceId] ?: sourceId}")
     }
 
     fun emptySearch(page: Document, request: PageRequest): Boolean {

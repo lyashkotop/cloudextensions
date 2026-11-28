@@ -1,6 +1,7 @@
 package com.cloudextensions.sites
 
 import com.cloudextensions.russian.Network
+import com.cloudextensions.russian.Metadata
 import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.Playback
 import com.cloudextensions.russian.RequestLimits
@@ -39,7 +40,9 @@ class RoughXXXTubeProvider : RussianProvider(
     private val searchPage = Regex("""(/ru/search/[A-Za-z0-9_+-]+/popular/)([0-9]+)/""")
 
     override suspend fun searchRequest(term: String): PageRequest {
-        val token = term.encodeUtf8().base64Url().trimEnd('=')
+        // The source indexes this keyword as «русские»; its singular feminine form returns zero results.
+        val indexedTerm = if (Metadata.clean(term).equals("русская", ignoreCase = true)) "русские" else term
+        val token = indexedTerm.encodeUtf8().base64Url().trimEnd('=')
         return PageRequest(mainUrl.toHttpUrl().newBuilder()
             .encodedPath("/ru/search/$token/popular/1/").build().toString())
     }

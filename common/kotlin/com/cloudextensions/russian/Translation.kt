@@ -43,8 +43,11 @@ object Translation {
     }
     private val russianSlaveForms = setOf("русская рабыня", "russian slave", "russian slaves", "русские рабыни")
 
-    internal fun searchForms(query: String): Set<String> =
-        russianSlaveForms.takeIf { Metadata.clean(query).lowercase(Locale.ROOT) in it }.orEmpty()
+    internal fun searchForms(query: String): Set<String> {
+        val term = Metadata.clean(query).lowercase(Locale.ROOT)
+        if (term == "русская") return setOf("russian")
+        return russianSlaveForms.takeIf { term in it }.orEmpty()
+    }
 
     private const val TRANSLATION_TTL_MS = 86_400_000L
     private val cache = Collections.synchronizedMap(BoundedMap<String, Pair<Long, String>>(256))
