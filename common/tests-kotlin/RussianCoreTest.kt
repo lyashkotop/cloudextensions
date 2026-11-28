@@ -57,6 +57,12 @@ fun main(args:Array<String>) {
     verify(!SearchListingEvidence.matchesTitle("Latest upload", "zzqnomatch928") &&
         SearchListingEvidence.matchesTitle("A match with a hyphen", "with-a-hyphen"),
         "HeavyR checks all title words when an unpaginated grid is ambiguous")
+    val bdsmTitle = SearchListingEvidence.bdsmPornTitleMatcher("бдсм")
+    val humiliationTitle = SearchListingEvidence.bdsmPornTitleMatcher("унижени")
+    verify(bdsmTitle("BDSM подборка") && !bdsmTitle("Новое видео из рубрики") &&
+        humiliationTitle("От унижения к перемирию") && humiliationTitle("Humiliated in public") &&
+        !humiliationTitle("Новое видео из рубрики"),
+        "BDSM-Porn checks individual titles for genre names and accepts the reported Russian spelling variant")
     for(encoded in listOf("0157e0a7f8a2d5f80bed5faff0","024f7dd1e4fb9d4315a494f00b","073595aa60711b77d27926347c","059c27f8b6659ca81889344976"))verify(PlayerUrls.decode(encoded)=="https://","real player URL prefix matches the source JavaScript decoder")
     verify(EmbeddedPlayers.decodeAb("L2dldF9maWxlLzЕvdmlkZW8ubXА0")=="/get_file/1/video.mp4","public player alphabet preserves the real media path")
     verify(EmbeddedPlayers.decodeAb("garbage")==null,"invalid encoded strings never become media URLs")

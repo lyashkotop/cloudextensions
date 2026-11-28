@@ -1,11 +1,15 @@
 package com.cloudextensions.russian
 
 import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
+import com.lagradost.cloudstream3.mainPageOf
+import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newSearchResponseList
 import java.io.File
 import java.io.IOException
@@ -147,6 +151,25 @@ private class FilteredSearchCatalogue(private val poster: String) : MainAPI() {
     }
 }
 
+private class GenreFeedCatalogue(private val poster: String, override val includeGenreTaxonomyResults: Boolean) :
+    MainAPI(), SearchPolicy {
+    override var lang = "ru"
+    override var mainUrl = "https://genre.example"
+    override val mainPage = mainPageOf("/category/bdsm" to "БДСМ")
+    var feedRequests = 0
+        private set
+
+    override suspend fun search(query: String, page: Int) = newSearchResponseList(emptyList(), false)
+
+    override suspend fun getMainPage(page: Int, request: MainPageRequest) = newHomePageResponse(
+        HomePageList(request.name, listOf(newMovieSearchResponse("Example video", "$mainUrl/1", TvType.NSFW) {
+            posterUrl = poster
+        })), false,
+    ).also { feedRequests++ }
+
+    override suspend fun load(url: String) = newMovieLoadResponse("Example video", url, TvType.NSFW, url)
+}
+
 internal fun testSearchPaging() {
     val poster = File.createTempFile("search-poster", ".png")
     try {
@@ -217,6 +240,13 @@ internal fun testSearchPaging() {
             } finally {
                 ContentPolicy.enabled = true
             }
+
+            val categoryAllowed = GenreFeedCatalogue(poster.toURI().toString(), true)
+            check(ReliableProvider(categoryAllowed).search("бдсм", 1).ids() == listOf(1))
+            check(categoryAllowed.feedRequests == 1)
+            val categoryDisabled = GenreFeedCatalogue(poster.toURI().toString(), false)
+            val noGenreMatches = ReliableProvider(categoryDisabled).search("бдсм", 1)
+            check(noGenreMatches.items.isEmpty() && !noGenreMatches.hasNext && categoryDisabled.feedRequests == 0)
         }
     } finally {
         poster.delete()

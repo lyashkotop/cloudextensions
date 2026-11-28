@@ -6,8 +6,10 @@ import com.cloudextensions.russian.PageRequest
 import com.cloudextensions.russian.Playback
 import com.cloudextensions.russian.RequestLimits
 import com.cloudextensions.russian.RussianProvider
+import com.cloudextensions.russian.SearchListingEvidence
 import com.cloudextensions.russian.Section
 import com.cloudextensions.russian.SiteSpec
+import com.cloudextensions.russian.Translation
 import com.cloudextensions.russian.VideoDetail
 import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.HomePageResponse
@@ -53,14 +55,12 @@ class BdsmPornProvider : RussianProvider(
         ),
     ),
 ) {
+    override val includeTaxonomyResults = false
+    override val includeGenreTaxonomyResults = false
+
     override suspend fun searchRequest(term: String): PageRequest =
         PageRequest(mainUrl.toHttpUrl().newBuilder()
             .encodedPath("/search").query(null).addQueryParameter("q", term).build().toString())
-
-    private val guyTitle = Regex("""(?iu)(?<![\p{L}\p{N}])(?:пар(?:ень|ня|ню|нем|не|ни|ней|ням|нями|нях)|guys?)(?![\p{L}\p{N}])""")
-    private val slaveTitle = Regex("""(?iu)(?<![\p{L}\p{N}])(?:рабын(?:я|и|ю|ей|ь|ям|ями|ях)|slaves?)(?![\p{L}\p{N}])""")
-    private val russianTitle = Regex("""(?iu)\b(?:русск(?:ая|ую|ой|ие|их|ий|ое|ого|им|ими|ом)|russian)\b""")
-    private val titleWord = Regex("""[\p{L}\p{N}]+""")
 
     private data class SavedSection(val timestamp: Long, val response: HomePageResponse)
     private val savedSections = ConcurrentHashMap<Pair<String, Int>, SavedSection>()
@@ -75,13 +75,20 @@ class BdsmPornProvider : RussianProvider(
 
     override suspend fun search(query: String, page: Int): SearchResponseList = coroutineScope {
         val term = Metadata.clean(query).lowercase(Locale.ROOT)
-        val words = titleWords(term)
-        if (page < 1 || words.isEmpty()) return@coroutineScope newSearchResponseList(emptyList(), false)
+        if (page < 1 || term.none { it.isLetterOrDigit() }) return@coroutineScope newSearchResponseList(emptyList(), false)
+        val matchesTitle = SearchListingEvidence.bdsmPornTitleMatcher(term)
+
+        suspend fun nativeMatches(query: String): SearchResponseList? =
+            RequestLimits.optional(2600) { super.search(query, page) }?.let { result ->
+                // A successful search URL can still contain cards from a suggested category.
+                val matches = result.items.filter { matchesTitle(it.name) }
+                newSearchResponseList(matches, matches.isNotEmpty() && result.hasNext)
+            }
 
         val russian = term == "русская"
         val native = async {
-            val alternate = if (russian) async { RequestLimits.optional(2600) { super.search("русские", page) } } else null
-            val original = RequestLimits.optional(2600) { super.search(query, page) }
+            val alternate = if (russian) async { nativeMatches("русские") } else null
+            val original = nativeMatches(query)
             if (original != null && original.items.size >= SEARCH_BATCH_SIZE) {
                 alternate?.cancel()
                 original
@@ -109,17 +116,10 @@ class BdsmPornProvider : RussianProvider(
         if (catalogues.isEmpty()) return@coroutineScope original
             ?: throw ErrorLoadingException("BDSM-Porn.cc: поиск и каталог не ответили")
         fun matching(listings: List<HomePageResponse>) = listings.flatMap { listing -> listing.items.flatMap { it.list } }
-            .filter { card ->
-                when (term) {
-                    "парень", "guy" -> guyTitle.containsMatchIn(card.name)
-                    "рабыня", "рабыни", "slave", "slaves" -> slaveTitle.containsMatchIn(card.name)
-                    "русская" -> russianTitle.containsMatchIn(card.name)
-                    else -> titleWords(card.name).containsAll(words)
-                }
-            }
+            .filter { matchesTitle(it.name) }
         var matches = matching(catalogues)
         var hasNext = catalogues.any { it.hasNext }
-        val checkNextCategoryPage = russian && original?.items.isNullOrEmpty() ||
+        val checkNextCategoryPage = (russian || "унижение" in Translation.searchAliases(term)) && original?.items.isNullOrEmpty() ||
             original == null && term in setOf("guy", "парень")
         if (page == 1 && matches.isEmpty() && checkNextCategoryPage) {
             val paged = spec.sections.filter { section ->
@@ -149,9 +149,6 @@ class BdsmPornProvider : RussianProvider(
             getMainPage(page, request)
         }
     }
-
-    private fun titleWords(value: String): Set<String> =
-        titleWord.findAll(value.lowercase(Locale.ROOT)).map { it.value }.toSet()
 
     private fun listingPoster(card: Element, base: String): String? {
         Metadata.poster(card, base)?.let { return it }

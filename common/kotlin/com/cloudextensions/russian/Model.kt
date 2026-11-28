@@ -7,6 +7,7 @@ interface SearchPolicy {
     val russianTitlesOnly: Boolean get() = false
     val translateQueries:Boolean get()=true
     val includeTaxonomyResults: Boolean get() = true
+    val includeGenreTaxonomyResults: Boolean get() = true
     val requiresListingReview: Boolean get() = false
     val preferredTitleLanguage: String get() = ""
     suspend fun fullTitle(url:String):String? = null

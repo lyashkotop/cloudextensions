@@ -527,8 +527,10 @@ class ReliableProvider(
     ): List<SearchResponseList> = coroutineScope {
         val terms = aliases.ifEmpty { TaxonomySearch.terms(query) }
         val policy = source as? SearchPolicy
-        if (terms.isEmpty() || (aliases.isEmpty() && (policy?.includeTaxonomyResults == false ||
-            source is NoodlePosterSource && policy?.translateQueries == false))) {
+        val includeTaxonomy = if (aliases.isNotEmpty()) policy?.includeGenreTaxonomyResults
+            else policy?.includeTaxonomyResults
+        if (terms.isEmpty() || includeTaxonomy == false ||
+            (aliases.isEmpty() && source is NoodlePosterSource && policy?.translateQueries == false)) {
             return@coroutineScope emptyList()
         }
         val native = source as? RussianProvider

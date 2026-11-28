@@ -38,6 +38,7 @@ object Translation {
         val canonical = when (term) {
             "home made", "real homemade", "русское домашнее", "russian homemade" -> "homemade"
             "анальное", "анальный", "анал секс" -> "анал"
+            "унижени" -> "унижение"
             else -> term
         }
         return searchGroups.firstOrNull { canonical in it }.orEmpty()

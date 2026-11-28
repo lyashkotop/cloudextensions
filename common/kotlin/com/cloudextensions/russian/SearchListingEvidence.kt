@@ -1,5 +1,6 @@
 package com.cloudextensions.russian
 
+import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -25,5 +26,29 @@ object SearchListingEvidence {
         val terms = word.findAll(query.lowercase()).map { it.value }.toList()
         val titleWords = word.findAll(title.lowercase()).map { it.value }.toSet()
         return terms.isNotEmpty() && terms.all { it in titleWords }
+    }
+
+    private val bdsmPornGuy = Regex("""пар(?:ень|ня|ню|нем|не|ни|ней|ням|нями|нях)|guys?""")
+    private val bdsmPornSlave = Regex("""рабын(?:я|и|ю|ей|ь|ям|ями|ях)|slaves?""")
+    private val bdsmPornRussian = Regex("""русск(?:ая|ую|ой|ие|их|ий|ое|ого|им|ими|ом)|russian""")
+    private val bdsmPornHumiliation = Regex("""униж\p{L}+|униз\p{L}+|humiliat\p{L}+""")
+
+    fun bdsmPornTitleMatcher(query: String): (String) -> Boolean {
+        val term = Metadata.clean(query).lowercase(Locale.ROOT)
+        val aliases = Translation.searchAliases(term)
+        val wordPattern = when {
+            term in setOf("guy", "парень") -> bdsmPornGuy
+            term in setOf("рабыня", "рабыни", "slave", "slaves") -> bdsmPornSlave
+            term in setOf("русская", "русские", "russian") -> bdsmPornRussian
+            "унижение" in aliases -> bdsmPornHumiliation
+            else -> null
+        }
+        val phrases = (listOf(term) + aliases).map { text -> word.findAll(text).map { it.value }.toList() }
+            .filter { it.isNotEmpty() }
+        return { title ->
+            val titleWords = word.findAll(title.lowercase(Locale.ROOT)).map { it.value }.toSet()
+            if (wordPattern != null) titleWords.any(wordPattern::matches) || term in titleWords
+            else phrases.any { titleWords.containsAll(it) }
+        }
     }
 }
