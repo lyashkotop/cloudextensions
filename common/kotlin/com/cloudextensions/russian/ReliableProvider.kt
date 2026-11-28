@@ -33,8 +33,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 private const val DETAIL_MAX_AGE_NANOS = 75_000_000_000L
 private const val SEARCH_REVIEW_LIMIT = 7
 private const val SEARCH_PAGE_MINIMUM = 4
-private const val FULLER_FIRST_PAGE_MINIMUM = 8
-private const val FULLER_FIRST_PAGE_REVIEW_TARGET = 12
+private const val BDSMPORN_FIRST_PAGE_MINIMUM = 8
+private const val BDSMPORN_FIRST_PAGE_REVIEW_TARGET = 12
 private const val SEARCH_PAGE_SIZE = 20
 private const val SEARCH_POSTER_COUNT = 3
 private const val MAX_UPSTREAM_PAGES_PER_EXPANSION = 4
@@ -47,9 +47,7 @@ private val slowFirstPageSources = setOf(
     "SickR", "Huyamba", "ProstoPorno", "Strip2",
     "RoughXXXTube", "XHamster", "NoodleMagazine", "TubeBDSM",
 )
-private val fullerFirstPageSources = setOf("BdsmPorn", "HcBDSMX", "PornoMoloko", "TubeSafari")
 private const val FIRST_PAGE_TARGET_MS = 3_000L
-private const val FULLER_FIRST_PAGE_TARGET_MS = 4_200L
 private const val FIRST_PAGE_MERGE_MS = 1_700L
 private val uniqueResolutions = setOf("Beeg", "EPorner", "TubeBDSM")
 private val tracksRemovedVideos = setOf("HcBDSMX", "HurtSex", "PornVideos", "TubeSafari")
@@ -347,7 +345,7 @@ class ReliableProvider(
                 val queue = if (reviewRank.isEmpty()) normalized else normalized.sortedBy { reviewRank[searchKey(it)] ?: Int.MAX_VALUE }
                 val target = when {
                     !firstPage || providerId == null -> Int.MAX_VALUE
-                    providerId in fullerFirstPageSources -> FULLER_FIRST_PAGE_REVIEW_TARGET
+                    providerId == "BdsmPorn" -> BDSMPORN_FIRST_PAGE_REVIEW_TARGET
                     providerId == "XHamster" || providerId == "TubeBDSM" -> SEARCH_POSTER_COUNT
                     else -> 6
                 }
@@ -630,11 +628,10 @@ class ReliableProvider(
             original.onAwait { it to null }
         }
         if (full != null) return@coroutineScope FirstSearchBatch(full)
-        val minimum = if (providerId in fullerFirstPageSources) FULLER_FIRST_PAGE_MINIMUM else SEARCH_PAGE_MINIMUM
         val eligible = ready?.items.orEmpty().asSequence()
             .filter { isListable(it.url) && accepts(it.name, Metadata.cardTags(it.url)) }
-            .distinctBy(::searchKey).take(minimum).count()
-        if (eligible < minimum) return@coroutineScope FirstSearchBatch(combined.await())
+            .distinctBy(::searchKey).take(SEARCH_PAGE_MINIMUM).count()
+        if (eligible < SEARCH_PAGE_MINIMUM) return@coroutineScope FirstSearchBatch(combined.await())
 
         // Revisit the same source cursor on scroll and merge its translated and taxonomy branches there.
         combined.cancel()
@@ -644,10 +641,9 @@ class ReliableProvider(
     override suspend fun search(query: String, page: Int): SearchResponseList = RequestLimits.required("Поиск", LISTING_TIMEOUT_MS) {
         val started = System.nanoTime()
         val listingDeadline = started + LISTING_TIMEOUT_MS * 1_000_000L
-        val fullerFirstPage = page == 1 && providerId in fullerFirstPageSources
-        val minimum = if (fullerFirstPage) FULLER_FIRST_PAGE_MINIMUM else SEARCH_PAGE_MINIMUM
-        val firstPageBudget = if (fullerFirstPage) FULLER_FIRST_PAGE_TARGET_MS else FIRST_PAGE_TARGET_MS
-        val firstPageTarget = started + firstPageBudget * 1_000_000L
+        val firstPageTarget = started + FIRST_PAGE_TARGET_MS * 1_000_000L
+        val allowSparseFollowUp = page == 1 && providerId == "BdsmPorn"
+        val minimum = if (allowSparseFollowUp) BDSMPORN_FIRST_PAGE_MINIMUM else SEARCH_PAGE_MINIMUM
         val quickFirstPage = page == 1 && providerId in slowFirstPageSources
         val filtered = ContentPolicy.enabled
         val mustReview = filtered || requiresListingReview
@@ -683,7 +679,6 @@ class ReliableProvider(
             val cards = mutableListOf<SearchResponse>()
             val genre = lang in listOf("ru", "en") && Translation.searchAliases(query).isNotEmpty()
             val expandSparse = mustReview || genre || providerId in setOf("PornoRussia", "BdsmPorn")
-            val allowSparseFollowUp = page == 1 && providerId == "BdsmPorn"
             var limit = if (page == 1 && !expandSparse) 1 else MAX_UPSTREAM_PAGES_PER_EXPANSION
             var deadline: Long? = null
             var sparseDeadline: Long? = null
@@ -716,7 +711,7 @@ class ReliableProvider(
 
 
             while (cards.size < SEARCH_PAGE_SIZE) {
-                val fillingSparsePage = allowSparseFollowUp && cards.size in 1 until SEARCH_PAGE_MINIMUM
+                val fillingSparsePage = allowSparseFollowUp && cards.size in 1 until minimum
                 val followUp = if (fillingSparsePage) {
                     sparseDeadline ?: minOf(
                         listingDeadline - 2_000_000_000L,
@@ -780,7 +775,7 @@ class ReliableProvider(
                 }
                 cards += checked
                 checked.forEach { seen.addAll(listingKeys(it)) }
-                val canFillSparsePage = allowSparseFollowUp && cards.size in 1 until SEARCH_PAGE_MINIMUM &&
+                val canFillSparsePage = allowSparseFollowUp && cards.size in 1 until minimum &&
                     (pending != null || canFetch) && sparseDeadline?.let { remainingMillis(it) > 0 } != false
                 if (!completeBatch || cards.size >= minimum ||
                     !canFillSparsePage && remainingMillis(reviewDeadline) <= 0 ||

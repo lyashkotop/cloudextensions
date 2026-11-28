@@ -222,7 +222,7 @@ internal fun testSearchPaging() {
             check(fastFirst.ids() == (1..7).toList() && fastFirst.hasNext)
             val fastSecond = fastStrict.search("123", 2)
             check(fastSecond.ids().toSet() == (8..24).toSet() && !fastSecond.hasNext)
-            val fuller = ReliableProvider(StrictCatalogue(poster.toURI().toString(), slowTail = true), "PornoMoloko")
+            val fuller = ReliableProvider(StrictCatalogue(poster.toURI().toString(), slowTail = true), "BdsmPorn")
             val fullerFirst = fuller.search("123", 1)
             val fullerSecond = fuller.search("123", 2)
             check(fullerFirst.ids().size >= 12 && fullerFirst.hasNext)
