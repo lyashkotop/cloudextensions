@@ -40,6 +40,7 @@ private const val LISTING_TIMEOUT_MS = 22_000L
 private val slowFirstPageSources = setOf(
     "Vpoisk", "BoundHub", "ThisVid", "HcBDSMX", "XRares", "PornoRussia",
     "SickR", "Huyamba", "ProstoPorno", "Strip2",
+    "RoughXXXTube", "XHamster", "NoodleMagazine",
 )
 private const val FIRST_PAGE_TARGET_MS = 3_000L
 private const val FIRST_PAGE_MERGE_MS = 1_700L
@@ -351,7 +352,11 @@ class ReliableProvider(
             else {
                 // Share detail checks across languages and return the verified cards in site order.
                 val queue = if (reviewRank.isEmpty()) normalized else normalized.sortedBy { reviewRank[searchKey(it)] ?: Int.MAX_VALUE }
-                val target = if (firstPage && providerId != null) 6 else Int.MAX_VALUE
+                val target = when {
+                    !firstPage || providerId == null -> Int.MAX_VALUE
+                    providerId == "XHamster" -> SEARCH_POSTER_COUNT
+                    else -> 6
+                }
                 val accepted = reviewedCards(queue, deadline, early, returnAfter = target).associateBy(::searchKey)
                 normalized.mapNotNull { accepted[searchKey(it)] }
             }
