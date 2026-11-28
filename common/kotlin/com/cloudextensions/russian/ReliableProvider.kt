@@ -500,7 +500,9 @@ class ReliableProvider(
                 val terms = listOf(query) + forms.filterNot { it.equals(Metadata.clean(query), ignoreCase = true) }
                 val replies = terms.filter { page <= (history.aliasEnds[it] ?: Int.MAX_VALUE) }.map { term ->
                     async {
-                        term to if (term == query) branch(term) else RequestLimits.optional(6500) { branch(term) }
+                        // BDSM-Porn bounds its native requests and can wait for the app's browser check.
+                        term to if (term == query || providerId == "BdsmPorn") branch(term)
+                            else RequestLimits.optional(6500) { branch(term) }
                     }
                 }.awaitAll()
                 for ((term, batch) in replies) {

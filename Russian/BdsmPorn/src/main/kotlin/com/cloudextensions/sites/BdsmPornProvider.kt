@@ -32,6 +32,7 @@ import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
 private const val SEARCH_BATCH_SIZE = 20
+private const val SEARCH_TIMEOUT_MS = 14_000L
 
 class BdsmPornProvider : RussianProvider(
     SiteSpec(
@@ -79,7 +80,7 @@ class BdsmPornProvider : RussianProvider(
         val matchesTitle = SearchListingEvidence.bdsmPornTitleMatcher(term)
 
         suspend fun nativeMatches(query: String): SearchResponseList? =
-            RequestLimits.optional(2600) { super.search(query, page) }?.let { result ->
+            RequestLimits.optional(SEARCH_TIMEOUT_MS) { super.search(query, page) }?.let { result ->
                 // A successful search URL can still contain cards from a suggested category.
                 val matches = result.items.filter { matchesTitle(it.name) }
                 newSearchResponseList(matches, matches.isNotEmpty() && result.hasNext)
@@ -101,8 +102,8 @@ class BdsmPornProvider : RussianProvider(
             }
         }
         val sections = async {
-            // When native search is slow or sparse, fetch sections without waiting for its timeout.
-            val quick = withTimeoutOrNull(400) { native.await() }
+            // Let the text search reach the browser check before short-lived section requests start.
+            val quick = withTimeoutOrNull(Network.BDSMPORN_SEARCH_HTTP_TIMEOUT_MS) { native.await() }
             if (quick != null && quick.items.size >= SEARCH_BATCH_SIZE) emptyList() else spec.sections.map { section ->
                 async { searchSection(section, page) }
             }.awaitAll().filterNotNull()

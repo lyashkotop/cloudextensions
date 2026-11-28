@@ -33,6 +33,7 @@ import org.jsoup.nodes.Document
 object Network {
     private val cloudflare by lazy { CloudflareKiller() }
     private const val BDSMPORN_HOST = "ru.bdsm-porn.cc"
+    const val BDSMPORN_SEARCH_HTTP_TIMEOUT_MS = 2600L
     private data class BrowserSession(val clearance: String, val userAgent: String)
     @Volatile private var bdsmPornSession: BrowserSession? = null
     private val bdsmPornBrowser = Mutex()
@@ -172,7 +173,7 @@ object Network {
                 request.data?.let { values -> val form=FormBody.Builder();values.forEach { (k,v)->form.add(k,v) };builder.post(form.build()) }
                 val initial=builder.build()
                 val sessionAtRequest = bdsmPornSession
-                val document=try {
+                suspend fun directRequest(): Document =
                     try { execute(initial,request.allowNotFound) } catch(failure:HttpFailure) {
                         if(failure.code!=429)throw failure
                         val delay=retryDelay(failure.retryAfter) ?: throw failure
@@ -184,6 +185,10 @@ object Network {
                         }.build()
                         execute(retry,request.allowNotFound)
                     }
+                val document=try {
+                    if (initial.url.host == BDSMPORN_HOST && initial.url.encodedPath.trimEnd('/') == "/search") {
+                        RequestLimits.required("Поиск", BDSMPORN_SEARCH_HTTP_TIMEOUT_MS) { directRequest() }
+                    } else directRequest()
                 } catch(failure:HttpFailure) {
                     if(failure.code !in setOf(403,503))throw failure
                     if (initial.url.host == BDSMPORN_HOST && failure.url.toHttpUrlOrNull()?.host == BDSMPORN_HOST) {
