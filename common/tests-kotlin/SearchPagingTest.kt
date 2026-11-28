@@ -24,7 +24,8 @@ private class SearchCatalogue(private val poster: String) : MainAPI() {
         val ids = when {
             query == "amateur" && page == 1 -> 1..47
             query == "amateur" && page == 2 -> 47..53
-            query == "подруга" || query == "girlfriend" -> 1..6
+            query == "подруга" -> 1..4
+            query == "girlfriend" -> 3..6
             else -> IntRange.EMPTY
         }
         val cards = ids.map { id ->
@@ -140,7 +141,7 @@ internal fun testSearchPaging() {
             val first = plugin.search("amateur", 1)
             check(first.ids() == (1..20).toList() && first.hasNext)
             check(first.items.take(3).all { it.posterUrl == poster.toURI().toString() })
-            check(source.requests.none { Translation.target(it.first) == "en" })
+            check(source.requests.contains("домашнее" to 1))
 
             val second = plugin.search("amateur", 2)
             check(second.ids() == (21..40).toList() && second.hasNext)
@@ -154,9 +155,10 @@ internal fun testSearchPaging() {
             check(plugin.search("amateur", 2).ids() == second.ids())
 
             val previous = source.requests.size
-            check(plugin.search("подруга", 1).items.size == 6)
+            check(plugin.search("подруга", 1).ids() == (1..6).toList())
             check(source.requests.drop(previous).toSet() == setOf("подруга" to 1, "girlfriend" to 1))
-            check(plugin.search("absent", 1).let { it.items.isEmpty() && !it.hasNext })
+            check(plugin.search("girlfriend", 1).ids() == listOf(3, 4, 5, 6, 1, 2))
+            check(plugin.search("two words", 1).let { it.items.isEmpty() && !it.hasNext })
 
             val slowCompanion = ReliableProvider(SlowTranslationCatalogue(poster.toURI().toString()), "Vpoisk")
             val fast = slowCompanion.search("подруга", 1)

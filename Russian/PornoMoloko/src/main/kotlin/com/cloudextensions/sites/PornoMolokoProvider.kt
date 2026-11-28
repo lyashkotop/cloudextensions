@@ -42,7 +42,6 @@ class PornoMolokoProvider : RussianProvider(
         ),
     ),
 ) {
-    override val russianTitlesOnly = true
     override val includeTaxonomyResults = false
 
     override suspend fun searchRequest(term: String): PageRequest =

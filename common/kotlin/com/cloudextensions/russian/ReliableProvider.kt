@@ -488,12 +488,9 @@ class ReliableProvider(
             Batch(null, e)
         }
         val russianOnly = (source as? SearchPolicy)?.russianTitlesOnly == true
-        val forms = aliases.ifEmpty { Translation.searchForms(query) }.filterNot {
-            (russianOnly && Translation.target(it) == "ru") ||
-                (lang == "ru" && Translation.target(query) == "ru" && Translation.target(it) == "en")
-        }
-        val skipTranslation = (lang == "ru" && Translation.target(query) == "ru") ||
-            (russianOnly && Translation.target(query) == "en")
+        val forms = aliases.ifEmpty { Translation.searchForms(query) }
+            .filterNot { russianOnly && Translation.target(it) == "ru" }
+        val skipTranslation = russianOnly && Translation.target(query) == "en"
         if (forms.isEmpty() && skipTranslation) {
             return (source.search(query, page) ?: newSearchResponseList(emptyList(), false)).also { onListing(it, true) }
         }
@@ -542,9 +539,7 @@ class ReliableProvider(
     private suspend fun taxonomyResults(
         query: String, page: Int, history: SearchHistory, aliases: Set<String>,
     ): List<SearchResponseList> = coroutineScope {
-        val englishOnly = lang == "ru" && Translation.target(query) == "ru"
         val terms = aliases.ifEmpty { TaxonomySearch.terms(query) }
-            .filterNot { englishOnly && Translation.target(it) == "en" }.toSet()
         val policy = source as? SearchPolicy
         if (terms.isEmpty() || (aliases.isEmpty() && (policy?.includeTaxonomyResults == false ||
             source is NoodlePosterSource && policy?.translateQueries == false))) {
@@ -574,8 +569,7 @@ class ReliableProvider(
         val tasks = if (saved != null) pending(saved) else {
             val declared = (native?.spec?.searchSections.orEmpty() + source.mainPage.map { Section(it.name, it.data) })
                 .filter {
-                    (!englishOnly || Translation.target(it.name) != "en") &&
-                        TaxonomySearch.matches(it.name, terms, expandGenre = aliases.isNotEmpty()) &&
+                    TaxonomySearch.matches(it.name, terms, expandGenre = aliases.isNotEmpty()) &&
                         (TaxonomySearch.kind(it.path) != null || source is NoodlePosterSource && !it.path.startsWith('/') ||
                             aliases.isNotEmpty() && native != null && it.path.trim('/').isNotEmpty() &&
                             Translation.searchAliases(it.path.trim('/')).any(terms::contains))
@@ -587,7 +581,7 @@ class ReliableProvider(
                 }
             }.orEmpty()
             val used = declared.mapTo(mutableSetOf(), ::sectionKey)
-            val discovered = linked.filter { (!englishOnly || Translation.target(it.name) != "en") && used.add(sectionKey(it)) }
+            val discovered = linked.filter { used.add(sectionKey(it)) }
             history.taxonomy = declared + discovered
             declaredTasks + pending(discovered)
         }
