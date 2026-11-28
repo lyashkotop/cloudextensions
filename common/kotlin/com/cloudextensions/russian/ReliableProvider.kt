@@ -40,7 +40,7 @@ private const val LISTING_TIMEOUT_MS = 22_000L
 private val slowFirstPageSources = setOf(
     "Vpoisk", "BoundHub", "ThisVid", "HcBDSMX", "XRares", "PornoRussia",
     "SickR", "Huyamba", "ProstoPorno", "Strip2",
-    "RoughXXXTube", "XHamster", "NoodleMagazine",
+    "RoughXXXTube", "XHamster", "NoodleMagazine", "TubeBDSM",
 )
 private const val FIRST_PAGE_TARGET_MS = 3_000L
 private const val FIRST_PAGE_MERGE_MS = 1_700L
@@ -354,7 +354,7 @@ class ReliableProvider(
                 val queue = if (reviewRank.isEmpty()) normalized else normalized.sortedBy { reviewRank[searchKey(it)] ?: Int.MAX_VALUE }
                 val target = when {
                     !firstPage || providerId == null -> Int.MAX_VALUE
-                    providerId == "XHamster" -> SEARCH_POSTER_COUNT
+                    providerId == "XHamster" || providerId == "TubeBDSM" -> SEARCH_POSTER_COUNT
                     else -> 6
                 }
                 val accepted = reviewedCards(queue, deadline, early, returnAfter = target).associateBy(::searchKey)
@@ -627,7 +627,10 @@ class ReliableProvider(
                 if (isOriginal) original.complete(response)
             }
         }
-        val mergeBudget = if (providerId == "RoughXXXTube") 800L else FIRST_PAGE_MERGE_MS
+        val mergeBudget = when (providerId) {
+            "RoughXXXTube", "TubeBDSM" -> 800L
+            else -> FIRST_PAGE_MERGE_MS
+        }
         withTimeoutOrNull(mergeBudget) { combined.await() }?.let { return@coroutineScope FirstSearchBatch(it) }
 
         val (ready, full) = select<Pair<SearchResponseList?, SearchResponseList?>> {
