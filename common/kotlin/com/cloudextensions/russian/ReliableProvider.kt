@@ -627,7 +627,8 @@ class ReliableProvider(
                 if (isOriginal) original.complete(response)
             }
         }
-        withTimeoutOrNull(FIRST_PAGE_MERGE_MS) { combined.await() }?.let { return@coroutineScope FirstSearchBatch(it) }
+        val mergeBudget = if (providerId == "RoughXXXTube") 800L else FIRST_PAGE_MERGE_MS
+        withTimeoutOrNull(mergeBudget) { combined.await() }?.let { return@coroutineScope FirstSearchBatch(it) }
 
         val (ready, full) = select<Pair<SearchResponseList?, SearchResponseList?>> {
             combined.onAwait { null to it }
